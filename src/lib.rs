@@ -69,6 +69,14 @@ impl alloc::string::ToString for PlacesRow {
     }
 }
 
+use core::convert::From;
+impl From<u128> for PlacesRow {
+    // Converts `value` into `PlacesRow`.
+    fn from(value: u128) -> Self {
+        Self::new_from_num(value)
+    }
+}
+
 use alloc::{string::String, vec, vec::Vec};
 
 /// Converts `num` into row of decimal places starting at ones.
