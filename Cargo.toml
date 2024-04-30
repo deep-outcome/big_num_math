@@ -7,5 +7,4 @@ license     = "MIT"
 description = "Simple library for computations on large numbers."
 keywords    = [ "math", "large-numbers" ]
 categories  = [ "no-std", "mathematics" ]
-documentation = ""
-repository  = ""
+repository  = "https://github.com/bravequickcleverfibreyarn/big_num_math"
