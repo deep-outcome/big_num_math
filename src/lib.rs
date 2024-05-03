@@ -237,29 +237,39 @@ fn product(mpler: u8, mcand: &Vec<u8>, product: &mut Vec<u8>) {
     }
 }
 
-/// Adds `addend_1` to `result` or adds `addend_1` and `addend_2` sum into `result`.
+/// Adds `addend_1` to `sum` or adds `addend_1` and `addend_2` sum into `sum`.
 ///
-/// Beware, `addend_1` len + `offset` must always be at least same as `result` len when `result` serves as `addend_2`.
+/// Beware, `addend_1` len + `offset` must always be at least same as `sum` len when `sum` serves as `addend_2` or directly as `addend_2` len.
 /// Beware, when `addend_2` is some, `offset` must be `0`.
-fn addition(addend_1: &Vec<u8>, addend_2: Option<&Vec<u8>>, result: &mut Vec<u8>, offset: usize) {
+fn addition(addend_1: &Vec<u8>, addend_2: Option<&Vec<u8>>, sum: &mut Vec<u8>, offset: usize) {
     #[cfg(test)]
     assert!((addend_2.is_some() && offset == 0) || addend_2.is_none());
 
     #[cfg(test)]
-    assert!((addend_2.is_none() && addend_1.len() + offset >= result.len()) || addend_2.is_some());
+    assert!(
+        (addend_2.is_some() && addend_1.len() >= addend_2.unwrap().len()) || addend_2.is_none()
+    );
+
+    #[cfg(test)]
+    assert!((addend_2.is_none() && addend_1.len() + offset >= sum.len()) || addend_2.is_some());
 
     // avoids repetetive reallocations
     // +1 stands for contigent new place
     // reallocation would also break pointer to vector buffer
-    // in case when `result` serves as `addend_2`
+    // in case when `sum` serves as `addend_2`
     let new_min_len = addend_1.len() + offset;
-    result.reserve(new_min_len - result.len() + 1);
-    result.resize(new_min_len, 0);
+    sum.reserve(new_min_len - sum.len() + 1);
+
+    // pure overhead for `add`
+    // only `mulmul` could benefit here since index bound checks can
+    // be ommitted later in loop body, however
+    // performance measurement is needed for optimal decision
+    // sum.resize(new_min_len, 0);
 
     let (addend_2_ptr, addend_2_len) = if let Some(addend) = addend_2 {
         (addend.as_ptr(), addend.len())
     } else {
-        (result.as_ptr(), result.len())
+        (sum.as_ptr(), sum.len())
     };
 
     let mut takeover = 0;
@@ -267,18 +277,23 @@ fn addition(addend_1: &Vec<u8>, addend_2: Option<&Vec<u8>>, result: &mut Vec<u8>
         let addend_1_num = addend_1[addend_1_inx];
         let addend_2_inx = addend_1_inx + offset;
 
-        let sum = if addend_2_inx < addend_2_len {
+        let nums_sum = if addend_2_inx < addend_2_len {
             let addend_2_num = unsafe { addend_2_ptr.offset(addend_2_inx as isize).read() };
             addend_2_num + addend_1_num
         } else {
             addend_1_num
         };
 
-        result[addend_2_inx] = ones(sum, &mut takeover);
+        let add = ones(nums_sum, &mut takeover);
+        if let Some(refer) = sum.get_mut(addend_2_inx) {
+            *refer = add;
+        } else {
+            sum.push(add);
+        }
     }
 
     if takeover != 0 {
-        result.push(takeover);
+        sum.push(takeover);
     }
 }
 
@@ -463,9 +478,10 @@ mod tests_of_units {
 
         #[test]
         fn basic_test() {
-            let pr = PlacesRow::new_from_num(2);
-            let mul = mul(&pr, &pr);
-            assert_eq!(&[4], &*mul.row);
+            let pr1 = PlacesRow::new_from_num(2);
+            let pr2 = PlacesRow::new_from_num(3);
+            let mul = mul(&pr1, &pr2);
+            assert_eq!(&[6], &*mul.row);
         }
 
         #[test]
@@ -484,7 +500,7 @@ mod tests_of_units {
             assert_eq!(&[6, 5, 4, 3, 2, 1], &*mul.row);
         }
         #[test]
-        fn left_num_0_test() {
+        fn zero_num_test() {
             let pr1 = PlacesRow::new_from_num(0);
             let pr2 = PlacesRow::new_from_num(123456);
             let mul = mul(&pr1, &pr2);
@@ -492,11 +508,11 @@ mod tests_of_units {
         }
 
         #[test]
-        fn right_num_0_test() {
-            let pr1 = PlacesRow::new_from_num(123456);
+        fn zero_nums_test() {
+            let pr1 = PlacesRow::new_from_num(0);
             let pr2 = PlacesRow::new_from_num(0);
             let mul = mul(&pr1, &pr2);
-            assert_eq!(&[0, 0, 0, 0, 0, 0], &*mul.row);
+            assert_eq!(&[0], &*mul.row);
         }
 
         #[test]
