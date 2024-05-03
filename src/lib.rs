@@ -112,7 +112,7 @@ fn to_raw_row_b(s: &str) -> Option<Vec<u8>> {
 }
 
 /// Converts `row` into `String` representation.
-fn to_number(row: &[u8]) -> String {
+fn to_number(row: &Vec<u8>) -> String {
     let row_len = row.len();
     let mut number = String::with_capacity(row_len);
     let mut zeros = 0;
@@ -405,19 +405,20 @@ mod tests_of_units {
 
         mod to_number {
             use crate::to_number;
+            use alloc::vec;
 
             #[test]
             fn basic_test() {
-                let row = &[0, 9, 8, 7, 6, 5, 4, 3, 2, 1];
-                let num = to_number(row);
+                let row = vec![0, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+                let num = to_number(&row);
 
                 assert_eq!("1234567890", num.as_str());
             }
 
             #[test]
             fn zeros_reduction_test() {
-                let row = &[0, 0, 0, 0, 0, 0];
-                let num = to_number(row);
+                let row = vec![0, 0, 0, 0, 0, 0];
+                let num = to_number(&row);
 
                 assert_eq!("0", num.as_str());
             }
@@ -425,8 +426,8 @@ mod tests_of_units {
             #[test]
             #[should_panic(expected = "Only ones supported.")]
             fn only_ones_supported_test() {
-                let row = &[10];
-                _ = to_number(row);
+                let row = vec![10];
+                _ = to_number(&row);
             }
         }
     }
