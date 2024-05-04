@@ -56,33 +56,37 @@ impl PlacesRow {
     ///
     /// Only digits are allowed in `s`.
     ///
-    /// Returns `None` when `s` is uncovertable to `PlacesRow`.
-    pub fn new_from_str(s: &str) -> Option<Self> {
+    /// Returns `PlacesRow` or index in `s` where uncovertable `char` was
+    /// encountered1; `None` for empty string.
+    pub fn new_from_str(s: &str) -> Result<Self, Option<usize>> {
         let s_len = s.len();
         if s_len == 0 {
-            return None;
+            return Err(None);
         }
-        
+
         let mut row = Vec::with_capacity(s_len);
-        
+
+        let mut inx = s_len;
+
         let mut zeros = 0;
         for (c, mb) in s.chars().rev().zip(row.spare_capacity_mut()) {
+            inx -= 1;
             if c.is_ascii_digit() {
                 let d = c.to_digit(10).unwrap();
 
                 if d == 0 {
                     zeros += 1;
                 }
-                
+
                 mb.write(d as u8);
             } else {
-                return None;
+                return Err(Some(inx));
             }
         }
-        
+
         unsafe { row.set_len(s_len) }
 
-        Some(PlacesRow {
+        Ok(PlacesRow {
             row: if s_len == zeros { vec![0; 1] } else { row },
         })
     }
@@ -384,28 +388,32 @@ mod tests_of_units {
 
             #[test]
             fn nondigit_str_test() {
-                let row = PlacesRow::new_from_str("w");
-                assert!(row.is_none());
+                let row = PlacesRow::new_from_str("12w123");
+                assert!(row.is_err());
+                let inx = row.err().unwrap();
+                assert!(inx.is_some());
+                assert_eq!(2, inx.unwrap());
             }
 
             #[test]
             fn basic_test() {
                 let row = PlacesRow::new_from_str("1234567890");
-                assert!(row.is_some());
-                assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*row.unwrap().row);
+                assert!(row.is_ok());
+                assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*row.ok().unwrap().row);
             }
 
             #[test]
             fn zeros_reduction_test() {
                 let row = PlacesRow::new_from_str("0000");
-                assert!(row.is_some());
-                assert_eq!(&[0], &*row.unwrap().row);
+                assert!(row.is_ok());
+                assert_eq!(&[0], &*row.ok().unwrap().row);
             }
 
             #[test]
             fn zero_len_str_test() {
                 let pr = PlacesRow::new_from_str("");
-                assert!(pr.is_none());
+                assert!(pr.is_err());
+                assert_eq!(None, pr.err().unwrap());
             }
         }
 
