@@ -37,10 +37,19 @@ impl PlacesRow {
     }
 
     /// Handy ctor for usage with _classic_ primitive numeric data type.
-    pub fn new_from_num(num: u128) -> Self {
-        PlacesRow {
-            row: to_raw_row_a(num),
+    pub fn new_from_num(mut num: u128) -> Self {
+        let mut row = Vec::new();
+        loop {
+            let d = num % 10;
+            row.push(d as u8);
+            num = num / 10;
+
+            if num == 0 {
+                break;
+            }
         }
+
+        PlacesRow { row }
     }
 
     /// Handy ctor for usage with long numbers.
@@ -115,22 +124,6 @@ impl From<u128> for PlacesRow {
 }
 
 use alloc::{string::String, vec, vec::Vec};
-
-/// Converts `num` into row of decimal places starting at ones.
-fn to_raw_row_a(mut num: u128) -> Vec<u8> {
-    let mut rr = Vec::new();
-    loop {
-        let d = num % 10;
-        rr.push(d as u8);
-        num = num / 10;
-
-        if num == 0 {
-            break;
-        }
-    }
-
-    rr
-}
 
 /// Converts `s` into row of decimal places starting at ones or
 /// fails on this.
@@ -394,8 +387,8 @@ mod tests_of_units {
 
         #[test]
         fn new_from_num_test() {
-            let pr = PlacesRow::new_from_num(1);
-            assert_eq!(&[1], &*pr.row);
+            let pr = PlacesRow::new_from_num(1234567890);
+            assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*pr.row);
         }
 
         #[test]
@@ -456,15 +449,6 @@ mod tests_of_units {
     }
 
     mod conversions {
-        use crate::to_raw_row_a;
-
-        #[test]
-        fn to_row_raw_a_test() {
-            let num = 1234567890;
-            let rr = to_raw_row_a(num);
-
-            assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*rr);
-        }
 
         mod to_raw_row_b {
             use crate::to_raw_row_b;
@@ -521,7 +505,7 @@ mod tests_of_units {
 
     // Addition.
     mod add {
-        use crate::{add, to_raw_row_a, to_raw_row_b, PlacesRow};
+        use crate::{add, to_raw_row_b, PlacesRow};
 
         #[test]
         fn basic_test() {
@@ -538,7 +522,7 @@ mod tests_of_units {
             let pr2 = PlacesRow::new_from_num(5);
 
             let sum = add(&pr1, &pr2);
-            assert_eq!(to_raw_row_a(100_004), sum.row);
+            assert_eq!(PlacesRow::new_from_num(100_004).row, sum.row);
         }
 
         #[test]
@@ -547,7 +531,7 @@ mod tests_of_units {
             let pr2 = PlacesRow::new_from_num(99_999);
 
             let sum = add(&pr1, &pr2);
-            assert_eq!(to_raw_row_a(100_004), sum.row);
+            assert_eq!(PlacesRow::new_from_num(100_004).row, sum.row);
         }
 
         #[test]
