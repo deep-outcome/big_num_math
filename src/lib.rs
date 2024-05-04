@@ -58,15 +58,34 @@ impl PlacesRow {
     ///
     /// Returns `None` when `s` is uncovertable to `PlacesRow`.
     pub fn new_from_str(s: &str) -> Option<Self> {
-        if s.len() == 0 {
+        
+        let s_len = s.len();
+        if s_len == 0 {
             return None;
         }
+        
+        let mut row = Vec::with_capacity(s_len);
+        
+        let mut zeros = 0;
+        for (c, mb) in s.chars().rev().zip(row.spare_capacity_mut()) {
+            if c.is_ascii_digit() {
+                let d = c.to_digit(10).unwrap();
 
-        if let Some(pr) = to_raw_row_b(s) {
-            Some(PlacesRow { row: pr })
-        } else {
-            None
+                if d == 0 {
+                    zeros += 1;
+                }
+                
+                mb.write(d as u8);
+            } else {
+                return None;
+            }
         }
+        
+        unsafe { row.set_len(s_len) }
+
+        Some(PlacesRow {
+            row: if s_len == zeros { vec![0; 1] } else { row },
+        })
     }
 
     /// Returns `String` representation.
@@ -128,28 +147,6 @@ impl From<u128> for PlacesRow {
 }
 
 use alloc::{string::String, vec, vec::Vec};
-
-/// Converts `s` into row of decimal places starting at ones or
-/// fails on this.
-fn to_raw_row_b(s: &str) -> Option<Vec<u8>> {
-    let mut rr = vec![0u8; s.len()];
-    let mut zeros = 0;
-    for (c, p) in s.chars().rev().zip(rr.iter_mut()) {
-        if c.is_ascii_digit() {
-            let d = c.to_digit(10).unwrap();
-
-            if d == 0 {
-                zeros += 1;
-            }
-
-            *p = d as u8;
-        } else {
-            return None;
-        }
-    }
-
-    Some(if s.len() == zeros { vec![0; 1] } else { rr })
-}
 
 /// Converts `row` into `String` representation.
 fn to_number(row: &Vec<u8>) -> String {
@@ -365,8 +362,8 @@ mod tests_of_units {
 
             #[test]
             fn unsupported_num_test() {
-                let rr = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-                let pr = PlacesRow::new_from_vec(rr);
+                let row = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+                let pr = PlacesRow::new_from_vec(row);
 
                 assert!(pr.is_err());
                 assert_eq!(10, pr.err().unwrap());
@@ -374,9 +371,9 @@ mod tests_of_units {
 
             #[test]
             fn basic_test() {
-                let rr = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-                let proof = rr.clone();
-                let pr = PlacesRow::new_from_vec(rr);
+                let row = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+                let proof = row.clone();
+                let pr = PlacesRow::new_from_vec(row);
 
                 assert!(pr.is_ok());
                 assert_eq!(proof, pr.ok().unwrap().row);
@@ -385,7 +382,7 @@ mod tests_of_units {
             #[test]
             fn zeros_reduction_test() {
                 let pr = PlacesRow::new_from_vec(vec![0, 0, 0]).unwrap();
-                assert_eq!(vec![0], pr.row);
+                assert_eq!(&[0], &*pr.row);
             }
         }
 
@@ -397,19 +394,31 @@ mod tests_of_units {
 
         mod new_from_str {
             use crate::PlacesRow;
-            
+
+            #[test]
+            fn nondigit_str_test() {
+                let row = PlacesRow::new_from_str("w");
+                assert!(row.is_none());
+            }
+
+            #[test]
+            fn basic_test() {
+                let row = PlacesRow::new_from_str("1234567890");
+                assert!(row.is_some());
+                assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*row.unwrap().row);
+            }
+
+            #[test]
+            fn zeros_reduction_test() {
+                let row = PlacesRow::new_from_str("0000");
+                assert!(row.is_some());
+                assert_eq!(&[0], &*row.unwrap().row);
+            }
 
             #[test]
             fn zero_len_str_test() {
                 let pr = PlacesRow::new_from_str("");
                 assert!(pr.is_none());
-            }
-
-            #[test]
-            fn basic_test() {
-                let pr = PlacesRow::new_from_str("1");
-                assert!(pr.is_some());
-                assert_eq!(&[1], &*pr.unwrap().row);
             }
         }
 
@@ -430,7 +439,7 @@ mod tests_of_units {
             let mut pr = PlacesRow { row: vec![1, 2, 0] };
             pr.truncate_leading_zeros();
 
-            assert_eq!(vec![1, 2], pr.row);
+            assert_eq!(&[1, 2], &*pr.row);
         }
 
         #[test]
@@ -442,7 +451,7 @@ mod tests_of_units {
 
             let mut pr = PlacesRow { row };
             pr.shrink_to_fit();
-            assert_eq!(vec![1, 2], pr.row);
+            assert_eq!(&[1, 2], &*pr.row);
             assert_eq!(2, pr.row.capacity());
         }
 
@@ -464,30 +473,6 @@ mod tests_of_units {
     }
 
     mod conversions {
-
-        mod to_raw_row_b {
-            use crate::to_raw_row_b;
-
-            #[test]
-            fn uncovertable_str_test() {
-                let rr = to_raw_row_b("w");
-                assert!(rr.is_none());
-            }
-
-            #[test]
-            fn basic_test() {
-                let rr = to_raw_row_b("1234567890");
-                assert!(rr.is_some());
-                assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*rr.unwrap());
-            }
-
-            #[test]
-            fn zeros_reduction_test() {
-                let rr = to_raw_row_b("0000");
-                assert!(rr.is_some());
-                assert_eq!(&[0], &*rr.unwrap());
-            }
-        }
 
         mod to_number {
             use crate::to_number;
@@ -520,7 +505,7 @@ mod tests_of_units {
 
     // Addition.
     mod add {
-        use crate::{add, to_raw_row_b, PlacesRow};
+        use crate::{add, PlacesRow};
 
         #[test]
         fn basic_test() {
@@ -554,14 +539,15 @@ mod tests_of_units {
             let pr = PlacesRow::new_from_str("680564733841876926926749214863536422910").unwrap();
 
             let sum = add(&pr, &pr);
-            let proof = to_raw_row_b("1361129467683753853853498429727072845820").unwrap();
-            assert_eq!(proof, sum.row);
+            let proof =
+                PlacesRow::new_from_str("1361129467683753853853498429727072845820").unwrap();
+            assert_eq!(proof.row, sum.row);
         }
     }
 
     /// Multiplication.
     mod mul {
-        use crate::{mul, to_raw_row_b, PlacesRow};
+        use crate::{mul, PlacesRow};
 
         #[test]
         fn basic_test() {
@@ -606,11 +592,11 @@ mod tests_of_units {
         fn advanced_test() {
             let pr = PlacesRow::new_from_num(u128::MAX);
             let mul = mul(&pr, &pr);
-            let proof = to_raw_row_b(
+            let proof = PlacesRow::new_from_str(
                 "115792089237316195423570985008687907852589419931798687112530834793049593217025",
             )
             .unwrap();
-            assert_eq!(proof, &*mul.row);
+            assert_eq!(proof.row, mul.row);
         }
     }
 
@@ -622,7 +608,7 @@ mod tests_of_units {
     /// E.g.: 1º=1, 1¹=1×1, 1²=1×1×1, 1³=1×1×1×1, …
     /// E.g.: 2º=1, 2¹=1×2, 2²=1×2×2, 2³=1×2×2×2, …    
     mod pow {
-        use crate::{pow, to_raw_row_b, PlacesRow};
+        use crate::{pow, PlacesRow};
 
         #[test]
         fn basic_test() {
@@ -632,31 +618,31 @@ mod tests_of_units {
 
         #[test]
         fn advanced_test2() {
-            let proof = to_raw_row_b("88817841970012523233890533447265625").unwrap();
+            let proof = PlacesRow::new_from_str("88817841970012523233890533447265625").unwrap();
             let pr = PlacesRow::new_from_num(25);
-            assert_eq!(proof, pow(&pr, 25).row);
+            assert_eq!(proof.row, pow(&pr, 25).row);
         }
 
         #[test]
         fn advanced_test3() {
-            let proof = to_raw_row_b(
+            let proof = PlacesRow::new_from_str(
                 "949279437109690919948053832937215463733689853138782229364504479870922851876864",
             )
             .unwrap();
 
             let pr = PlacesRow::new_from_num(998);
-            assert_eq!(proof, pow(&pr, 26).row);
+            assert_eq!(proof.row, pow(&pr, 26).row);
         }
 
         #[test]
         fn advanced_test4() {
-            let proof = to_raw_row_b(
+            let proof = PlacesRow::new_from_str(
                 "926336713898529563388567880069503262826159877325124512315660672063305037119488",
             )
             .unwrap();
 
             let pr = PlacesRow::new_from_num(2);
-            assert_eq!(proof, pow(&pr, 259).row);
+            assert_eq!(proof.row, pow(&pr, 259).row);
         }
 
         //#[test]
