@@ -14,30 +14,39 @@ impl PlacesRow {
     /// Places in `row` have to be ordered from ones over tens, hundreds, … to highest place;
     /// from 0-index to last-index.
     ///
+    /// Leading zeros are truncated. Does not reallocate.
+    ///
     /// Returns `PlacesRow` or index where place > `9` was
-    /// encountered.
-    pub fn new_from_vec(row: Vec<u8>) -> Result<Self, usize> {
-        let mut enumerator = row.iter().enumerate();
+    /// encountered. `None` for 0-len `row`.
+    pub fn new_from_vec(mut row: Vec<u8>) -> Result<Self, Option<usize>> {
+        if row.len() == 0 {
+            return Err(None);
+        }
 
-        let mut zeros = 0;
+        let mut enumerator = row.iter().enumerate();
         while let Some((inx, num)) = enumerator.next() {
             let num = *num;
             if num > 9 {
-                return Err(inx);
-            }
-
-            if num == 0 {
-                zeros += 1;
+                return Err(Some(inx));
             }
         }
 
-        Ok(PlacesRow {
-            row: if zeros == row.len() { vec![0] } else { row },
-        })
+        Self::truncate_leading_zeros_raw(&mut row);
+        if 0 == row.len() {
+            unsafe { row.set_len(1) }
+        }
+
+        Ok(PlacesRow { row })
     }
 
     /// Handy ctor for usage with _classic_ primitive numeric data type.
-    pub fn new_from_num(mut num: u128) -> Self {
+    pub fn new_from_num(num: u128) -> Self {
+        PlacesRow {
+            row: Self::from_num(num),
+        }
+    }
+
+    fn from_num(mut num: u128) -> Vec<u8> {
         let mut row = Vec::new();
         loop {
             let d = num % 10;
@@ -49,35 +58,48 @@ impl PlacesRow {
             }
         }
 
-        PlacesRow { row }
+        row
     }
 
     /// Handy ctor for usage with long numbers.
     ///
-    /// Only digits are allowed in `s`.
+    /// Only digits are allowed in `s`. Leading zeros are ommitted.        
     ///
     /// Returns `PlacesRow` or index in `s` where uncovertable `char` was
-    /// encountered1; `None` for empty string.
+    /// encountered; `None` for empty string.
     pub fn new_from_str(s: &str) -> Result<Self, Option<usize>> {
+        let row = Self::from_str(s, true);
+        if let Err(e) = row {
+            Err(e)
+        } else {
+            Ok(PlacesRow { row: row.unwrap() })
+        }
+    }
+
+    fn from_str(s: &str, trim_zeroes: bool) -> Result<Vec<u8>, Option<usize>> {
         let s_len = s.len();
         if s_len == 0 {
             return Err(None);
         }
 
-        let mut row = Vec::with_capacity(s_len);
+        let (s, s_len) = if trim_zeroes {
+            let s = s.trim_start_matches('0');
+            (s, s.len())
+        } else {
+            (s, s_len)
+        };
 
+        if s_len == 0 {
+            return Ok(vec![0; 1]);
+        }
+
+        let mut row = Vec::with_capacity(s_len);
         let mut inx = s_len;
 
-        let mut zeros = 0;
         for (c, mb) in s.chars().rev().zip(row.spare_capacity_mut()) {
             inx -= 1;
             if c.is_ascii_digit() {
                 let d = c.to_digit(10).unwrap();
-
-                if d == 0 {
-                    zeros += 1;
-                }
-
                 mb.write(d as u8);
             } else {
                 return Err(Some(inx));
@@ -86,9 +108,7 @@ impl PlacesRow {
 
         unsafe { row.set_len(s_len) }
 
-        Ok(PlacesRow {
-            row: if s_len == zeros { vec![0; 1] } else { row },
-        })
+        Ok(row)
     }
 
     /// Returns `String` representation.
@@ -124,8 +144,12 @@ impl PlacesRow {
     ///
     /// Does not alter current capacity. See `shrink_to_fit`.
     pub fn truncate_leading_zeros(&mut self) {
-        let trun = self.row.len() - self.leading_zeros();
-        self.row.truncate(trun)
+        Self::truncate_leading_zeros_raw(&mut self.row);
+    }
+
+    fn truncate_leading_zeros_raw(row: &mut Vec<u8>) {
+        let trun = row.len() - Self::leading_zeros_raw(row);
+        row.truncate(trun)
     }
 
     /// Calls `truncate_leading_zeros` and then tries to shrink to current len.
@@ -136,8 +160,11 @@ impl PlacesRow {
 
     /// Returns count of insignificant leading zeros.
     pub fn leading_zeros(&self) -> usize {
+        Self::leading_zeros_raw(&self.row)
+    }
+
+    fn leading_zeros_raw(row: &Vec<u8>) -> usize {
         let mut count = 0;
-        let row = &self.row;
         let mut rev = row.iter().rev();
         while let Some(num) = rev.next() {
             if *num == 0 as u8 {
@@ -344,51 +371,66 @@ fn ones(num: u8, takeover_ref: &mut u8) -> u8 {
 mod tests_of_units {
 
     mod placesrow {
-        use crate::PlacesRow;
+        use crate::PlacesRow as Row;
         use alloc::string::ToString;
+        use alloc::vec;
+        use alloc::vec::Vec;
 
         mod new_from_vec {
-            use crate::PlacesRow;
+            use crate::PlacesRow as Row;
             use alloc::vec;
 
             #[test]
             fn unsupported_num_test() {
                 let row = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-                let pr = PlacesRow::new_from_vec(row);
+                let row = Row::new_from_vec(row);
 
-                assert!(pr.is_err());
-                assert_eq!(10, pr.err().unwrap());
+                assert!(row.is_err());
+                assert_eq!(Some(10), row.err().unwrap());
             }
 
             #[test]
             fn basic_test() {
                 let row = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
                 let proof = row.clone();
-                let pr = PlacesRow::new_from_vec(row);
+                let row = Row::new_from_vec(row);
 
-                assert!(pr.is_ok());
-                assert_eq!(proof, pr.ok().unwrap().row);
+                assert!(row.is_ok());
+                assert_eq!(proof, row.unwrap().row);
+            }
+
+            #[test]
+            fn zero_len_test() {
+                let row = Row::new_from_vec(vec![0; 0]);
+                assert!(row.is_err());
+                assert_eq!(None, row.err().unwrap());
             }
 
             #[test]
             fn zeros_reduction_test() {
-                let pr = PlacesRow::new_from_vec(vec![0, 0, 0]).unwrap();
-                assert_eq!(&[0], &*pr.row);
+                let row = Row::new_from_vec(vec![0, 0, 0]).unwrap();
+                assert_eq!(&[0], &*row.row);
+            }
+
+            #[test]
+            fn leading_zeros_trim_test() {
+                let row = Row::new_from_vec(vec![1, 2, 0, 0]);                
+                assert_eq!(&[1, 2], &*row.unwrap().row);
             }
         }
 
         #[test]
         fn new_from_num_test() {
-            let pr = PlacesRow::new_from_num(1234567890);
-            assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*pr.row);
+            let row = Row::new_from_num(1234567890);
+            assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*row.row);
         }
 
         mod new_from_str {
-            use crate::PlacesRow;
+            use crate::PlacesRow as Row;
 
             #[test]
             fn nondigit_str_test() {
-                let row = PlacesRow::new_from_str("12w123");
+                let row = Row::new_from_str("12w123");
                 assert!(row.is_err());
                 let inx = row.err().unwrap();
                 assert!(inx.is_some());
@@ -397,57 +439,62 @@ mod tests_of_units {
 
             #[test]
             fn basic_test() {
-                let row = PlacesRow::new_from_str("1234567890");
+                let row = Row::new_from_str("1234567890");
                 assert!(row.is_ok());
-                assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*row.ok().unwrap().row);
+                assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*row.unwrap().row);
             }
 
             #[test]
             fn zeros_reduction_test() {
-                let row = PlacesRow::new_from_str("0000");
+                let row = Row::new_from_str("0000");
                 assert!(row.is_ok());
-                assert_eq!(&[0], &*row.ok().unwrap().row);
+                assert_eq!(&[0], &*row.unwrap().row);
             }
 
             #[test]
-            fn zero_len_str_test() {
-                let pr = PlacesRow::new_from_str("");
-                assert!(pr.is_err());
-                assert_eq!(None, pr.err().unwrap());
+            fn leading_zeros_trim_test() {
+                let row = Row::new_from_str("0021");                
+                assert_eq!(&[1, 2], &*row.unwrap().row);
+            }
+
+            #[test]
+            fn zero_len_test() {
+                let row = Row::new_from_str("");
+                assert!(row.is_err());
+                assert_eq!(None, row.err().unwrap());
             }
         }
 
         mod to_number {
-            use crate::PlacesRow;
+            use crate::PlacesRow as Row;
+            use alloc::vec;
 
             #[test]
             fn basic_test() {
-                let pr = PlacesRow::new_from_vec(vec![0, 9, 8, 7, 6, 5, 4, 3, 2, 1])
-                    .ok()
-                    .unwrap();
-                assert_eq!("1234567890", pr.to_number().as_str());
+                let row = Row::new_from_vec(vec![0, 9, 8, 7, 6, 5, 4, 3, 2, 1]).unwrap();
+                assert_eq!("1234567890", row.to_number().as_str());
             }
 
             #[test]
             #[should_panic(expected = "Only ones supported.")]
             fn only_ones_supported_test() {
-                let pr = PlacesRow { row: vec![10] };
-                _ = pr.to_number();
+                let row = Row { row: vec![10] };
+                _ = row.to_number();
             }
         }
 
         #[test]
         fn to_string_test() {
-            let pr = PlacesRow::new_from_num(1);
-            assert_eq!("1", pr.to_string());
+            let row = Row::new_from_num(1);
+            assert_eq!("1", row.to_string());
         }
 
         #[test]
         fn truncate_leading_zeros_test() {
-            let mut pr = PlacesRow { row: vec![1, 2, 0] };
-            pr.truncate_leading_zeros();
+            let mut row = Row { row: vec![1, 2, 0] };
+            row.truncate_leading_zeros();
 
-            assert_eq!(&[1, 2], &*pr.row);
+            assert_eq!(&[1, 2], &*row.row);
         }
 
         #[test]
@@ -457,37 +504,38 @@ mod tests_of_units {
             row.push(2);
             row.push(0);
 
-            let mut pr = PlacesRow { row };
-            pr.shrink_to_fit();
-            assert_eq!(&[1, 2], &*pr.row);
-            assert_eq!(2, pr.row.capacity());
+            let mut row = Row { row };
+            row.shrink_to_fit();
+            assert_eq!(&[1, 2], &*row.row);
+            assert_eq!(2, row.row.capacity());
         }
 
         mod leading_zeros {
-            use crate::PlacesRow;
+            use crate::PlacesRow as Row;
+            use alloc::vec;
 
             #[test]
             fn basic_test() {
-                let pr = PlacesRow { row: vec![1, 2, 0] };
-                assert_eq!(1, pr.leading_zeros());
+                let row = Row { row: vec![1, 2, 0] };
+                assert_eq!(1, row.leading_zeros());
             }
 
             #[test]
             fn zero_test() {
-                let pr = PlacesRow { row: vec![0, 0, 0] };
-                assert_eq!(2, pr.leading_zeros());
+                let row = Row { row: vec![0, 0, 0] };
+                assert_eq!(2, row.leading_zeros());
             }
         }
     }
 
     // Addition.
     mod add {
-        use crate::{add, PlacesRow};
+        use crate::{add, PlacesRow as Row};
 
         #[test]
         fn basic_test() {
-            let pr1 = PlacesRow::new_from_num(4);
-            let pr2 = PlacesRow::new_from_num(5);
+            let pr1 = Row::new_from_num(4);
+            let pr2 = Row::new_from_num(5);
 
             let sum = add(&pr1, &pr2);
             assert_eq!(&[9], &*sum.row);
@@ -495,137 +543,138 @@ mod tests_of_units {
 
         #[test]
         fn left_num_longer_test() {
-            let pr1 = PlacesRow::new_from_num(99_999);
-            let pr2 = PlacesRow::new_from_num(5);
+            let pr1 = Row::new_from_num(99_999);
+            let pr2 = Row::new_from_num(5);
 
             let sum = add(&pr1, &pr2);
-            assert_eq!(PlacesRow::new_from_num(100_004).row, sum.row);
+            assert_eq!(Row::from_num(100_004), sum.row);
         }
 
         #[test]
         fn right_num_longer_test() {
-            let pr1 = PlacesRow::new_from_num(5);
-            let pr2 = PlacesRow::new_from_num(99_999);
+            let pr1 = Row::new_from_num(5);
+            let pr2 = Row::new_from_num(99_999);
 
             let sum = add(&pr1, &pr2);
-            assert_eq!(PlacesRow::new_from_num(100_004).row, sum.row);
+            assert_eq!(Row::from_num(100_004), sum.row);
         }
 
         #[test]
         fn advanced_test() {
-            let pr = PlacesRow::new_from_str("680564733841876926926749214863536422910").unwrap();
+            let row = Row::new_from_str("680564733841876926926749214863536422910").unwrap();
 
-            let sum = add(&pr, &pr);
-            let proof =
-                PlacesRow::new_from_str("1361129467683753853853498429727072845820").unwrap();
-            assert_eq!(proof.row, sum.row);
+            let sum = add(&row, &row);
+            let proof = Row::from_str("1361129467683753853853498429727072845820", false).unwrap();
+            assert_eq!(proof, sum.row);
         }
     }
 
     /// Multiplication.
     mod mul {
-        use crate::{mul, PlacesRow};
+        use crate::{mul, PlacesRow as Row};
 
         #[test]
         fn basic_test() {
-            let pr1 = PlacesRow::new_from_num(2);
-            let pr2 = PlacesRow::new_from_num(3);
+            let pr1 = Row::new_from_num(2);
+            let pr2 = Row::new_from_num(3);
             let mul = mul(&pr1, &pr2);
             assert_eq!(&[6], &*mul.row);
         }
 
         #[test]
         fn left_num_longer_test() {
-            let pr1 = PlacesRow::new_from_num(123456);
-            let pr2 = PlacesRow::new_from_num(2);
+            let pr1 = Row::new_from_num(123456);
+            let pr2 = Row::new_from_num(2);
             let mul = mul(&pr1, &pr2);
             assert_eq!(&[2, 1, 9, 6, 4, 2], &*mul.row);
         }
 
         #[test]
         fn right_num_longer_test() {
-            let pr1 = PlacesRow::new_from_num(1);
-            let pr2 = PlacesRow::new_from_num(123456);
+            let pr1 = Row::new_from_num(1);
+            let pr2 = Row::new_from_num(123456);
             let mul = mul(&pr1, &pr2);
             assert_eq!(&[6, 5, 4, 3, 2, 1], &*mul.row);
         }
         #[test]
         fn zero_num_test() {
-            let pr1 = PlacesRow::new_from_num(0);
-            let pr2 = PlacesRow::new_from_num(123456);
+            let pr1 = Row::new_from_num(0);
+            let pr2 = Row::new_from_num(123456);
             let mul = mul(&pr1, &pr2);
             assert_eq!(&[0, 0, 0, 0, 0, 0], &*mul.row);
         }
 
         #[test]
         fn zero_nums_test() {
-            let pr1 = PlacesRow::new_from_num(0);
-            let pr2 = PlacesRow::new_from_num(0);
+            let pr1 = Row::new_from_num(0);
+            let pr2 = Row::new_from_num(0);
             let mul = mul(&pr1, &pr2);
             assert_eq!(&[0], &*mul.row);
         }
 
         #[test]
         fn advanced_test() {
-            let pr = PlacesRow::new_from_num(u128::MAX);
-            let mul = mul(&pr, &pr);
-            let proof = PlacesRow::new_from_str(
+            let row = Row::new_from_num(u128::MAX);
+            let mul = mul(&row, &row);
+            let proof = Row::from_str(
                 "115792089237316195423570985008687907852589419931798687112530834793049593217025",
+                false,
             )
             .unwrap();
-            assert_eq!(proof.row, mul.row);
+            assert_eq!(proof, mul.row);
         }
     }
 
-    /// Positive whole number power can be viewed as nothing more
-    /// than repetetive multiplication with number in question.
-    /// For other powers rules are different. 0 power = 1 for all numbers.
-    /// Real number powers are not allowed thus not debated.
-    /// E.g.: 0º=1, 0¹=1×0, 2²=1×0×0, 2³=1×0×0×0, …
+    /// For base ≥ 0 and exponent ≥ 0 power can be viewed as nothing more
+    /// than repetetive multiplication with number in question.    
+    /// E.g.: 0º=1, 0¹=1×0, 0²=1×0×0, 0³=1×0×0×0, …
     /// E.g.: 1º=1, 1¹=1×1, 1²=1×1×1, 1³=1×1×1×1, …
     /// E.g.: 2º=1, 2¹=1×2, 2²=1×2×2, 2³=1×2×2×2, …    
+    ///                   ⋮
     mod pow {
-        use crate::{pow, PlacesRow};
+        use crate::{pow, PlacesRow as Row};
 
         #[test]
         fn basic_test() {
-            let pr = PlacesRow::new_from_num(2);
-            assert_eq!(&[4], &*pow(&pr, 2).row);
+            let row = Row::new_from_num(2);
+            assert_eq!(&[4], &*pow(&row, 2).row);
         }
 
         #[test]
         fn advanced_test2() {
-            let proof = PlacesRow::new_from_str("88817841970012523233890533447265625").unwrap();
-            let pr = PlacesRow::new_from_num(25);
-            assert_eq!(proof.row, pow(&pr, 25).row);
+            let proof = Row::from_str("88817841970012523233890533447265625", false).unwrap();
+            let row = Row::new_from_num(25);
+            assert_eq!(proof, pow(&row, 25).row);
         }
 
         #[test]
         fn advanced_test3() {
-            let proof = PlacesRow::new_from_str(
+            let proof = Row::from_str(
                 "949279437109690919948053832937215463733689853138782229364504479870922851876864",
+                false,
             )
             .unwrap();
 
-            let pr = PlacesRow::new_from_num(998);
-            assert_eq!(proof.row, pow(&pr, 26).row);
+            let row = Row::new_from_num(998);
+            assert_eq!(proof, pow(&row, 26).row);
         }
 
         #[test]
         fn advanced_test4() {
-            let proof = PlacesRow::new_from_str(
+            let proof = Row::from_str(
                 "926336713898529563388567880069503262826159877325124512315660672063305037119488",
+                false,
             )
             .unwrap();
 
-            let pr = PlacesRow::new_from_num(2);
-            assert_eq!(proof.row, pow(&pr, 259).row);
+            let row = Row::new_from_num(2);
+            assert_eq!(proof, pow(&row, 259).row);
         }
 
         //#[test]
         fn advanced_test5() {
-            let pr = PlacesRow::new_from_num(u128::MAX);
-            let pow = pow(&pr, 500);
+            let row = Row::new_from_num(u128::MAX);
+            let pow = pow(&row, 500);
             let number = pow.to_number();
 
             assert!(number.starts_with("8312324609993336522"));
@@ -634,22 +683,22 @@ mod tests_of_units {
 
         #[test]
         fn zero_power_test() {
-            let pr = PlacesRow::new_from_num(0);
-            let pow = pow(&pr, 0);
+            let row = Row::new_from_num(0);
+            let pow = pow(&row, 0);
             assert_eq!(&[1], &*pow.row);
         }
 
         #[test]
         fn one_power_test() {
-            let pr = PlacesRow::new_from_num(3030);
-            let pow = pow(&pr, 1);
+            let row = Row::new_from_num(3030);
+            let pow = pow(&row, 1);
             assert_eq!(&[0, 3, 0, 3], &*pow.row);
         }
 
         #[test]
         fn power_of_zero_test_1() {
-            let pr = PlacesRow::new_from_num(0);
-            let pow = pow(&pr, 1000);
+            let row = Row::new_from_num(0);
+            let pow = pow(&row, 1000);
             assert_eq!(&[0], &*pow.row);
         }
     }
