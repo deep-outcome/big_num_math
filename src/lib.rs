@@ -58,7 +58,6 @@ impl PlacesRow {
     ///
     /// Returns `None` when `s` is uncovertable to `PlacesRow`.
     pub fn new_from_str(s: &str) -> Option<Self> {
-        
         let s_len = s.len();
         if s_len == 0 {
             return None;
@@ -90,7 +89,28 @@ impl PlacesRow {
 
     /// Returns `String` representation.
     pub fn to_number(&self) -> String {
-        crate::to_number(&self.row)
+        let row = &self.row;
+        let len = row.len();
+        let mut number = String::with_capacity(len);
+        for i in row.iter().rev() {
+            let digit = match i {
+                0 => '0',
+                1 => '1',
+                2 => '2',
+                3 => '3',
+                4 => '4',
+                5 => '5',
+                6 => '6',
+                7 => '7',
+                8 => '8',
+                9 => '9',
+                _ => panic!("Only ones supported."),
+            };
+
+            number.push(digit);
+        }
+
+        number
     }
 
     /// Truncates insignificant leading zeros.
@@ -147,39 +167,6 @@ impl From<u128> for PlacesRow {
 }
 
 use alloc::{string::String, vec, vec::Vec};
-
-/// Converts `row` into `String` representation.
-fn to_number(row: &Vec<u8>) -> String {
-    let row_len = row.len();
-    let mut number = String::with_capacity(row_len);
-    let mut zeros = 0;
-    for i in row.iter().rev() {
-        let digit = match i {
-            0 => {
-                zeros += 1;
-                '0'
-            }
-            1 => '1',
-            2 => '2',
-            3 => '3',
-            4 => '4',
-            5 => '5',
-            6 => '6',
-            7 => '7',
-            8 => '8',
-            9 => '9',
-            _ => panic!("Only ones supported."),
-        };
-
-        number.push(digit);
-    }
-
-    if zeros == row_len {
-        number.truncate(1);
-    }
-
-    number
-}
 
 /// Computes `num1` and `num2` sum.
 ///
@@ -422,10 +409,23 @@ mod tests_of_units {
             }
         }
 
-        #[test]
-        fn to_number_test() {
-            let pr = PlacesRow::new_from_num(1);
-            assert_eq!("1", pr.to_number());
+        mod to_number {
+            use crate::PlacesRow;
+
+            #[test]
+            fn basic_test() {
+                let pr = PlacesRow::new_from_vec(vec![0, 9, 8, 7, 6, 5, 4, 3, 2, 1])
+                    .ok()
+                    .unwrap();
+                assert_eq!("1234567890", pr.to_number().as_str());
+            }
+
+            #[test]
+            #[should_panic(expected = "Only ones supported.")]
+            fn only_ones_supported_test() {
+                let pr = PlacesRow { row: vec![10] };
+                _ = pr.to_number();
+            }
         }
 
         #[test]
@@ -468,37 +468,6 @@ mod tests_of_units {
             fn zero_test() {
                 let pr = PlacesRow { row: vec![0, 0, 0] };
                 assert_eq!(2, pr.leading_zeros());
-            }
-        }
-    }
-
-    mod conversions {
-
-        mod to_number {
-            use crate::to_number;
-            use alloc::vec;
-
-            #[test]
-            fn basic_test() {
-                let row = vec![0, 9, 8, 7, 6, 5, 4, 3, 2, 1];
-                let num = to_number(&row);
-
-                assert_eq!("1234567890", num.as_str());
-            }
-
-            #[test]
-            fn zeros_reduction_test() {
-                let row = vec![0, 0, 0, 0, 0, 0];
-                let num = to_number(&row);
-
-                assert_eq!("0", num.as_str());
-            }
-
-            #[test]
-            #[should_panic(expected = "Only ones supported.")]
-            fn only_ones_supported_test() {
-                let row = vec![10];
-                _ = to_number(&row);
             }
         }
     }
