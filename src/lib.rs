@@ -58,6 +58,10 @@ impl PlacesRow {
     ///
     /// Returns `None` when `s` is uncovertable to `PlacesRow`.
     pub fn new_from_str(s: &str) -> Option<Self> {
+        if s.len() == 0 {
+            return None;
+        }
+
         if let Some(pr) = to_raw_row_b(s) {
             Some(PlacesRow { row: pr })
         } else {
@@ -391,11 +395,22 @@ mod tests_of_units {
             assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*pr.row);
         }
 
-        #[test]
-        fn new_from_str_test() {
-            let pr = PlacesRow::new_from_str("1");
-            assert!(pr.is_some());
-            assert_eq!(&[1], &*pr.unwrap().row);
+        mod new_from_str {
+            use crate::PlacesRow;
+            
+
+            #[test]
+            fn zero_len_str_test() {
+                let pr = PlacesRow::new_from_str("");
+                assert!(pr.is_none());
+            }
+
+            #[test]
+            fn basic_test() {
+                let pr = PlacesRow::new_from_str("1");
+                assert!(pr.is_some());
+                assert_eq!(&[1], &*pr.unwrap().row);
+            }
         }
 
         #[test]
