@@ -60,6 +60,43 @@ impl PlacesRow {
     pub fn to_number(&self) -> String {
         crate::to_number(&self.row)
     }
+
+    /// Truncates insignificant leading zeros.
+    ///
+    /// After certain operations, row can hold insignificant
+    /// leading zeros. Use this to remove them.
+    ///
+    /// Does not alter current capacity. See `shrink_to_fit`.
+    pub fn truncate_leading_zeros(&mut self) {
+        let trun = self.row.len() - self.leading_zeros();
+        self.row.truncate(trun)
+    }
+
+    /// Calls `truncate_leading_zeros` and then tries to shrink to current len.
+    pub fn shrink_to_fit(&mut self) {
+        self.truncate_leading_zeros();
+        self.row.shrink_to_fit();
+    }
+
+    /// Returns count of insignificant leading zeros.
+    pub fn leading_zeros(&self) -> usize {
+        let mut count = 0;
+        let row = &self.row;
+        let mut rev = row.iter().rev();
+        while let Some(num) = rev.next() {
+            if *num == 0 as u8 {
+                count += 1;
+            } else {
+                break;
+            }
+        }
+
+        if row.len() == count {
+            count - 1
+        } else {
+            count
+        }
+    }
 }
 
 impl alloc::string::ToString for PlacesRow {
@@ -99,16 +136,22 @@ fn to_raw_row_a(mut num: u128) -> Vec<u8> {
 /// fails on this.
 fn to_raw_row_b(s: &str) -> Option<Vec<u8>> {
     let mut rr = vec![0u8; s.len()];
+    let mut zeros = 0;
     for (c, p) in s.chars().rev().zip(rr.iter_mut()) {
         if c.is_ascii_digit() {
-            let d = c.to_digit(10);
-            *p = d.unwrap() as u8;
+            let d = c.to_digit(10).unwrap();
+
+            if d == 0 {
+                zeros += 1;
+            }
+
+            *p = d as u8;
         } else {
             return None;
         }
     }
 
-    Some(rr)
+    Some(if s.len() == zeros { vec![0; 1] } else { rr })
 }
 
 /// Converts `row` into `String` representation.
@@ -373,6 +416,43 @@ mod tests_of_units {
             let pr = PlacesRow::new_from_num(1);
             assert_eq!("1", pr.to_string());
         }
+
+        #[test]
+        fn truncate_leading_zeros_test() {
+            let mut pr = PlacesRow { row: vec![1, 2, 0] };
+            pr.truncate_leading_zeros();
+
+            assert_eq!(vec![1, 2], pr.row);
+        }
+
+        #[test]
+        fn shrink_to_fit_test() {
+            let mut row = Vec::with_capacity(10);
+            row.push(1);
+            row.push(2);
+            row.push(0);
+
+            let mut pr = PlacesRow { row };
+            pr.shrink_to_fit();
+            assert_eq!(vec![1, 2], pr.row);
+            assert_eq!(2, pr.row.capacity());
+        }
+
+        mod leading_zeros {
+            use crate::PlacesRow;
+
+            #[test]
+            fn basic_test() {
+                let pr = PlacesRow { row: vec![1, 2, 0] };
+                assert_eq!(1, pr.leading_zeros());
+            }
+
+            #[test]
+            fn zero_test() {
+                let pr = PlacesRow { row: vec![0, 0, 0] };
+                assert_eq!(2, pr.leading_zeros());
+            }
+        }
     }
 
     mod conversions {
@@ -400,6 +480,13 @@ mod tests_of_units {
                 let rr = to_raw_row_b("1234567890");
                 assert!(rr.is_some());
                 assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*rr.unwrap());
+            }
+
+            #[test]
+            fn zeros_reduction_test() {
+                let rr = to_raw_row_b("0000");
+                assert!(rr.is_some());
+                assert_eq!(&[0], &*rr.unwrap());
             }
         }
 
@@ -605,7 +692,7 @@ mod tests_of_units {
         }
     }
 
-    /// How long multiplication works?
+    /// Long multiplication fact notes:
     /// - When multiplying ones, maximum product is 81=9×9.
     /// - Thus maximum tens product is 8=⌊81÷10⌋.    
     /// - Since 8+81=89 all results fit into 8=⌊89÷10⌋ tens.
@@ -637,7 +724,7 @@ mod tests_of_units {
         }
     }
 
-    /// How column addition works?
+    /// Column addition fact notes:
     /// - When adding ones, maximum sum is 18=9+9.
     /// - Thus maximum tens sum is 1=⌊18÷10⌋.
     /// - Since 18+1=19 any value fits into 1=⌊19÷10⌋ ten.
