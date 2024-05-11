@@ -212,8 +212,17 @@ pub fn add(num1: &PlacesRow, num2: &PlacesRow) -> PlacesRow {
         (places1, places2)
     };
 
-    let mut sum = Vec::new();
+    // avoids repetetive reallocations
+    // +1 stands for contigent new place
+    let mut sum = Vec::with_capacity(addend.len() + 1);
+
+    #[cfg(test)]
+    let sum_ptr = sum.as_ptr();
+
     addition(addend, Some(augend), &mut sum, 0);
+
+    #[cfg(test)]
+    assert!(sum_ptr == sum.as_ptr());
 
     PlacesRow { row: sum }
 }
@@ -244,30 +253,43 @@ pub fn pow(num: &PlacesRow, pow: usize) -> PlacesRow {
 /// Not really efficient on power computation.
 ///   🡺 Inspect log₂ power speed up.
 fn mulmul(row1: &Vec<u8>, row2: &Vec<u8>, times: usize) -> PlacesRow {
-    // next alogorithms are more optimal when `mcand`
-    // is longer number
-    let (mpler, mut mcand) = if row1.len() > row2.len() {
-        (row2, row1.clone())
-    } else {
-        (row1, row2.clone())
-    };
+    let (mpler, mut mcand) = (row1, row2.clone());
 
     let mpler_len = mpler.len();
 
     // intermediate product of `mcand` and `mpler` place
-    let mut i_product = Vec::new();
+    let mut i_product = Vec::with_capacity(0);
     // intermediate sum of intermediate products
-    let mut i_sum = Vec::new();
+    let mut i_sum = Vec::with_capacity(0);
+
     for _ in 0..times {
+        let mcand_len = mcand.len();
+
         // avoids repetetive reallocations
         // +1 stands for contigent new place
-        i_product.reserve(mcand.len() + 1);
+        i_product.reserve(mcand_len + 1);
+        // avoids repetetive reallocations
+        // places count of product cannot
+        // be greater than sum of places of operands
+        i_sum.reserve(mcand_len + mpler_len);
+
+        #[cfg(test)]
+        let i_product_ptr = i_product.as_ptr();
+
+        #[cfg(test)]
+        let i_sum_ptr = i_sum.as_ptr();
 
         for offset in 0..mpler_len {
             product(mpler[offset], &mcand, &mut i_product);
             addition(&i_product, None, &mut i_sum, offset);
             i_product.clear();
         }
+
+        #[cfg(test)]
+        assert!(i_product_ptr == i_product.as_ptr());
+
+        #[cfg(test)]
+        assert!(i_sum_ptr == i_sum.as_ptr());
 
         mcand.clone_from(&i_sum);
         i_sum.clear();
@@ -294,32 +316,9 @@ fn product(mpler: u8, mcand: &Vec<u8>, product: &mut Vec<u8>) {
 
 /// Adds `addend_1` to `sum` or adds `addend_1` and `addend_2` sum into `sum`.
 ///
-/// Beware, `addend_1` len + `offset` must always be at least same as `sum` len when `sum` serves as `addend_2` or directly as `addend_2` len.
-/// Beware, when `addend_2` is some, `offset` must be `0`.
+/// Precise expectations must be upkept when adding 2 addends: sum is assumed to be empty, `addend_1` to be longer (equal) of numbers and offset to be `0`.
 fn addition(addend_1: &Vec<u8>, addend_2: Option<&Vec<u8>>, sum: &mut Vec<u8>, offset: usize) {
-    #[cfg(test)]
-    assert!((addend_2.is_some() && offset == 0) || addend_2.is_none());
-
-    #[cfg(test)]
-    assert!(
-        (addend_2.is_some() && addend_1.len() >= addend_2.unwrap().len()) || addend_2.is_none()
-    );
-
-    #[cfg(test)]
-    assert!((addend_2.is_none() && addend_1.len() + offset >= sum.len()) || addend_2.is_some());
-
-    // avoids repetetive reallocations
-    // +1 stands for contigent new place
-    // reallocation would also break pointer to vector buffer
-    // in case when `sum` serves as `addend_2`
-    let new_min_len = addend_1.len() + offset;
-    sum.reserve(new_min_len - sum.len() + 1);
-
-    // pure overhead for `add`
-    // only `mulmul` could benefit here since index bound checks can
-    // be ommitted later in loop body, however
-    // performance measurement is needed for optimal decision
-    // sum.resize(new_min_len, 0);
+    let addend_1_len = addend_1.len();
 
     let (addend_2_ptr, addend_2_len) = if let Some(addend) = addend_2 {
         (addend.as_ptr(), addend.len())
@@ -328,28 +327,113 @@ fn addition(addend_1: &Vec<u8>, addend_2: Option<&Vec<u8>>, sum: &mut Vec<u8>, o
     };
 
     let mut takeover = 0;
-    for addend_1_inx in 0..addend_1.len() {
-        let addend_1_num = addend_1[addend_1_inx];
-        let addend_2_inx = addend_1_inx + offset;
+    let mut addend_1_inx = 0;
+    let mut addend_2_inx = offset;
 
-        let nums_sum = if addend_2_inx < addend_2_len {
-            let addend_2_num = unsafe { addend_2_ptr.offset(addend_2_inx as isize).read() };
-            addend_2_num + addend_1_num
+    loop {
+        let addend_1_available = addend_1_inx < addend_1_len;
+        if !addend_1_available && takeover == 0 {
+            break;
+        }
+
+        let addend_1_num = if addend_1_available {
+            addend_1[addend_1_inx]
         } else {
-            addend_1_num
+            0
         };
 
-        let add = ones(nums_sum, &mut takeover);
+        let addend_2_num = if addend_2_inx < addend_2_len {
+            unsafe { addend_2_ptr.offset(addend_2_inx as isize).read() }
+        } else {
+            0
+        };
+
+        let add = ones(addend_2_num + addend_1_num, &mut takeover);
         if let Some(refer) = sum.get_mut(addend_2_inx) {
             *refer = add;
         } else {
             sum.push(add);
         }
+
+        addend_1_inx += 1;
+        addend_2_inx += 1;
+    }
+}
+
+//precondition: minuend ≥ subtrahend ⇒ minuend.len() ≥ subtrahend.len()
+fn substraction(minuend: &Vec<u8>, subtrahend: &Vec<u8>, modulo: bool) -> (Vec<u8>, Vec<u8>) {
+    let mut diffmod_populated = false;
+
+    let minuend_len = minuend.len();
+    let subtrahend_len = subtrahend.len();
+
+    let mut diffmod = vec![0; minuend_len];
+    let diffmod_ptr = diffmod.as_ptr();
+    let mut minuend_ptr = minuend.as_ptr();
+
+    let mut ratio = vec![0; 1];
+    let one = vec![1; 1];
+    let mut takeover;
+    let mut inx;
+    loop {
+        takeover = 0;
+        inx = 0;
+
+        while inx < minuend_len {
+            let s_num = if inx < subtrahend_len {
+                subtrahend[inx]
+            } else if inx >= subtrahend_len && takeover == 0 && diffmod_populated {
+                break;
+            } else {
+                0
+            };
+
+            let mut m_num = unsafe { minuend_ptr.offset(inx as isize).read() };
+
+            let total_s = s_num + takeover;
+            takeover = if m_num < total_s {
+                m_num += 10;
+                1
+            } else {
+                0
+            };
+
+            diffmod[inx] = m_num - total_s;
+            inx += 1;
+        }
+
+        // existing remainder implies _minuend_ exhaustion
+        // thus modulo is one turn more than is correct
+        if takeover == 1 {
+            inx = 0;
+            takeover = 0;
+            while inx < subtrahend_len {
+                let correction = diffmod[inx] + subtrahend[inx];
+                diffmod[inx] = ones(correction, &mut takeover);
+                inx += 1;
+            }
+
+            while inx < minuend_len {
+                diffmod[inx] = 0;
+                inx += 1;
+            }
+
+            break;
+        }
+
+        addition(&one, None, &mut ratio, 0);
+
+        if !modulo {
+            break;
+        }
+
+        if !diffmod_populated {
+            minuend_ptr = diffmod_ptr;
+            diffmod_populated = true;
+        }
     }
 
-    if takeover != 0 {
-        sum.push(takeover);
-    }
+    (diffmod, ratio)
 }
 
 /// Supports algorithimical decimal row computations.
@@ -534,29 +618,29 @@ mod tests_of_units {
 
         #[test]
         fn basic_test() {
-            let pr1 = Row::new_from_num(4);
-            let pr2 = Row::new_from_num(5);
+            let row1 = Row::new_from_num(4);
+            let row2 = Row::new_from_num(5);
 
-            let sum = add(&pr1, &pr2);
+            let sum = add(&row1, &row2);
             assert_eq!(&[9], &*sum.row);
         }
 
         #[test]
         fn left_num_longer_test() {
-            let pr1 = Row::new_from_num(99_999);
-            let pr2 = Row::new_from_num(5);
+            let row1 = Row::new_from_num(10_000);
+            let row2 = Row::new_from_num(5);
 
-            let sum = add(&pr1, &pr2);
-            assert_eq!(Row::from_num(100_004), sum.row);
+            let sum = add(&row1, &row2);
+            assert_eq!(Row::from_num(10_005), sum.row);
         }
 
         #[test]
-        fn right_num_longer_test() {
-            let pr1 = Row::new_from_num(5);
-            let pr2 = Row::new_from_num(99_999);
+        fn right_num_longer_test2() {
+            let row1 = Row::new_from_num(5);
+            let row2 = Row::new_from_num(10_000);
 
-            let sum = add(&pr1, &pr2);
-            assert_eq!(Row::from_num(100_004), sum.row);
+            let sum = add(&row1, &row2);
+            assert_eq!(Row::from_num(10_005), sum.row);
         }
 
         #[test]
@@ -575,40 +659,40 @@ mod tests_of_units {
 
         #[test]
         fn basic_test() {
-            let pr1 = Row::new_from_num(2);
-            let pr2 = Row::new_from_num(3);
-            let mul = mul(&pr1, &pr2);
+            let row1 = Row::new_from_num(2);
+            let row2 = Row::new_from_num(3);
+            let mul = mul(&row1, &row2);
             assert_eq!(&[6], &*mul.row);
         }
 
         #[test]
         fn left_num_longer_test() {
-            let pr1 = Row::new_from_num(123456);
-            let pr2 = Row::new_from_num(2);
-            let mul = mul(&pr1, &pr2);
+            let row1 = Row::new_from_num(123456);
+            let row2 = Row::new_from_num(2);
+            let mul = mul(&row1, &row2);
             assert_eq!(&[2, 1, 9, 6, 4, 2], &*mul.row);
         }
 
         #[test]
         fn right_num_longer_test() {
-            let pr1 = Row::new_from_num(1);
-            let pr2 = Row::new_from_num(123456);
-            let mul = mul(&pr1, &pr2);
+            let row1 = Row::new_from_num(1);
+            let row2 = Row::new_from_num(123456);
+            let mul = mul(&row1, &row2);
             assert_eq!(&[6, 5, 4, 3, 2, 1], &*mul.row);
         }
         #[test]
         fn zero_num_test() {
-            let pr1 = Row::new_from_num(0);
-            let pr2 = Row::new_from_num(123456);
-            let mul = mul(&pr1, &pr2);
+            let row1 = Row::new_from_num(0);
+            let row2 = Row::new_from_num(123456);
+            let mul = mul(&row1, &row2);
             assert_eq!(&[0, 0, 0, 0, 0, 0], &*mul.row);
         }
 
         #[test]
         fn zero_nums_test() {
-            let pr1 = Row::new_from_num(0);
-            let pr2 = Row::new_from_num(0);
-            let mul = mul(&pr1, &pr2);
+            let row1 = Row::new_from_num(0);
+            let row2 = Row::new_from_num(0);
+            let mul = mul(&row1, &row2);
             assert_eq!(&[0], &*mul.row);
         }
 
@@ -708,7 +792,7 @@ mod tests_of_units {
     /// - Thus maximum tens product is 8=⌊81÷10⌋.    
     /// - Since 8+81=89 all results fit into 8=⌊89÷10⌋ tens.
     mod product {
-        use crate::product;
+        use crate::product as product_fn;
         use alloc::vec;
         use alloc::vec::Vec;
 
@@ -716,22 +800,22 @@ mod tests_of_units {
         fn basic_test() {
             let mcand = vec![3];
             let mpler = 3;
-            let mut result = Vec::new();
+            let mut product = Vec::new();
 
-            product(mpler, &mcand, &mut result);
+            product_fn(mpler, &mcand, &mut product);
 
-            assert_eq!(vec![9], result);
+            assert_eq!(vec![9], product);
         }
 
         #[test]
         fn takeover_test() {
             let mcand = vec![9, 9, 9, 9, 9];
             let mpler = 9;
-            let mut result = Vec::new();
+            let mut product = Vec::new();
 
-            product(mpler, &mcand, &mut result);
+            product_fn(mpler, &mcand, &mut product);
 
-            assert_eq!(vec![1, 9, 9, 9, 9, 8], result);
+            assert_eq!(vec![1, 9, 9, 9, 9, 8], product);
         }
     }
 
@@ -748,51 +832,51 @@ mod tests_of_units {
             #[test]
             fn basic_test() {
                 let ad1 = vec![4, 3, 2, 1];
-                let mut res = vec![1, 2, 3, 4];
+                let mut sum = vec![1, 2, 3, 4];
 
-                addition(&ad1, None, &mut res, 0);
+                addition(&ad1, None, &mut sum, 0);
 
-                assert_eq!(vec![5, 5, 5, 5], res);
+                assert_eq!(vec![5, 5, 5, 5], sum);
             }
 
             #[test]
             fn takover_test() {
                 let ad1 = vec![9, 9, 9, 9, 9];
-                let mut res = vec![9];
+                let mut sum = vec![9];
 
-                addition(&ad1, None, &mut res, 0);
+                addition(&ad1, None, &mut sum, 0);
 
-                assert_eq!(vec![8, 0, 0, 0, 0, 1], res);
+                assert_eq!(vec![8, 0, 0, 0, 0, 1], sum);
             }
 
             #[test]
             fn longer_addition_test() {
                 let ad1 = vec![9, 9, 9, 9, 9];
-                let mut res = vec![9, 9];
+                let mut sum = vec![9, 9];
 
-                addition(&ad1, None, &mut res, 0);
+                addition(&ad1, None, &mut sum, 0);
 
-                assert_eq!(vec![8, 9, 0, 0, 0, 1], res);
+                assert_eq!(vec![8, 9, 0, 0, 0, 1], sum);
             }
 
             #[test]
             fn offset_test_1() {
                 let ad1 = vec![9, 9, 9, 9];
-                let mut res = vec![9, 9, 9, 9];
+                let mut sum = vec![9, 9, 9, 9];
 
-                addition(&ad1, None, &mut res, 2);
+                addition(&ad1, None, &mut sum, 2);
 
-                assert_eq!(vec![9, 9, 8, 9, 0, 0, 1], res);
+                assert_eq!(vec![9, 9, 8, 9, 0, 0, 1], sum);
             }
 
             #[test]
             fn offset_test_2() {
                 let ad1 = vec![9, 9];
-                let mut res = vec![9, 9, 9, 9];
+                let mut sum = vec![9, 9, 9, 9];
 
-                addition(&ad1, None, &mut res, 2);
+                addition(&ad1, None, &mut sum, 2);
 
-                assert_eq!(vec![9, 9, 8, 9, 1], res);
+                assert_eq!(vec![9, 9, 8, 9, 1], sum);
             }
         }
 
@@ -805,33 +889,157 @@ mod tests_of_units {
             fn basic_test() {
                 let ad1 = vec![1, 1, 2, 4, 9];
                 let ad2 = vec![8, 8, 7, 5];
-                let mut res = Vec::new();
+                let mut sum = Vec::new();
 
-                addition(&ad1, Some(&ad2), &mut res, 0);
+                addition(&ad1, Some(&ad2), &mut sum, 0);
 
-                assert_eq!(vec![9, 9, 9, 9, 9], res);
+                assert_eq!(vec![9, 9, 9, 9, 9], sum);
             }
 
             #[test]
             fn takover_test() {
                 let ad1 = vec![9, 9, 9, 9, 9];
                 let ad2 = vec![9, 9, 9, 9, 9];
-                let mut res = Vec::new();
+                let mut sum = Vec::new();
 
-                addition(&ad1, Some(&ad2), &mut res, 0);
+                addition(&ad1, Some(&ad2), &mut sum, 0);
 
-                assert_eq!(vec![8, 9, 9, 9, 9, 1], res);
+                assert_eq!(vec![8, 9, 9, 9, 9, 1], sum);
             }
 
             #[test]
             fn longer_addition_test() {
                 let ad1 = vec![9, 9, 9, 9];
                 let ad2 = vec![9, 9];
-                let mut res = Vec::new();
+                let mut sum = Vec::new();
 
-                addition(&ad1, Some(&ad2), &mut res, 0);
+                addition(&ad1, Some(&ad2), &mut sum, 0);
 
-                assert_eq!(vec![8, 9, 0, 0, 1], res);
+                assert_eq!(vec![8, 9, 0, 0, 1], sum);
+            }
+        }
+    }
+
+    /// Column substraction fact notes:
+    /// - Subtrahend always must be lower or equal to minuend.
+    /// - Minimum difference is 0=a-a, maximum 9=9-0=(9+a)-a.
+    /// - Maximum subtrahend is 10=9+1(takeover).
+    mod substraction {
+
+        mod substracting {
+            use crate::{substraction, PlacesRow as Row};
+            use alloc::vec;
+
+            #[test]
+            fn basic_test() {
+                let result = substraction(&vec![9, 9], &vec![0, 1], false);
+                assert_eq!(&[9, 8], &*result.0);
+                assert_eq!(&[1], &*result.1);
+            }
+
+            #[test]
+            // minuend must be "copied" to difference if subtrahend is
+            // exhausted
+            fn minuend_copy_test() {
+                let result = substraction(&vec![9, 9, 9], &vec![1], false);
+                assert_eq!(&[8, 9, 9], &*result.0);
+                assert_eq!(&[1], &*result.1);
+            }
+
+            #[test]
+            fn advanced_test() {
+                let minuend = Row::from_str(
+                    "6577102745386680762814942322444851025767571854389858533375",
+                    false,
+                )
+                .unwrap();
+                let subtrahend = Row::from_str(
+                    "6296101835386680762814942322444851025767571854389858533376",
+                    false,
+                )
+                .unwrap();
+                let proof = Row::from_str(
+                    "0281000909999999999999999999999999999999999999999999999999",
+                    false,
+                )
+                .unwrap();
+
+                let result = substraction(&minuend, &subtrahend, false);
+                assert_eq!(proof, result.0);
+                assert_eq!(&[1], &*result.1);
+            }
+
+            #[test]
+            /// tests takeover ∈ [0,1] carry on            
+            fn takeover_test() {
+                let result = substraction(&vec![8, 2, 2, 2], &vec![9, 2, 1, 1], false);
+                assert_eq!(&[9, 9, 0, 1], &*result.0);
+                assert_eq!(&[1], &*result.1);
+            }
+        }
+
+        mod modulo {
+            use crate::{substraction, PlacesRow as Row};
+
+            #[test]
+            fn basic_test() {
+                let result = substraction(&vec![3, 3], &vec![1, 1], true);
+                assert_eq!(&[0, 0], &*result.0);
+                assert_eq!(&[3], &*result.1);
+            }
+
+            #[test]
+            fn modulo_test() {
+                let result = substraction(&vec![6, 2], &vec![7], true);
+                assert_eq!(&[5, 0], &*result.0);
+                assert_eq!(&[3], &*result.1);
+            }
+
+            #[test]
+            // after invalid substraction on modulo, places holds numbers resulting
+            // from borrowing and substracting
+            // e.g. [0,0,2,2]-[7,7]=[5,4,9,9], after modulo restore [2,2,9,9],
+            // after clearing [2,2,0,0]
+            // e.g. [0,0,0,0,3]-[7,2,1]=[6,7,8,9,9],[3,0,0,9,9],[3,0,0,0,0].
+            fn overrun_clearing_test() {
+                let result = substraction(&vec![7, 7, 1, 1], &vec![7, 7], true);
+                assert_eq!(&[2, 2, 0, 0], &*result.0);
+                assert_eq!(&[5, 1], &*result.1);
+            }
+
+            #[test]
+            fn advanced_test() {
+                let minuend = Row::from_str("627710173", false).unwrap();
+                let modulo = Row::from_str("000000130", false).unwrap();
+                let ratio = Row::from_str("1955483", false).unwrap();
+
+                let result = substraction(&minuend, &vec![1, 2, 3], true);
+                assert_eq!(&modulo, &*result.0);
+                assert_eq!(&ratio, &*result.1);
+            }
+
+            #[test]
+            fn advanced_test2() {
+                let minuend = Row::from_str("627710173", false).unwrap();
+                let subtrahend = Row::from_str("3552741", false).unwrap();
+                let modulo = Row::from_str("002427757", false).unwrap();
+                let ratio = Row::from_str("176", false).unwrap();
+
+                let result = substraction(&minuend, &subtrahend, true);
+                assert_eq!(&modulo, &*result.0);
+                assert_eq!(&ratio, &*result.1);
+            }
+
+            #[test]
+            fn advanced_test3() {
+                let minuend = Row::from_str("242775712", false).unwrap();
+                let subtrahend = Row::from_str("33333", false).unwrap();
+                let modulo = Row::from_str("000011473", false).unwrap();
+                let ratio = Row::from_str("7283", false).unwrap();
+
+                let result = substraction(&minuend, &subtrahend, true);
+                assert_eq!(&modulo, &*result.0);
+                assert_eq!(&ratio, &*result.1);
             }
         }
     }
