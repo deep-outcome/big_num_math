@@ -1,10 +1,23 @@
+//! Allows to compute on big numbers. No negative numbers support. Provides only some
+//! basic mathematical functions.
+
 #![no_std]
 
 extern crate alloc;
 
 /// `PlacesRow` represents row of decimal places starting at ones (`0` index).
+#[derive(Clone, PartialEq, Debug)]
 pub struct PlacesRow {
     row: Vec<u8>,
+}
+
+impl Deref for PlacesRow {
+    type Target = [u8];
+
+    /// View into internal buffer.
+    fn deref(&self) -> &[u8] {
+        self.row.as_slice()
+    }
 }
 
 impl PlacesRow {
@@ -25,28 +38,18 @@ impl PlacesRow {
 
         let mut enumerator = row.iter().enumerate();
         while let Some((inx, num)) = enumerator.next() {
-            let num = *num;
-            if num > 9 {
+            if *num > 9 {
                 return Err(Some(inx));
             }
         }
 
-        Self::truncate_leading_zeros_raw(&mut row);
-        if 0 == row.len() {
-            unsafe { row.set_len(1) }
-        }
+        truncate_leading_raw(&mut row, 0);
 
         Ok(PlacesRow { row })
     }
 
     /// Handy ctor for usage with _classic_ primitive numeric data type.
-    pub fn new_from_num(num: u128) -> Self {
-        PlacesRow {
-            row: Self::from_num(num),
-        }
-    }
-
-    fn from_num(mut num: u128) -> Vec<u8> {
+    pub fn new_from_num(mut num: u128) -> Self {
         let mut row = Vec::new();
         loop {
             let d = num % 10;
@@ -58,7 +61,7 @@ impl PlacesRow {
             }
         }
 
-        row
+        PlacesRow { row }
     }
 
     /// Handy ctor for usage with long numbers.
@@ -66,49 +69,37 @@ impl PlacesRow {
     /// Only digits are allowed in `s`. Leading zeros are ommitted.        
     ///
     /// Returns `PlacesRow` or index in `s` where uncovertable `char` was
-    /// encountered; `None` for empty string.
-    pub fn new_from_str(s: &str) -> Result<Self, Option<usize>> {
-        let row = Self::from_str(s, true);
-        if let Err(e) = row {
-            Err(e)
-        } else {
-            Ok(PlacesRow { row: row.unwrap() })
-        }
-    }
-
-    fn from_str(s: &str, trim_zeroes: bool) -> Result<Vec<u8>, Option<usize>> {
-        let s_len = s.len();
-        if s_len == 0 {
+    /// encountered. `None` for empty string.
+    pub fn new_from_str(mut s: &str) -> Result<Self, Option<usize>> {
+        let orig_s_len = s.len();
+        if orig_s_len == 0 {
             return Err(None);
         }
 
-        let (s, s_len) = if trim_zeroes {
-            let s = s.trim_start_matches('0');
-            (s, s.len())
+        s = s.trim_start_matches('0');
+        let s_len = s.len();
+
+        let row = if s_len == 0 {
+            vec![0; 1]
         } else {
-            (s, s_len)
+            let mut row = Vec::with_capacity(s_len);
+            let mut inx = orig_s_len;
+
+            for (c, sc) in s.chars().rev().zip(row.spare_capacity_mut()) {
+                inx -= 1;
+                if c.is_ascii_digit() {
+                    let d = c.to_digit(10).unwrap();
+                    sc.write(d as u8);
+                } else {
+                    return Err(Some(inx));
+                }
+            }
+
+            unsafe { row.set_len(s_len) }
+            row
         };
 
-        if s_len == 0 {
-            return Ok(vec![0; 1]);
-        }
-
-        let mut row = Vec::with_capacity(s_len);
-        let mut inx = s_len;
-
-        for (c, mb) in s.chars().rev().zip(row.spare_capacity_mut()) {
-            inx -= 1;
-            if c.is_ascii_digit() {
-                let d = c.to_digit(10).unwrap();
-                mb.write(d as u8);
-            } else {
-                return Err(Some(inx));
-            }
-        }
-
-        unsafe { row.set_len(s_len) }
-
-        Ok(row)
+        Ok(PlacesRow { row })
     }
 
     /// Returns `String` representation.
@@ -137,49 +128,34 @@ impl PlacesRow {
         number
     }
 
-    /// Truncates insignificant leading zeros.
-    ///
-    /// After certain operations, row can hold insignificant
-    /// leading zeros. Use this to remove them.
-    ///
-    /// Does not alter current capacity. See `shrink_to_fit`.
-    pub fn truncate_leading_zeros(&mut self) {
-        Self::truncate_leading_zeros_raw(&mut self.row);
+    /// Returns zero `PlacesRow`.
+    pub fn zero() -> PlacesRow {
+        PlacesRow { row: vec![0; 1] }
     }
+}
 
-    fn truncate_leading_zeros_raw(row: &mut Vec<u8>) {
-        let trun = row.len() - Self::leading_zeros_raw(row);
-        row.truncate(trun)
-    }
+fn shrink_to_fit_raw(row: &mut Vec<u8>) {
+    truncate_leading_raw(row, 0);
+    row.shrink_to_fit();
+}
 
-    /// Calls `truncate_leading_zeros` and then tries to shrink to current len.
-    pub fn shrink_to_fit(&mut self) {
-        self.truncate_leading_zeros();
-        self.row.shrink_to_fit();
-    }
-
-    /// Returns count of insignificant leading zeros.
-    pub fn leading_zeros(&self) -> usize {
-        Self::leading_zeros_raw(&self.row)
-    }
-
-    fn leading_zeros_raw(row: &Vec<u8>) -> usize {
-        let mut count = 0;
-        let mut rev = row.iter().rev();
-        while let Some(num) = rev.next() {
-            if *num == 0 as u8 {
-                count += 1;
-            } else {
-                break;
-            }
-        }
-
-        if row.len() == count {
-            count - 1
+fn truncate_leading_raw(row: &mut Vec<u8>, lead: u8) {
+    let mut trun = 0;
+    let mut rev = row.iter().rev();
+    while let Some(num) = rev.next() {
+        if *num == lead as u8 {
+            trun += 1;
         } else {
-            count
+            break;
         }
     }
+
+    let row_len = row.len();
+    if row_len == trun {
+        trun -= 1
+    }
+
+    row.truncate(row_len - trun);
 }
 
 impl alloc::string::ToString for PlacesRow {
@@ -189,27 +165,66 @@ impl alloc::string::ToString for PlacesRow {
     }
 }
 
-use core::convert::From;
+use core::{convert::From, ops::Deref};
 impl From<u128> for PlacesRow {
-    // Converts `value` into `PlacesRow`.
+    /// Converts `value` into `PlacesRow`.
     fn from(value: u128) -> Self {
         Self::new_from_num(value)
     }
 }
 
+/// Relation enumeration.
+#[derive(Debug, PartialEq)]
+pub enum Rel {
+    Greater,
+    Equal,
+    Lesser,
+}
+
+/// Checks relation of `num` to `comparand`.
+///
+/// Returns `Rel` relation.
+pub fn rel(num: &PlacesRow, comparand: &PlacesRow) -> Rel {
+    let r1 = &num.row;
+    let r2 = &comparand.row;
+
+    // ⇐⇒ no leading zeros
+    // num.len() > comparand.len() ⇒ num > comparand
+    // num.len() < comparand.len() ⇒ num < comparand
+    // num.len() = comparand.len() ⇒ num ⪒ comparand
+    let r1_len = r1.len();
+    let r2_len = r2.len();
+
+    return if r1_len > r2_len {
+        Rel::Greater
+    } else if r1_len == r2_len {
+        for inx in (0..r2_len).rev() {
+            if r1[inx] > r2[inx] {
+                return Rel::Greater;
+            } else if r1[inx] < r2[inx] {
+                return Rel::Lesser;
+            }
+        }
+
+        Rel::Equal
+    } else {
+        Rel::Lesser
+    };
+}
+
 use alloc::{string::String, vec, vec::Vec};
 
-/// Computes `num1` and `num2` sum.
+/// Computes `addend1` and `addend2` sum.
 ///
 /// Returns `PlacesRow` with result.
-pub fn add(num1: &PlacesRow, num2: &PlacesRow) -> PlacesRow {
-    let places1 = &num1.row;
-    let places2 = &num2.row;
+pub fn add(addend1: &PlacesRow, addend2: &PlacesRow) -> PlacesRow {
+    let r1 = &addend1.row;
+    let r2 = &addend2.row;
 
-    let (augend, addend) = if places1.len() > places2.len() {
-        (places2, places1)
+    let (addend, augend) = if r1.len() > r2.len() {
+        (r1, r2)
     } else {
-        (places1, places2)
+        (r2, r1)
     };
 
     // avoids repetetive reallocations
@@ -227,42 +242,79 @@ pub fn add(num1: &PlacesRow, num2: &PlacesRow) -> PlacesRow {
     PlacesRow { row: sum }
 }
 
-/// Computes `num1` and `num2` product.
+/// Computes `minuend` and `subtrahend` difference.
 ///
-/// Returns `PlacesRow` with result.
-pub fn mul(num1: &PlacesRow, num2: &PlacesRow) -> PlacesRow {
-    mulmul(&num1.row, &num2.row, 1)
+/// Returns difference `PlacesRow` if `minuend` ≥ `subtrahend`, `None` otherwise.
+pub fn sub(minuend: &PlacesRow, subtrahend: &PlacesRow) -> Option<PlacesRow> {
+    let rel = rel(minuend, subtrahend);
+
+    if rel == Rel::Lesser {
+        None
+    } else if rel == Rel::Equal {
+        Some(PlacesRow::zero())
+    } else {
+        let min_row = &minuend.row;
+        let sub_row = &subtrahend.row;
+        let diff = substraction(&min_row, &sub_row, false).0;
+        Some(PlacesRow { row: diff })
+    }
 }
 
-/// Computes power `pow` of number `num`.
+/// Computes `factor1` and `factor2` product.
+///
+/// Returns `PlacesRow` with result.
+pub fn mul(factor1: &PlacesRow, factor2: &PlacesRow) -> PlacesRow {
+    mulmul(&factor1.row, &factor2.row, 1)
+}
+
+/// Computes power `pow` of `base`.
 ///
 /// Potentially CPU, memory intesive.
 ///
 /// Returns `PlacesRow` with result.
-pub fn pow(num: &PlacesRow, pow: usize) -> PlacesRow {
+pub fn pow(base: &PlacesRow, pow: u16) -> PlacesRow {
+    let row = &base.row;
     if pow == 0 {
         return PlacesRow { row: vec![1] };
+    } else if pow == 1 {
+        return PlacesRow { row: row.clone() };
     }
 
-    let row = &num.row;
     mulmul(row, row, pow - 1)
+}
+
+/// Computes `dividend` and `divisor` ratio and remainder.
+///
+/// Returns tuple with `PlacesRow` ratio and `PlacesRow` remainder in order.
+pub fn divrem(dividend: &PlacesRow, divisor: &PlacesRow) -> (PlacesRow, PlacesRow) {
+    let rel = rel(dividend, divisor);
+
+    if rel == Rel::Lesser {
+        (PlacesRow::zero(), dividend.clone())
+    } else if rel == Rel::Equal {
+        (PlacesRow { row: vec![1; 1] }, PlacesRow::zero())
+    } else {
+        let remratio = substraction(&dividend.row, &divisor.row, true);
+        (PlacesRow { row: remratio.1 }, PlacesRow { row: remratio.0 })
+    }
 }
 
 /// Combined method allows to compute multiplication and power using shared code.
 ///
-/// Not really efficient on power computation.
+/// Space for effecient power computation?
 ///   🡺 Inspect log₂ power speed up.
-fn mulmul(row1: &Vec<u8>, row2: &Vec<u8>, times: usize) -> PlacesRow {
+fn mulmul(row1: &Vec<u8>, row2: &Vec<u8>, times: u16) -> PlacesRow {
     let (mpler, mut mcand) = (row1, row2.clone());
 
     let mpler_len = mpler.len();
 
-    // intermediate product of `mcand` and `mpler` place
+    // intermediate product of `mcand` and `mpler`
     let mut i_product = Vec::with_capacity(0);
     // intermediate sum of intermediate products
     let mut i_sum = Vec::with_capacity(0);
 
-    for _ in 0..times {
+    let mut cntr = 0;
+    loop {
         let mcand_len = mcand.len();
 
         // avoids repetetive reallocations
@@ -291,10 +343,17 @@ fn mulmul(row1: &Vec<u8>, row2: &Vec<u8>, times: usize) -> PlacesRow {
         #[cfg(test)]
         assert!(i_sum_ptr == i_sum.as_ptr());
 
+        cntr += 1;
+        if cntr == times {
+            mcand = i_sum;
+            break;
+        }
+
         mcand.clone_from(&i_sum);
         i_sum.clear();
     }
 
+    shrink_to_fit_raw(&mut mcand);
     PlacesRow { row: mcand }
 }
 
@@ -316,7 +375,7 @@ fn product(mpler: u8, mcand: &Vec<u8>, product: &mut Vec<u8>) {
 
 /// Adds `addend_1` to `sum` or adds `addend_1` and `addend_2` sum into `sum`.
 ///
-/// Precise expectations must be upkept when adding 2 addends: sum is assumed to be empty, `addend_1` to be longer (equal) of numbers and offset to be `0`.
+/// Precise expectations must be upkept when adding 2 addends: sum is assumed to be empty, `addend_1` to be longer or equal of numbers and offset to be `0`.
 fn addition(addend_1: &Vec<u8>, addend_2: Option<&Vec<u8>>, sum: &mut Vec<u8>, offset: usize) {
     let addend_1_len = addend_1.len();
 
@@ -360,15 +419,16 @@ fn addition(addend_1: &Vec<u8>, addend_2: Option<&Vec<u8>>, sum: &mut Vec<u8>, o
     }
 }
 
-//precondition: minuend ≥ subtrahend ⇒ minuend.len() ≥ subtrahend.len()
-fn substraction(minuend: &Vec<u8>, subtrahend: &Vec<u8>, modulo: bool) -> (Vec<u8>, Vec<u8>) {
-    let mut diffmod_populated = false;
+/// For difference computation applies precondition minuend ≥ subtrahend.
+/// Returns difference/remainder and ration in order.
+fn substraction(minuend: &Vec<u8>, subtrahend: &Vec<u8>, remainder: bool) -> (Vec<u8>, Vec<u8>) {
+    let mut diffrem_populated = false;
 
     let minuend_len = minuend.len();
     let subtrahend_len = subtrahend.len();
 
-    let mut diffmod = vec![0; minuend_len];
-    let diffmod_ptr = diffmod.as_ptr();
+    let mut diffrem = vec![0; minuend_len];
+    let diffrem_ptr = diffrem.as_ptr();
     let mut minuend_ptr = minuend.as_ptr();
 
     let mut ratio = vec![0; 1];
@@ -382,7 +442,7 @@ fn substraction(minuend: &Vec<u8>, subtrahend: &Vec<u8>, modulo: bool) -> (Vec<u
         while inx < minuend_len {
             let s_num = if inx < subtrahend_len {
                 subtrahend[inx]
-            } else if inx >= subtrahend_len && takeover == 0 && diffmod_populated {
+            } else if inx >= subtrahend_len && takeover == 0 && diffrem_populated {
                 break;
             } else {
                 0
@@ -398,42 +458,39 @@ fn substraction(minuend: &Vec<u8>, subtrahend: &Vec<u8>, modulo: bool) -> (Vec<u
                 0
             };
 
-            diffmod[inx] = m_num - total_s;
+            diffrem[inx] = m_num - total_s;
             inx += 1;
         }
 
         // existing remainder implies _minuend_ exhaustion
-        // thus modulo is one turn more than is correct
+        // thus remainder is one turn more than is correct
         if takeover == 1 {
             inx = 0;
             takeover = 0;
             while inx < subtrahend_len {
-                let correction = diffmod[inx] + subtrahend[inx];
-                diffmod[inx] = ones(correction, &mut takeover);
+                let correction = diffrem[inx] + subtrahend[inx];
+                diffrem[inx] = ones(correction, &mut takeover);
                 inx += 1;
             }
 
-            while inx < minuend_len {
-                diffmod[inx] = 0;
-                inx += 1;
-            }
-
+            truncate_leading_raw(&mut diffrem, 9);
             break;
         }
 
         addition(&one, None, &mut ratio, 0);
 
-        if !modulo {
+        if !remainder {
             break;
         }
 
-        if !diffmod_populated {
-            minuend_ptr = diffmod_ptr;
-            diffmod_populated = true;
+        if !diffrem_populated {
+            minuend_ptr = diffrem_ptr;
+            diffrem_populated = true;
         }
     }
 
-    (diffmod, ratio)
+    shrink_to_fit_raw(&mut diffrem);
+    (diffrem, ratio)
 }
 
 /// Supports algorithimical decimal row computations.
@@ -457,21 +514,10 @@ mod tests_of_units {
     mod placesrow {
         use crate::PlacesRow as Row;
         use alloc::string::ToString;
-        use alloc::vec;
-        use alloc::vec::Vec;
 
         mod new_from_vec {
             use crate::PlacesRow as Row;
             use alloc::vec;
-
-            #[test]
-            fn unsupported_num_test() {
-                let row = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-                let row = Row::new_from_vec(row);
-
-                assert!(row.is_err());
-                assert_eq!(Some(10), row.err().unwrap());
-            }
 
             #[test]
             fn basic_test() {
@@ -491,14 +537,17 @@ mod tests_of_units {
             }
 
             #[test]
-            fn zeros_reduction_test() {
-                let row = Row::new_from_vec(vec![0, 0, 0]).unwrap();
-                assert_eq!(&[0], &*row.row);
+            fn unsupported_num_test() {
+                let row = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+                let row = Row::new_from_vec(row);
+
+                assert!(row.is_err());
+                assert_eq!(Some(10), row.err().unwrap());
             }
 
             #[test]
             fn leading_zeros_trim_test() {
-                let row = Row::new_from_vec(vec![1, 2, 0, 0]);                
+                let row = Row::new_from_vec(vec![1, 2, 0, 0]);
                 assert_eq!(&[1, 2], &*row.unwrap().row);
             }
         }
@@ -506,26 +555,24 @@ mod tests_of_units {
         #[test]
         fn new_from_num_test() {
             let row = Row::new_from_num(1234567890);
-            assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*row.row);
+            assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*row);
         }
 
         mod new_from_str {
             use crate::PlacesRow as Row;
 
             #[test]
-            fn nondigit_str_test() {
-                let row = Row::new_from_str("12w123");
+            fn zero_len_test() {
+                let row = Row::new_from_str("");
                 assert!(row.is_err());
-                let inx = row.err().unwrap();
-                assert!(inx.is_some());
-                assert_eq!(2, inx.unwrap());
+                assert_eq!(None, row.err().unwrap());
             }
 
             #[test]
-            fn basic_test() {
-                let row = Row::new_from_str("1234567890");
+            fn leading_zeros_trim_test() {
+                let row = Row::new_from_str("0021");
                 assert!(row.is_ok());
-                assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*row.unwrap().row);
+                assert_eq!(&[1, 2], &*row.unwrap().row);
             }
 
             #[test]
@@ -536,16 +583,19 @@ mod tests_of_units {
             }
 
             #[test]
-            fn leading_zeros_trim_test() {
-                let row = Row::new_from_str("0021");                
-                assert_eq!(&[1, 2], &*row.unwrap().row);
+            fn nondigit_str_test() {
+                let row = Row::new_from_str("0012w123");
+                assert!(row.is_err());
+                let inx = row.err().unwrap();
+                assert!(inx.is_some());
+                assert_eq!(4, inx.unwrap());
             }
 
             #[test]
-            fn zero_len_test() {
-                let row = Row::new_from_str("");
-                assert!(row.is_err());
-                assert_eq!(None, row.err().unwrap());
+            fn basic_test() {
+                let row = Row::new_from_str("1234567890");
+                assert!(row.is_ok());
+                assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*row.unwrap().row);
             }
         }
 
@@ -568,47 +618,102 @@ mod tests_of_units {
         }
 
         #[test]
+        fn zero_test() {
+            assert_eq!(&[0], &*Row::zero());
+        }
+
+        #[test]
         fn to_string_test() {
             let row = Row::new_from_num(1);
             assert_eq!("1", row.to_string());
         }
 
         #[test]
-        fn truncate_leading_zeros_test() {
-            let mut row = Row { row: vec![1, 2, 0] };
-            row.truncate_leading_zeros();
+        fn from_test() {
+            let row: Row = From::from(123);
+            assert_eq!(&[3, 2, 1], &*row);
+        }
+    }
 
-            assert_eq!(&[1, 2], &*row.row);
+    use crate::shrink_to_fit_raw;
+    #[test]
+    fn shrink_to_fit_raw_test() {
+        let mut row = alloc::vec::Vec::with_capacity(10);
+        row.push(1);
+        row.push(2);
+        row.push(0);
+
+        shrink_to_fit_raw(&mut row);
+        assert_eq!(&[1, 2], row.as_slice());
+        assert_eq!(2, row.capacity());
+    }
+
+    mod truncate_leading_raw {
+        use crate::truncate_leading_raw;
+        use alloc::vec;
+
+        #[test]
+        fn basic_test() {
+            let mut row = vec![1, 2, 0, 0];
+            truncate_leading_raw(&mut row, 0);
+            assert_eq!(vec![1, 2], row);
         }
 
         #[test]
-        fn shrink_to_fit_test() {
-            let mut row = Vec::with_capacity(10);
-            row.push(1);
-            row.push(2);
-            row.push(0);
+        fn preservation_test() {
+            let mut row = vec![2, 2, 2];
+            truncate_leading_raw(&mut row, 2);
+            assert_eq!(vec![2], row);
+        }
+    }
 
-            let mut row = Row { row };
-            row.shrink_to_fit();
-            assert_eq!(&[1, 2], &*row.row);
-            assert_eq!(2, row.row.capacity());
+    // Relational comparison.
+    mod rel {
+
+        use crate::{rel, PlacesRow as Row, Rel};
+
+        #[test]
+        fn longer_test() {
+            let num = Row::new_from_num(11);
+            let comparand = Row::new_from_num(9);
+
+            assert_eq!(Rel::Greater, rel(&num, &comparand));
         }
 
-        mod leading_zeros {
-            use crate::PlacesRow as Row;
-            use alloc::vec;
+        #[test]
+        fn shorter_test() {
+            let num = Row::new_from_num(9);
+            let comparand = Row::new_from_num(10);
 
-            #[test]
-            fn basic_test() {
-                let row = Row { row: vec![1, 2, 0] };
-                assert_eq!(1, row.leading_zeros());
-            }
+            assert_eq!(Rel::Lesser, rel(&num, &comparand));
+        }
 
-            #[test]
-            fn zero_test() {
-                let row = Row { row: vec![0, 0, 0] };
-                assert_eq!(2, row.leading_zeros());
-            }
+        #[test]
+        fn greater_test() {
+            let num_num = 1234567899;
+            let cpd_num = 1234567890;
+
+            let num = Row::new_from_num(num_num);
+            let comparand = Row::new_from_num(cpd_num);
+
+            assert_eq!(Rel::Greater, rel(&num, &comparand));
+        }
+
+        #[test]
+        fn equal_test() {
+            let num = Row::new_from_num(1234567890);
+            assert_eq!(Rel::Equal, rel(&num, &num));
+        }
+
+        #[test]
+        fn lesser_test() {
+            let num_num = 1234567890;
+            let cpd_num = 1234567899;
+
+            let num = Row::new_from_num(num_num);
+            let comparand = Row::new_from_num(cpd_num);
+
+            assert_eq!(Rel::Lesser, rel(&num, &comparand));
         }
     }
 
@@ -631,7 +736,7 @@ mod tests_of_units {
             let row2 = Row::new_from_num(5);
 
             let sum = add(&row1, &row2);
-            assert_eq!(Row::from_num(10_005), sum.row);
+            assert_eq!(Row::new_from_num(10_005), sum);
         }
 
         #[test]
@@ -640,7 +745,7 @@ mod tests_of_units {
             let row2 = Row::new_from_num(10_000);
 
             let sum = add(&row1, &row2);
-            assert_eq!(Row::from_num(10_005), sum.row);
+            assert_eq!(Row::new_from_num(10_005), sum);
         }
 
         #[test]
@@ -648,8 +753,34 @@ mod tests_of_units {
             let row = Row::new_from_str("680564733841876926926749214863536422910").unwrap();
 
             let sum = add(&row, &row);
-            let proof = Row::from_str("1361129467683753853853498429727072845820", false).unwrap();
-            assert_eq!(proof, sum.row);
+            assert_eq!("1361129467683753853853498429727072845820", sum.to_number());
+        }
+    }
+
+    /// Substraction.
+    mod sub {
+        use crate::{sub, PlacesRow as Row};
+
+        #[test]
+        fn lesser_minuend() {
+            let minuend = Row::new_from_num(4);
+            let subtrahend = Row::new_from_num(5);
+
+            assert!(sub(&minuend, &subtrahend).is_none());
+        }
+
+        #[test]
+        fn universal_test() {
+            for triplet in [(99, 11, 88), (133, 133, 0), (90, 19, 71), (700, 699, 1)] {
+                let minuend = Row::new_from_num(triplet.0);
+                let subtrahend = Row::new_from_num(triplet.1);
+
+                let proof = Row::new_from_num(triplet.2);
+                let diff = sub(&minuend, &subtrahend);
+                assert!(diff.is_some());
+
+                assert_eq!(proof, diff.unwrap());
+            }
         }
     }
 
@@ -661,59 +792,43 @@ mod tests_of_units {
         fn basic_test() {
             let row1 = Row::new_from_num(2);
             let row2 = Row::new_from_num(3);
-            let mul = mul(&row1, &row2);
-            assert_eq!(&[6], &*mul.row);
+            let prod = mul(&row1, &row2);
+            assert_eq!(&[6], &*prod);
         }
 
-        #[test]
-        fn left_num_longer_test() {
-            let row1 = Row::new_from_num(123456);
-            let row2 = Row::new_from_num(2);
-            let mul = mul(&row1, &row2);
-            assert_eq!(&[2, 1, 9, 6, 4, 2], &*mul.row);
-        }
-
-        #[test]
-        fn right_num_longer_test() {
-            let row1 = Row::new_from_num(1);
-            let row2 = Row::new_from_num(123456);
-            let mul = mul(&row1, &row2);
-            assert_eq!(&[6, 5, 4, 3, 2, 1], &*mul.row);
-        }
         #[test]
         fn zero_num_test() {
             let row1 = Row::new_from_num(0);
             let row2 = Row::new_from_num(123456);
-            let mul = mul(&row1, &row2);
-            assert_eq!(&[0, 0, 0, 0, 0, 0], &*mul.row);
+            let prod = mul(&row1, &row2);
+            assert_eq!(&[0], &*prod);
+            let prod_cap = prod.row.capacity();
+            assert!(1 == prod_cap || prod_cap < row2.len());
         }
 
         #[test]
         fn zero_nums_test() {
             let row1 = Row::new_from_num(0);
             let row2 = Row::new_from_num(0);
-            let mul = mul(&row1, &row2);
-            assert_eq!(&[0], &*mul.row);
+            let prod = mul(&row1, &row2);
+            assert_eq!(&[0], &*prod);
         }
 
         #[test]
         fn advanced_test() {
             let row = Row::new_from_num(u128::MAX);
-            let mul = mul(&row, &row);
-            let proof = Row::from_str(
-                "115792089237316195423570985008687907852589419931798687112530834793049593217025",
-                false,
-            )
-            .unwrap();
-            assert_eq!(proof, mul.row);
+            let prod = mul(&row, &row);
+            let proof =
+                "115792089237316195423570985008687907852589419931798687112530834793049593217025";
+            assert_eq!(proof, prod.to_number());
         }
     }
 
     /// For base ≥ 0 and exponent ≥ 0 power can be viewed as nothing more
     /// than repetetive multiplication with number in question.    
-    /// E.g.: 0º=1, 0¹=1×0, 0²=1×0×0, 0³=1×0×0×0, …
-    /// E.g.: 1º=1, 1¹=1×1, 1²=1×1×1, 1³=1×1×1×1, …
-    /// E.g.: 2º=1, 2¹=1×2, 2²=1×2×2, 2³=1×2×2×2, …    
+    /// 0º=1, 0¹=1×0, 0²=1×0×0, 0³=1×0×0×0, …
+    /// 1º=1, 1¹=1×1, 1²=1×1×1, 1³=1×1×1×1, …
+    /// 2º=1, 2¹=1×2, 2²=1×2×2, 2³=1×2×2×2, …    
     ///                   ⋮
     mod pow {
         use crate::{pow, PlacesRow as Row};
@@ -721,41 +836,39 @@ mod tests_of_units {
         #[test]
         fn basic_test() {
             let row = Row::new_from_num(2);
-            assert_eq!(&[4], &*pow(&row, 2).row);
+            assert_eq!(&[4], &*pow(&row, 2));
         }
 
         #[test]
         fn advanced_test2() {
-            let proof = Row::from_str("88817841970012523233890533447265625", false).unwrap();
+            let proof = Row::new_from_str("88817841970012523233890533447265625").unwrap();
             let row = Row::new_from_num(25);
-            assert_eq!(proof, pow(&row, 25).row);
+            assert_eq!(proof, pow(&row, 25));
         }
 
         #[test]
         fn advanced_test3() {
-            let proof = Row::from_str(
+            let proof = Row::new_from_str(
                 "949279437109690919948053832937215463733689853138782229364504479870922851876864",
-                false,
             )
             .unwrap();
 
             let row = Row::new_from_num(998);
-            assert_eq!(proof, pow(&row, 26).row);
+            assert_eq!(proof, pow(&row, 26));
         }
 
         #[test]
         fn advanced_test4() {
-            let proof = Row::from_str(
+            let proof = Row::new_from_str(
                 "926336713898529563388567880069503262826159877325124512315660672063305037119488",
-                false,
             )
             .unwrap();
 
             let row = Row::new_from_num(2);
-            assert_eq!(proof, pow(&row, 259).row);
+            assert_eq!(proof, pow(&row, 259));
         }
 
-        //#[test]
+        #[test]
         fn advanced_test5() {
             let row = Row::new_from_num(u128::MAX);
             let pow = pow(&row, 500);
@@ -769,21 +882,64 @@ mod tests_of_units {
         fn zero_power_test() {
             let row = Row::new_from_num(0);
             let pow = pow(&row, 0);
-            assert_eq!(&[1], &*pow.row);
+            assert_eq!(&[1], &*pow);
         }
 
         #[test]
         fn one_power_test() {
             let row = Row::new_from_num(3030);
             let pow = pow(&row, 1);
-            assert_eq!(&[0, 3, 0, 3], &*pow.row);
+            assert_eq!(&[0, 3, 0, 3], &*pow);
         }
 
         #[test]
-        fn power_of_zero_test_1() {
+        fn power_of_zero_test() {
             let row = Row::new_from_num(0);
             let pow = pow(&row, 1000);
-            assert_eq!(&[0], &*pow.row);
+            assert_eq!(&[0], &*pow);
+        }
+
+        #[test]
+        fn power_of_one_test() {
+            let row = Row::new_from_num(1);
+            let pow = pow(&row, u16::MAX);
+            assert_eq!(&[1], &*pow);
+        }
+    }
+
+    /// Division with remainder.
+    mod divrem {
+        use crate::{divrem, PlacesRow as Row};
+
+        #[test]
+        fn lesser_dividend() {
+            let dividend = Row::new_from_num(998);
+            let divisor = Row::new_from_num(999);
+
+            let ratrem = divrem(&dividend, &divisor);
+
+            assert_eq!(Row::zero(), ratrem.0);
+            assert_eq!(dividend, ratrem.1);
+        }
+
+        #[test]
+        fn universal_test() {
+            for quadruplet in [
+                (99, 11, 9, 0),
+                (133, 133, 1, 0),
+                (90, 19, 4, 14),
+                (700, 699, 1, 1),
+            ] {
+                let dividend = Row::new_from_num(quadruplet.0);
+                let divisor = Row::new_from_num(quadruplet.1);
+
+                let ratio = Row::new_from_num(quadruplet.2);
+                let remainder = Row::new_from_num(quadruplet.3);
+                let ratrem = divrem(&dividend, &divisor);
+
+                assert_eq!(ratio, ratrem.0);
+                assert_eq!(remainder, ratrem.1);
+            }
         }
     }
 
@@ -798,13 +954,13 @@ mod tests_of_units {
 
         #[test]
         fn basic_test() {
-            let mcand = vec![3];
+            let mcand = vec![3, 2, 1];
             let mpler = 3;
             let mut product = Vec::new();
 
             product_fn(mpler, &mcand, &mut product);
 
-            assert_eq!(vec![9], product);
+            assert_eq!(vec![9, 6, 3], product);
         }
 
         #[test]
@@ -831,8 +987,8 @@ mod tests_of_units {
 
             #[test]
             fn basic_test() {
-                let ad1 = vec![4, 3, 2, 1];
-                let mut sum = vec![1, 2, 3, 4];
+                let ad1 = vec![4, 3, 2, 5];
+                let mut sum = vec![1, 2, 3];
 
                 addition(&ad1, None, &mut sum, 0);
 
@@ -841,8 +997,8 @@ mod tests_of_units {
 
             #[test]
             fn takover_test() {
-                let ad1 = vec![9, 9, 9, 9, 9];
-                let mut sum = vec![9];
+                let ad1 = vec![9];
+                let mut sum = vec![9, 9, 9, 9, 9];
 
                 addition(&ad1, None, &mut sum, 0);
 
@@ -851,32 +1007,22 @@ mod tests_of_units {
 
             #[test]
             fn longer_addition_test() {
-                let ad1 = vec![9, 9, 9, 9, 9];
-                let mut sum = vec![9, 9];
+                let ad1 = vec![8, 9, 9, 9, 9];
+                let mut sum = vec![1, 1];
 
                 addition(&ad1, None, &mut sum, 0);
 
-                assert_eq!(vec![8, 9, 0, 0, 0, 1], sum);
+                assert_eq!(vec![9, 0, 0, 0, 0, 1], sum);
             }
 
             #[test]
-            fn offset_test_1() {
+            fn offset_test() {
                 let ad1 = vec![9, 9, 9, 9];
-                let mut sum = vec![9, 9, 9, 9];
+                let mut sum = vec![1, 1, 7, 8];
 
                 addition(&ad1, None, &mut sum, 2);
 
-                assert_eq!(vec![9, 9, 8, 9, 0, 0, 1], sum);
-            }
-
-            #[test]
-            fn offset_test_2() {
-                let ad1 = vec![9, 9];
-                let mut sum = vec![9, 9, 9, 9];
-
-                addition(&ad1, None, &mut sum, 2);
-
-                assert_eq!(vec![9, 9, 8, 9, 1], sum);
+                assert_eq!(vec![1, 1, 6, 8, 0, 0, 1], sum);
             }
         }
 
@@ -898,31 +1044,31 @@ mod tests_of_units {
 
             #[test]
             fn takover_test() {
-                let ad1 = vec![9, 9, 9, 9, 9];
-                let ad2 = vec![9, 9, 9, 9, 9];
+                let ad1 = vec![9];
+                let ad2 = vec![9];
                 let mut sum = Vec::new();
 
                 addition(&ad1, Some(&ad2), &mut sum, 0);
 
-                assert_eq!(vec![8, 9, 9, 9, 9, 1], sum);
+                assert_eq!(vec![8, 1], sum);
             }
 
             #[test]
             fn longer_addition_test() {
-                let ad1 = vec![9, 9, 9, 9];
-                let ad2 = vec![9, 9];
+                let ad1 = vec![8, 8, 9, 9, 9];
+                let ad2 = vec![1, 1];
                 let mut sum = Vec::new();
 
                 addition(&ad1, Some(&ad2), &mut sum, 0);
 
-                assert_eq!(vec![8, 9, 0, 0, 1], sum);
+                assert_eq!(vec![9, 9, 9, 9, 9], sum);
             }
         }
     }
 
     /// Column substraction fact notes:
     /// - Subtrahend always must be lower or equal to minuend.
-    /// - Minimum difference is 0=a-a, maximum 9=9-0=(9+a)-a.
+    /// - Minimum difference is 0=a-a, maximum 9=9-0=(9+a)-a, a ∈ [0;9].
     /// - Maximum subtrahend is 10=9+1(takeover).
     mod substraction {
 
@@ -932,114 +1078,142 @@ mod tests_of_units {
 
             #[test]
             fn basic_test() {
-                let result = substraction(&vec![9, 9], &vec![0, 1], false);
-                assert_eq!(&[9, 8], &*result.0);
-                assert_eq!(&[1], &*result.1);
+                let diffratio = substraction(&vec![9, 9], &vec![0, 1], false);
+                assert_eq!(&[9, 8], &*diffratio.0);
+                assert_eq!(&[1], &*diffratio.1);
             }
 
             #[test]
             // minuend must be "copied" to difference if subtrahend is
             // exhausted
             fn minuend_copy_test() {
-                let result = substraction(&vec![9, 9, 9], &vec![1], false);
-                assert_eq!(&[8, 9, 9], &*result.0);
-                assert_eq!(&[1], &*result.1);
+                let diffratio = substraction(&vec![7, 7, 7], &vec![1], false);
+                assert_eq!(&[6, 7, 7], &*diffratio.0);
+                assert_eq!(&[1], &*diffratio.1);
             }
 
             #[test]
             fn advanced_test() {
-                let minuend = Row::from_str(
-                    "6577102745386680762814942322444851025767571854389858533375",
-                    false,
-                )
-                .unwrap();
-                let subtrahend = Row::from_str(
-                    "6296101835386680762814942322444851025767571854389858533376",
-                    false,
-                )
-                .unwrap();
-                let proof = Row::from_str(
-                    "0281000909999999999999999999999999999999999999999999999999",
-                    false,
-                )
-                .unwrap();
+                let minuend =
+                    Row::new_from_str("6577102745386680762814942322444851025767571854389858533375")
+                        .unwrap();
+                let subtrahend =
+                    Row::new_from_str("6296101835386680762814942322444851025767571854389858533376")
+                        .unwrap();
+                let proof =
+                    Row::new_from_str("281000909999999999999999999999999999999999999999999999999")
+                        .unwrap();
 
-                let result = substraction(&minuend, &subtrahend, false);
-                assert_eq!(proof, result.0);
-                assert_eq!(&[1], &*result.1);
+                let diffratio = substraction(&minuend.row, &subtrahend.row, false);
+                assert_eq!(proof.row, diffratio.0);
+                assert_eq!(&[1], &*diffratio.1);
             }
 
             #[test]
             /// tests takeover ∈ [0,1] carry on            
             fn takeover_test() {
-                let result = substraction(&vec![8, 2, 2, 2], &vec![9, 2, 1, 1], false);
-                assert_eq!(&[9, 9, 0, 1], &*result.0);
-                assert_eq!(&[1], &*result.1);
+                let diffratio = substraction(&vec![8, 2, 2, 0, 1], &vec![9, 2, 1, 1], false);
+                assert_eq!(&[9, 9, 0, 9], &*diffratio.0);
+                assert_eq!(&[1], &*diffratio.1);
+            }
+
+            #[test]
+            fn zero_truncation_test() {
+                let diffratio = substraction(&vec![9, 9, 9], &vec![8, 9, 9], false);
+                let diff = diffratio.0;
+                assert_eq!(&[1], &*diff);
+                assert_eq!(&[1], &*diffratio.1);
+                let diffcap = diff.capacity();
+                assert!(1 == diffcap || diffcap < 3);
             }
         }
 
-        mod modulo {
+        mod remainder {
             use crate::{substraction, PlacesRow as Row};
+            use alloc::vec;
 
             #[test]
             fn basic_test() {
-                let result = substraction(&vec![3, 3], &vec![1, 1], true);
-                assert_eq!(&[0, 0], &*result.0);
-                assert_eq!(&[3], &*result.1);
+                let remratio = substraction(&vec![3, 3], &vec![1, 1], true);
+                assert_eq!(&[0], &*remratio.0);
+                assert_eq!(&[3], &*remratio.1);
             }
 
             #[test]
-            fn modulo_test() {
-                let result = substraction(&vec![6, 2], &vec![7], true);
-                assert_eq!(&[5, 0], &*result.0);
-                assert_eq!(&[3], &*result.1);
+            // minuend must be "copied" to remainder if subtrahend is
+            // exhausted
+            fn minuend_copy_test() {
+                let remratio = substraction(&vec![7, 7, 7], &vec![1], true);
+                assert_eq!(&[0], &*remratio.0);
+                assert_eq!(&[7, 7, 7], &*remratio.1);
             }
 
             #[test]
-            // after invalid substraction on modulo, places holds numbers resulting
+            fn remainder_test() {
+                let remratio = substraction(&vec![9], &vec![7], true);
+                assert_eq!(&[2], &*remratio.0);
+                assert_eq!(&[1], &*remratio.1);
+            }
+
+            #[test]
+            fn takeover_test() {
+                let remratio = substraction(&vec![9, 0, 9], &vec![9], true);
+                assert_eq!(&[0], &*remratio.0);
+                assert_eq!(&[1, 0, 1], &*remratio.1);
+            }
+
+            #[test]
+            // after invalid substraction on remainder, places holds numbers resulting
             // from borrowing and substracting
-            // e.g. [0,0,2,2]-[7,7]=[5,4,9,9], after modulo restore [2,2,9,9],
-            // after clearing [2,2,0,0]
-            // e.g. [0,0,0,0,3]-[7,2,1]=[6,7,8,9,9],[3,0,0,9,9],[3,0,0,0,0].
+            // e.g. [2,0,0,0,0]-[7,7,3]=[5,2,6,9,9]:
+            // - after remainder restoration [2,0,0,9,9],
+            // - after `9`s truncation [2,0,0],
+            // - after `0`s truncation [2]
             fn overrun_clearing_test() {
-                let result = substraction(&vec![7, 7, 1, 1], &vec![7, 7], true);
-                assert_eq!(&[2, 2, 0, 0], &*result.0);
-                assert_eq!(&[5, 1], &*result.1);
+                let remratio = substraction(&vec![2, 0, 0, 7, 7], &vec![7, 7], true);
+                let remainder = remratio.0;
+                assert_ne!(vec![5, 2, 6, 9, 9], remainder);
+                assert_ne!(vec![2, 0, 0, 9, 9], remainder);
+                assert_ne!(vec![2, 0, 0], remainder);
+                assert_eq!(vec![2], remainder);
+                let remcap = remainder.capacity();
+                assert!(1 == remcap || remcap < 5);
+                assert_eq!(&[0, 0, 0, 1], &*remratio.1);
             }
 
             #[test]
             fn advanced_test() {
-                let minuend = Row::from_str("627710173", false).unwrap();
-                let modulo = Row::from_str("000000130", false).unwrap();
-                let ratio = Row::from_str("1955483", false).unwrap();
+                let minuend = Row::new_from_num(627710173);
+                let remainder = Row::new_from_num(130);
+                let ratio = Row::new_from_num(1955483);
 
-                let result = substraction(&minuend, &vec![1, 2, 3], true);
-                assert_eq!(&modulo, &*result.0);
-                assert_eq!(&ratio, &*result.1);
+                let remratio = substraction(&minuend.row, &vec![1, 2, 3], true);
+                assert_eq!(&*remainder, &*remratio.0);
+                assert_eq!(&*ratio, &*remratio.1);
             }
 
             #[test]
             fn advanced_test2() {
-                let minuend = Row::from_str("627710173", false).unwrap();
-                let subtrahend = Row::from_str("3552741", false).unwrap();
-                let modulo = Row::from_str("002427757", false).unwrap();
-                let ratio = Row::from_str("176", false).unwrap();
+                let minuend = Row::new_from_num(627710173);
+                let subtrahend = Row::new_from_num(3552741);
+                let remainder = Row::new_from_num(2427757);
+                let ratio = Row::new_from_num(176);
 
-                let result = substraction(&minuend, &subtrahend, true);
-                assert_eq!(&modulo, &*result.0);
-                assert_eq!(&ratio, &*result.1);
+                let remratio = substraction(&minuend.row, &subtrahend.row, true);
+                assert_eq!(&*remainder, &*remratio.0);
+                assert_eq!(&*ratio, &*remratio.1);
             }
 
             #[test]
             fn advanced_test3() {
-                let minuend = Row::from_str("242775712", false).unwrap();
-                let subtrahend = Row::from_str("33333", false).unwrap();
-                let modulo = Row::from_str("000011473", false).unwrap();
-                let ratio = Row::from_str("7283", false).unwrap();
+                let minuend = Row::new_from_num(242775712);
+                let subtrahend = Row::new_from_num(33333);
+                let remainder = Row::new_from_num(11473);
+                let ratio = Row::new_from_num(7283);
 
-                let result = substraction(&minuend, &subtrahend, true);
-                assert_eq!(&modulo, &*result.0);
-                assert_eq!(&ratio, &*result.1);
+                let remratio = substraction(&minuend.row, &subtrahend.row, true);
+                assert_eq!(&*remainder, &*remratio.0);
+                assert_eq!(&*ratio, &*remratio.1);
             }
         }
     }
