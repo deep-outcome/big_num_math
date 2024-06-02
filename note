@@ -1,0 +1,5 @@
+- inspect mulmul without intermediate product: to be better only stack must employed (no Vec writes) => addition method split
+- make pow log effecient
+- ponder about zero meaning, usage
+- consider shortcuts: power of 0, 1 are known for all powers, 0 * anything = 0, etc.
+- array of usizes: 2->10 conversion only problem?
