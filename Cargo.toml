@@ -1,11 +1,11 @@
 [package]
 name = "big_num_math"
-version = "1.0.1"
+version = "1.0.2"
 edition = "2021"
 authors     = [ "software9119.technology" ]
 license     = "MIT"
 description = "Simple library for computations on large numbers."
-keywords    = [ "math", "large-numbers" ]
+keywords    = [ "math", "large-numbers", "big-int" ]
 categories  = [ "no-std", "mathematics" ]
 repository  = "https://github.com/bravequickcleverfibreyarn/big_num_math"
 documentation = "https://docs.rs/big_num_math/latest/big_num_math/"
