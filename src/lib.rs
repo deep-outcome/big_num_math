@@ -285,18 +285,25 @@ pub fn pow(base: &PlacesRow, pow: u16) -> PlacesRow {
 
 /// Computes `dividend` and `divisor` ratio and remainder.
 ///
-/// Returns tuple with `PlacesRow` ratio and `PlacesRow` remainder in order.
-pub fn divrem(dividend: &PlacesRow, divisor: &PlacesRow) -> (PlacesRow, PlacesRow) {
+/// Returns tuple with `PlacesRow` ratio and `PlacesRow` remainder in order or `None` when `divisor` is zero.
+pub fn divrem(dividend: &PlacesRow, divisor: &PlacesRow) -> Option<(PlacesRow, PlacesRow)> {
+    let zero = PlacesRow::zero();
+    if divisor == &zero {
+        return None;
+    }
+
     let rel = rel(dividend, divisor);
 
-    if rel == Rel::Lesser {
-        (PlacesRow::zero(), dividend.clone())
+    let res = if rel == Rel::Lesser {
+        (zero, dividend.clone())
     } else if rel == Rel::Equal {
-        (PlacesRow { row: vec![1; 1] }, PlacesRow::zero())
+        (PlacesRow { row: vec![1; 1] }, zero)
     } else {
         let remratio = substraction(&dividend.row, &divisor.row, true);
         (PlacesRow { row: remratio.1 }, PlacesRow { row: remratio.0 })
-    }
+    };
+
+    Some(res)
 }
 
 /// Combined method allows to compute multiplication and power using shared code.
@@ -762,7 +769,7 @@ mod tests_of_units {
         use crate::{sub, PlacesRow as Row};
 
         #[test]
-        fn lesser_minuend() {
+        fn lesser_minuend_test() {
             let minuend = Row::new_from_num(4);
             let subtrahend = Row::new_from_num(5);
 
@@ -912,11 +919,23 @@ mod tests_of_units {
         use crate::{divrem, PlacesRow as Row};
 
         #[test]
-        fn lesser_dividend() {
+        fn zero_divisor_test() {
+            let dividend = Row::new_from_num(1);
+            let divisor = Row::new_from_num(0);
+
+            let ratrem = divrem(&dividend, &divisor);
+            assert!(ratrem.is_none());
+        }
+
+        #[test]
+        fn lesser_dividend_test() {
             let dividend = Row::new_from_num(998);
             let divisor = Row::new_from_num(999);
 
             let ratrem = divrem(&dividend, &divisor);
+            assert!(ratrem.is_some());
+
+            let ratrem = ratrem.unwrap();
 
             assert_eq!(Row::zero(), ratrem.0);
             assert_eq!(dividend, ratrem.1);
@@ -925,6 +944,7 @@ mod tests_of_units {
         #[test]
         fn universal_test() {
             for quadruplet in [
+                (0, 100, 0, 0),
                 (99, 11, 9, 0),
                 (133, 133, 1, 0),
                 (90, 19, 4, 14),
@@ -936,6 +956,9 @@ mod tests_of_units {
                 let ratio = Row::new_from_num(quadruplet.2);
                 let remainder = Row::new_from_num(quadruplet.3);
                 let ratrem = divrem(&dividend, &divisor);
+
+                assert!(ratrem.is_some());
+                let ratrem = ratrem.unwrap();
 
                 assert_eq!(ratio, ratrem.0);
                 assert_eq!(remainder, ratrem.1);
