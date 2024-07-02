@@ -449,7 +449,7 @@ fn substraction(minuend: &Vec<u8>, subtrahend: &Vec<u8>, remainder: bool) -> (Ve
         while inx < minuend_len {
             let s_num = if inx < subtrahend_len {
                 subtrahend[inx]
-            } else if inx >= subtrahend_len && takeover == 0 && diffrem_populated {
+            } else if takeover == 0 && diffrem_populated {
                 break;
             } else {
                 0
@@ -1133,7 +1133,7 @@ mod tests_of_units {
             }
 
             #[test]
-            /// tests takeover ∈ [0,1] carry on            
+            /// tests takeover ∈ [0,1] carry on
             fn takeover_test() {
                 let diffratio = substraction(&vec![8, 2, 2, 0, 1], &vec![9, 2, 1, 1], false);
                 assert_eq!(&[9, 9, 0, 9], &*diffratio.0);
