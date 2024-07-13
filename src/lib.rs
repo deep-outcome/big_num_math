@@ -356,8 +356,10 @@ fn mulmul(row1: &Vec<u8>, row2: &Vec<u8>, times: u16) -> PlacesRow {
             break;
         }
 
-        mcand.clone_from(&i_sum);
-        i_sum.clear();
+        mcand.clear();
+        let swap = mcand;
+        mcand = i_sum;
+        i_sum = swap;
     }
 
     shrink_to_fit_raw(&mut mcand);
