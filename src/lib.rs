@@ -1191,7 +1191,7 @@ mod tests_of_units {
             }
 
             #[test]
-            // after invalid substraction on remainder, places holds numbers resulting
+            // after invalid substraction on remainder, places hold numbers resulting
             // from borrowing and substracting
             // e.g. [2,0,0,0,0]-[7,7,3]=[5,2,6,9,9]:
             // - after remainder restoration [2,0,0,9,9],
