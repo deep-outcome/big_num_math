@@ -32,19 +32,27 @@ impl PlacesRow {
     /// Returns `PlacesRow` or index where place > `9` was
     /// encountered. `None` for 0-len `row`.
     pub fn new_from_vec(mut row: Vec<u8>) -> Result<Self, Option<usize>> {
-        if row.len() == 0 {
+        let mut row_len = row.len();
+
+        if row_len == 0 {
             return Err(None);
         }
 
-        let mut enumerator = row.iter().enumerate();
-        while let Some((inx, num)) = enumerator.next() {
-            if *num > 9 {
-                return Err(Some(inx));
+        for ix in (1..row_len).rev() {
+            if 0 == row[ix] {
+                row_len -= 1;
+            } else {
+                break;
             }
         }
 
-        truncate_leading_raw(&mut row, 0);
+        for ix in 0..row_len {
+            if row[ix] > 9 {
+                return Err(Some(ix));
+            }
+        }
 
+        row.truncate(row_len);
         Ok(PlacesRow { row })
     }
 
@@ -143,7 +151,7 @@ fn truncate_leading_raw(row: &mut Vec<u8>, lead: u8) {
     let mut trun = 0;
     let mut rev = row.iter().rev();
     while let Some(num) = rev.next() {
-        if *num == lead as u8 {
+        if *num == lead {
             trun += 1;
         } else {
             break;
@@ -188,7 +196,7 @@ pub fn rel(num: &PlacesRow, comparand: &PlacesRow) -> Rel {
     let r1 = &num.row;
     let r2 = &comparand.row;
 
-    // ⇐⇒ no leading zeros
+    // ⟺ no leading zeros
     // num.len() > comparand.len() ⇒ num > comparand
     // num.len() < comparand.len() ⇒ num < comparand
     // num.len() = comparand.len() ⇒ num ⪒ comparand
@@ -369,7 +377,7 @@ fn mulmul(row1: &Vec<u8>, row2: &Vec<u8>, times: u16) -> PlacesRow {
 /// Computes product of `mpler` and `mcand`.
 fn product(mpler: u8, mcand: &Vec<u8>, product: &mut Vec<u8>) {
     let mut takeover = 0;
-    
+
     // runs in vain for `mpler` = 0
     //   🡺 inspect possibilities
     for &num in mcand {
@@ -549,8 +557,8 @@ mod tests_of_units {
             }
 
             #[test]
-            fn unsupported_num_test() {
-                let row = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+            fn unsupported_num_len_index_test() {
+                let row = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0, 0];
                 let row = Row::new_from_vec(row);
 
                 assert!(row.is_err());
@@ -558,9 +566,24 @@ mod tests_of_units {
             }
 
             #[test]
+            fn unsupported_num_0_index_test() {
+                let row = vec![10, 0, 0, 0];
+                let row = Row::new_from_vec(row);
+
+                assert!(row.is_err());
+                assert_eq!(Some(0), row.err().unwrap());
+            }
+
+            #[test]
             fn leading_zeros_trim_test() {
                 let row = Row::new_from_vec(vec![1, 2, 0, 0]);
                 assert_eq!(&[1, 2], &*row.unwrap().row);
+            }
+
+            #[test]
+            fn zero_reduction_test() {
+                let row = Row::new_from_vec(vec![0, 0, 0, 0]);
+                assert_eq!(&[0], &*row.unwrap().row);
             }
         }
 
@@ -881,6 +904,7 @@ mod tests_of_units {
         }
 
         #[test]
+        #[cfg(feature = "ext-tests")]
         fn advanced_test5() {
             let row = Row::new_from_num(u128::MAX);
             let pow = pow(&row, 500);
@@ -1278,3 +1302,5 @@ mod tests_of_units {
         }
     }
 }
+
+// cargo test --feature ext-tests --release

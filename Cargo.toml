@@ -11,3 +11,6 @@ repository  = "https://github.com/bravequickcleverfibreyarn/big_num_math"
 documentation = "https://docs.rs/big_num_math/latest/big_num_math/"
 readme        = "README.md"
 homepage      = "https://github.com/bravequickcleverfibreyarn/big_num_math"
+
+[features]
+ext-tests = []
