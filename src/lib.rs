@@ -27,24 +27,16 @@ impl PlacesRow {
     /// Places in `row` have to be ordered from ones over tens, hundreds, … to highest place;
     /// from 0-index to last-index.
     ///
-    /// Leading zeros are truncated. Does not reallocate.
+    /// Leading zeros are truncated. Does not change capacity.
     ///
     /// Returns `PlacesRow` or index where place > `9` was
     /// encountered. `None` for 0-len `row`.
     pub fn new_from_vec(mut row: Vec<u8>) -> Result<Self, Option<usize>> {
-        let mut row_len = row.len();
-
-        if row_len == 0 {
+        if row.len() == 0 {
             return Err(None);
         }
 
-        for ix in (1..row_len).rev() {
-            if 0 == row[ix] {
-                row_len -= 1;
-            } else {
-                break;
-            }
-        }
+        let row_len = len_without_leading_raw(&row, 0, 1);
 
         for ix in 0..row_len {
             if row[ix] > 9 {
@@ -143,27 +135,26 @@ impl PlacesRow {
 }
 
 fn shrink_to_fit_raw(row: &mut Vec<u8>) {
-    truncate_leading_raw(row, 0);
+    truncate_leading_raw(row, 0, 1);
     row.shrink_to_fit();
 }
 
-fn truncate_leading_raw(row: &mut Vec<u8>, lead: u8) {
-    let mut trun = 0;
-    let mut rev = row.iter().rev();
-    while let Some(num) = rev.next() {
-        if *num == lead {
-            trun += 1;
+fn truncate_leading_raw(row: &mut Vec<u8>, lead: u8, upto: usize) {
+    let new_len = len_without_leading_raw(row, lead, upto);
+    row.truncate(new_len);
+}
+
+fn len_without_leading_raw(row: &Vec<u8>, lead: u8, upto: usize) -> usize {
+    let mut row_len = row.len();
+    for ix in (upto..row_len).rev() {
+        if lead == row[ix] {
+            row_len -= 1;
         } else {
             break;
         }
     }
 
-    let row_len = row.len();
-    if row_len == trun {
-        trun -= 1
-    }
-
-    row.truncate(row_len - trun);
+    row_len
 }
 
 impl alloc::string::ToString for PlacesRow {
@@ -370,6 +361,7 @@ fn mulmul(row1: &Vec<u8>, row2: &Vec<u8>, times: u16) -> PlacesRow {
         i_sum = swap;
     }
 
+    // useless when both of factors cannot be zero
     shrink_to_fit_raw(&mut mcand);
     PlacesRow { row: mcand }
 }
@@ -493,7 +485,7 @@ fn substraction(minuend: &Vec<u8>, subtrahend: &Vec<u8>, remainder: bool) -> (Ve
                 inx += 1;
             }
 
-            truncate_leading_raw(&mut diffrem, 9);
+            truncate_leading_raw(&mut diffrem, 9, inx);
             break;
         }
 
@@ -670,17 +662,35 @@ mod tests_of_units {
         }
     }
 
-    use crate::shrink_to_fit_raw;
-    #[test]
-    fn shrink_to_fit_raw_test() {
-        let mut row = alloc::vec::Vec::with_capacity(10);
-        row.push(1);
-        row.push(2);
-        row.push(0);
+    mod shrink_to_fit_raw {
+        use crate::shrink_to_fit_raw;
+        use alloc::vec::Vec;
 
-        shrink_to_fit_raw(&mut row);
-        assert_eq!(&[1, 2], row.as_slice());
-        assert_eq!(2, row.capacity());
+        #[test]
+        fn zero_truncation() {
+            let cap = 100;
+            let mut row = Vec::with_capacity(cap);
+            row.push(1);
+            row.push(2);
+            row.push(0);
+
+            shrink_to_fit_raw(&mut row);
+            assert_eq!(&[1, 2], &*row);
+            assert!(row.capacity() < cap);
+        }
+
+        #[test]
+        fn first_preservation() {
+            let cap = 100;
+            let mut row = Vec::with_capacity(cap);
+            row.push(0);
+            row.push(0);
+            row.push(0);
+
+            shrink_to_fit_raw(&mut row);
+            assert_eq!(&[0], &*row);
+            assert!(row.capacity() < cap);
+        }
     }
 
     mod truncate_leading_raw {
@@ -689,16 +699,38 @@ mod tests_of_units {
 
         #[test]
         fn basic_test() {
-            let mut row = vec![1, 2, 0, 0];
-            truncate_leading_raw(&mut row, 0);
-            assert_eq!(vec![1, 2], row);
+            let mut row = vec![7, 7, 7, 7, 7];
+            truncate_leading_raw(&mut row, 7, 3);
+            assert_eq!(vec![7, 7, 7,], row);
+        }
+    }
+
+    mod len_without_leading_raw {
+        use crate::len_without_leading_raw;
+        use alloc::vec;
+
+        #[test]
+        fn counting_test() {
+            let count = len_without_leading_raw(&vec![1, 2, 5, 5, 5], 5, 0);
+            assert_eq!(2, count);
         }
 
         #[test]
         fn preservation_test() {
-            let mut row = vec![2, 2, 2];
-            truncate_leading_raw(&mut row, 2);
-            assert_eq!(vec![2], row);
+            let count = len_without_leading_raw(&vec![5, 5, 5, 5], 5, 1);
+            assert_eq!(1, count);
+        }
+
+        #[test]
+        fn no_leading_test() {
+            let count = len_without_leading_raw(&vec![5, 5, 5, 0], 5, 0);
+            assert_eq!(4, count);
+        }
+
+        #[test]
+        fn upto_equal_len_test() {
+            let count = len_without_leading_raw(&vec![5, 5, 5], 5, 3);
+            assert_eq!(3, count);
         }
     }
 
@@ -1178,6 +1210,19 @@ mod tests_of_units {
                 let diffcap = diff.capacity();
                 assert!(1 == diffcap || diffcap < 3);
             }
+
+            // because it can be
+            // [1,0,9] - [2,0,9] = [9,9,9]
+            // [9,9,9] + [2,0,9] = [1,0,9]
+            // top place 9 must be preserved
+            #[test]
+            fn top_place_9_preservation() {
+                let minuend = &vec![1, 0, 9];
+                let subtrahend = vec![2, 0, 9];
+                let diffratio = substraction(minuend, &subtrahend, false);
+                assert_eq!(minuend, &*diffratio.0);
+                assert_eq!(&[0], &*diffratio.1);
+            }
         }
 
         mod remainder {
@@ -1224,9 +1269,9 @@ mod tests_of_units {
             fn overrun_clearing_test() {
                 let remratio = substraction(&vec![2, 0, 0, 7, 7], &vec![7, 7], true);
                 let remainder = remratio.0;
-                assert_ne!(vec![5, 2, 6, 9, 9], remainder);
-                assert_ne!(vec![2, 0, 0, 9, 9], remainder);
-                assert_ne!(vec![2, 0, 0], remainder);
+                assert_ne!(vec![5, 2, 9, 9, 9], remainder);
+                assert_ne!(vec![2, 0, 9, 9, 9], remainder);
+                assert_ne!(vec![2, 0], remainder);
                 assert_eq!(vec![2], remainder);
                 let remcap = remainder.capacity();
                 assert!(1 == remcap || remcap < 5);
@@ -1267,6 +1312,20 @@ mod tests_of_units {
                 assert_eq!(&*remainder, &*remratio.0);
                 assert_eq!(&*ratio, &*remratio.1);
             }
+
+            // because it can be
+            // [1,0,9] - [2,0,9] = [9,9,9]
+            // [9,9,9] + [2,0,9] = [1,0,9]
+            // top place 9 must be preserved
+            // 5411 = 5 ·902 +901
+            #[test]
+            fn top_place_9_preservation() {
+                let minuend = vec![1, 1, 4, 5];
+                let subtrahend = vec![2, 0, 9];
+                let remratio = substraction(&minuend, &subtrahend, true);
+                assert_eq!(&[1, 0, 9], &*remratio.0);
+                assert_eq!(&[5], &*remratio.1);
+            }
         }
     }
 
@@ -1303,4 +1362,4 @@ mod tests_of_units {
     }
 }
 
-// cargo test --feature ext-tests --release
+// cargo test --features ext-tests --release

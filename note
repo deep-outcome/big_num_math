@@ -7,6 +7,7 @@ Easy
     - make pow log effecient
     - mulmul escape for 0 multiplier
     - check once again whether division is "im"possible (avoid substracting)
+    - implement substraction speed by extending subtrahend to max place
 
 Medium
     - array of usizes: reduces memory footprint twice (1001=9, 1001 1001 = 9 9)
