@@ -667,7 +667,7 @@ mod tests_of_units {
         use alloc::vec::Vec;
 
         #[test]
-        fn zero_truncation() {
+        fn zero_truncation_test() {
             let cap = 100;
             let mut row = Vec::with_capacity(cap);
             row.push(1);
@@ -680,7 +680,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn first_preservation() {
+        fn first_preservation_test() {
             let cap = 100;
             let mut row = Vec::with_capacity(cap);
             row.push(0);
@@ -937,6 +937,7 @@ mod tests_of_units {
 
         #[test]
         #[cfg(feature = "ext-tests")]
+        // readme sample
         fn advanced_test5() {
             let row = Row::new_from_num(u128::MAX);
             let pow = pow(&row, 500);
@@ -1216,7 +1217,7 @@ mod tests_of_units {
             // [9,9,9] + [2,0,9] = [1,0,9]
             // top place 9 must be preserved
             #[test]
-            fn top_place_9_preservation() {
+            fn top_place_9_preservation_test() {
                 let minuend = &vec![1, 0, 9];
                 let subtrahend = vec![2, 0, 9];
                 let diffratio = subtraction(minuend, &subtrahend, false);
@@ -1319,12 +1320,31 @@ mod tests_of_units {
             // top place 9 must be preserved
             // 5411 = 5 ·902 +901
             #[test]
-            fn top_place_9_preservation() {
+            fn top_place_9_preservation_test() {
                 let minuend = vec![1, 1, 4, 5];
                 let subtrahend = vec![2, 0, 9];
                 let remratio = subtraction(&minuend, &subtrahend, true);
                 assert_eq!(&[1, 0, 9], &*remratio.0);
                 assert_eq!(&[5], &*remratio.1);
+            }
+
+            #[test]
+            fn readme_sample_test() {
+                use crate::{divrem, PlacesRow};
+
+                let dividend =
+                    PlacesRow::new_from_str("3402823669209384634633746074317682114565556668744123")
+                        .unwrap();
+                let divisor =
+                    PlacesRow::new_from_str("14034568236692093846346337460345176821145655563453")
+                        .unwrap();
+                let ratio = "242";
+                let remainder = "6458155929897923817932408914149323848308022388497";
+
+                let ratrem = divrem(&dividend, &divisor).unwrap();
+
+                assert_eq!(ratio, ratrem.0.to_number());
+                assert_eq!(remainder, ratrem.1.to_number());
             }
         }
     }
