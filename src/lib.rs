@@ -9,7 +9,7 @@ type RawRow = Vec<u8>;
 /// `PlacesRow` represents row of decimal places starting at ones (`0` index).
 #[derive(Clone, PartialEq, Debug)]
 pub struct PlacesRow {
-    row: Vec<u8>,
+    row: RawRow,
 }
 
 use core::ops::Deref;
@@ -132,23 +132,23 @@ impl PlacesRow {
         number
     }
 
-    fn unity_raw() -> Vec<u8> {
+    fn unity_raw() -> RawRow {
         vec![1; 1]
     }
 
-    fn nought_raw() -> Vec<u8> {
+    fn nought_raw() -> RawRow {
         vec![0; 1]
     }
 
-    fn is_unity_raw(row: &Vec<u8>) -> bool {
+    fn is_unity_raw(row: &RawRow) -> bool {
         Self::is_one_raw(row, 1)
     }
 
-    fn is_nought_raw(row: &Vec<u8>) -> bool {
+    fn is_nought_raw(row: &RawRow) -> bool {
         Self::is_one_raw(row, 0)
     }
 
-    fn is_one_raw(row: &Vec<u8>, one: u8) -> bool {
+    fn is_one_raw(row: &RawRow, one: u8) -> bool {
         row.len() == 1 && row[0] == one
     }
 
@@ -183,17 +183,17 @@ impl PlacesRow {
     }
 }
 
-fn shrink_to_fit_raw(row: &mut Vec<u8>) {
+fn shrink_to_fit_raw(row: &mut RawRow) {
     truncate_leading_raw(row, 0, 1);
     row.shrink_to_fit();
 }
 
-fn truncate_leading_raw(row: &mut Vec<u8>, lead: u8, upto: usize) {
+fn truncate_leading_raw(row: &mut RawRow, lead: u8, upto: usize) {
     let new_len = len_without_leading_raw(row, lead, upto);
     row.truncate(new_len);
 }
 
-fn len_without_leading_raw(row: &Vec<u8>, lead: u8, upto: usize) -> usize {
+fn len_without_leading_raw(row: &RawRow, lead: u8, upto: usize) -> usize {
     let mut row_len = row.len();
     for ix in (upto..row_len).rev() {
         if lead == row[ix] {
@@ -373,7 +373,7 @@ pub fn divrem(dividend: &PlacesRow, divisor: &PlacesRow) -> Option<(PlacesRow, P
 ///
 /// Space for effecient power computation?
 ///   🡺 Inspect log₂ power speed up.
-fn mulmul(row1: &Vec<u8>, row2: &Vec<u8>, times: u16) -> PlacesRow {
+fn mulmul(row1: &RawRow, row2: &RawRow, times: u16) -> PlacesRow {
     let (mpler, mut mcand) = (row1, row2.clone());
 
     let mpler_len = mpler.len();
@@ -431,7 +431,7 @@ fn mulmul(row1: &Vec<u8>, row2: &Vec<u8>, times: u16) -> PlacesRow {
 }
 
 /// Computes product of `mpler` and `mcand`.
-fn product(mpler: u8, mcand: &Vec<u8>, product: &mut Vec<u8>) {
+fn product(mpler: u8, mcand: &RawRow, product: &mut RawRow) {
     let mut takeover = 0;
 
     // runs in vain for `mpler` = 0
@@ -452,7 +452,7 @@ fn product(mpler: u8, mcand: &Vec<u8>, product: &mut Vec<u8>) {
 /// Adds `addend_1` to `sum` or adds `addend_1` and `addend_2` sum into `sum`.
 ///
 /// Precise expectations must be upkept when adding 2 addends: sum is assumed to be empty, `addend_1` to be longer or equal of numbers and offset to be `0`.
-fn addition(addend_1: &Vec<u8>, addend_2: Option<&Vec<u8>>, sum: &mut Vec<u8>, offset: usize) {
+fn addition(addend_1: &RawRow, addend_2: Option<&RawRow>, sum: &mut RawRow, offset: usize) {
     let addend_1_len = addend_1.len();
 
     let (addend_2_ptr, addend_2_len) = if let Some(addend) = addend_2 {
@@ -497,7 +497,7 @@ fn addition(addend_1: &Vec<u8>, addend_2: Option<&Vec<u8>>, sum: &mut Vec<u8>, o
 
 /// For difference computation applies precondition minuend ≥ subtrahend.
 /// Returns difference/remainder and ration in order.
-fn subtraction(minuend: &Vec<u8>, subtrahend: &Vec<u8>, remainder: bool) -> (Vec<u8>, Vec<u8>) {
+fn subtraction(minuend: &RawRow, subtrahend: &RawRow, remainder: bool) -> (RawRow, RawRow) {
     let mut diffrem_populated = false;
 
     let minuend_len = minuend.len();
@@ -708,13 +708,13 @@ mod tests_of_units {
             }
         }
 
-        use alloc::vec::Vec;
+        use crate::RawRow;
 
-        fn ac_unity() -> Vec<u8> {
+        fn ac_unity() -> RawRow {
             [1].to_vec()
         }
 
-        fn ac_nought() -> Vec<u8> {
+        fn ac_nought() -> RawRow {
             [0].to_vec()
         }
 
