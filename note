@@ -1,16 +1,32 @@
-Supereasy
+relaxed
     - consider num ctors for other numbers
-    - consider shortcuts: 0 * anything = 0, 1 * anything = anything, 0 ± anything = anything, anything / 1 = anything, 0^n=0 n∊ℕ﹥₀, 1^n = 1 n∊ℕ₀
+    - shortcuts: 
+        - mul: 
+            - 0 * x = 0 (reciprocal)
+            - 1 * x = x (reciprocal)
+        - add:
+            - 0 + x = x (reciprocal)
+        - sub:
+            - x - 0 = x (negative not supported)
+        - div:
+            - x / 1 = x ("negative" not supported)
+            - 0 / x = 0 (reciprocal illegal)
+        - pow:
+            - 0^n=0 n∊ℕ﹥₀
+            - 1^n = 1 n∊ℕ₀
+            - x^0 = 1
+            - x^1 = x
 
-Easy
+noticeable
+    - implement substraction speed up by extending subtrahend to max place
     - inspect mulmul without intermediate product: to be better only stack must employed (no Vec writes) => addition method split
     - make pow log effecient
     - mulmul escape for 0 multiplier
-    - check once again whether division is "im"possible (avoid substracting)
-    - implement substraction speed by extending subtrahend to max place
+    - check once again whether division is "im"possible (avoid substracting)    
 
-Medium
-    - array of usizes: reduces memory footprint twice (1001=9, 1001 1001 = 9 9)
+tough
+    - array of usizes: reduces memory footprint twice per byte (1001=9, 1001 1001 = 9 9), implies direct binary operation to preserve adequate performance
 
-Questionable
-    - reflect to lite, especially to mishmas proj
+questionable
+    - reflect to lite, especially to mishmas proj:
+        - mulmul escape for 0 multiplier

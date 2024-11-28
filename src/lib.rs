@@ -4,6 +4,7 @@
 #![no_std]
 
 extern crate alloc;
+type RawRow = Vec<u8>;
 
 /// `PlacesRow` represents row of decimal places starting at ones (`0` index).
 #[derive(Clone, PartialEq, Debug)]
@@ -11,10 +12,11 @@ pub struct PlacesRow {
     row: Vec<u8>,
 }
 
+use core::ops::Deref;
 impl Deref for PlacesRow {
     type Target = [u8];
 
-    /// View into internal buffer.
+    /// View into internal storage.
     fn deref(&self) -> &[u8] {
         self.row.as_slice()
     }
@@ -66,13 +68,13 @@ impl PlacesRow {
 
     /// Handy ctor for usage with long numbers.
     ///
-    /// Only digits are allowed in `s`. Leading zeros are ommitted.        
+    /// Only digits are allowed in `s`. Leading zeros are ommitted.
     ///
     /// Returns `PlacesRow` or index in `s` where uncovertable `char` was
     /// encountered. `None` for empty string.
     pub fn new_from_str(mut s: &str) -> Result<Self, Option<usize>> {
-        let orig_s_len = s.len();
-        if orig_s_len == 0 {
+        let s_len_orig = s.len();
+        if s_len_orig == 0 {
             return Err(None);
         }
 
@@ -80,18 +82,19 @@ impl PlacesRow {
         let s_len = s.len();
 
         let row = if s_len == 0 {
-            vec![0; 1]
+            PlacesRow::nought_raw()
         } else {
-            let mut row = Vec::with_capacity(s_len);
-            let mut inx = orig_s_len;
+            let mut row = Vec::new();
+            row.reserve_exact(s_len);
 
+            let mut err_inx = s_len_orig;
             for (c, sc) in s.chars().rev().zip(row.spare_capacity_mut()) {
-                inx -= 1;
+                err_inx -= 1;
                 if c.is_ascii_digit() {
                     let d = c.to_digit(10).unwrap();
                     sc.write(d as u8);
                 } else {
-                    return Err(Some(inx));
+                    return Err(Some(err_inx));
                 }
             }
 
@@ -106,7 +109,8 @@ impl PlacesRow {
     pub fn to_number(&self) -> String {
         let row = &self.row;
         let len = row.len();
-        let mut number = String::with_capacity(len);
+        let mut number = String::new();
+        number.reserve_exact(len);
         for i in row.iter().rev() {
             let digit = match i {
                 0 => '0',
@@ -128,9 +132,54 @@ impl PlacesRow {
         number
     }
 
+    fn unity_raw() -> Vec<u8> {
+        vec![1; 1]
+    }
+
+    fn nought_raw() -> Vec<u8> {
+        vec![0; 1]
+    }
+
+    fn is_unity_raw(row: &Vec<u8>) -> bool {
+        Self::is_one_raw(row, 1)
+    }
+
+    fn is_nought_raw(row: &Vec<u8>) -> bool {
+        Self::is_one_raw(row, 0)
+    }
+
+    fn is_one_raw(row: &Vec<u8>, one: u8) -> bool {
+        row.len() == 1 && row[0] == one
+    }
+
+    /// `true` if and only if `PlacesRow` is _unity_ value.
+    pub fn is_unity(&self) -> bool {
+        Self::is_unity_raw(&self.row)
+    }
+
+    /// `true` if and only if `PlacesRow` is _nought_ value.
+    pub fn is_nought(&self) -> bool {
+        Self::is_nought_raw(&self.row)
+    }
+
+    /// Returns unity `PlacesRow`.
+    pub fn unity() -> PlacesRow {
+        PlacesRow {
+            row: Self::unity_raw(),
+        }
+    }
+
+    /// Returns nought `PlacesRow`.
+    pub fn nought() -> PlacesRow {
+        PlacesRow {
+            row: Self::nought_raw(),
+        }
+    }
+
+    #[deprecated(since = "2.2.0", note = "Pick `fn nought` instead.")]
     /// Returns zero `PlacesRow`.
     pub fn zero() -> PlacesRow {
-        PlacesRow { row: vec![0; 1] }
+        Self::nought()
     }
 }
 
@@ -164,7 +213,7 @@ impl alloc::string::ToString for PlacesRow {
     }
 }
 
-use core::{convert::From, ops::Deref};
+use core::convert::From;
 impl From<u128> for PlacesRow {
     /// Converts `value` into `PlacesRow`.
     fn from(value: u128) -> Self {
@@ -220,6 +269,11 @@ pub fn add(addend1: &PlacesRow, addend2: &PlacesRow) -> PlacesRow {
     let r1 = &addend1.row;
     let r2 = &addend2.row;
 
+    match add_shorcut(r1, r2) {
+        Some(row) => return PlacesRow { row },
+        _ => {}
+    }
+
     let (addend, augend) = if r1.len() > r2.len() {
         (r1, r2)
     } else {
@@ -228,7 +282,8 @@ pub fn add(addend1: &PlacesRow, addend2: &PlacesRow) -> PlacesRow {
 
     // avoids repetetive reallocations
     // +1 stands for contigent new place
-    let mut sum = Vec::with_capacity(addend.len() + 1);
+    let mut sum = Vec::new();
+    sum.reserve_exact(addend.len() + 1);
 
     #[cfg(test)]
     let sum_ptr = sum.as_ptr();
@@ -241,6 +296,16 @@ pub fn add(addend1: &PlacesRow, addend2: &PlacesRow) -> PlacesRow {
     PlacesRow { row: sum }
 }
 
+fn add_shorcut(r1: &RawRow, r2: &RawRow) -> Option<RawRow> {
+    if PlacesRow::is_nought_raw(r1) {
+        Some(r2.clone())
+    } else if PlacesRow::is_nought_raw(r2) {
+        Some(r1.clone())
+    } else {
+        None
+    }
+}
+
 /// Computes `minuend` and `subtrahend` difference.
 ///
 /// Returns difference `PlacesRow` if `minuend` ≥ `subtrahend`, `None` otherwise.
@@ -250,7 +315,7 @@ pub fn sub(minuend: &PlacesRow, subtrahend: &PlacesRow) -> Option<PlacesRow> {
     if rel == Rel::Lesser {
         None
     } else if rel == Rel::Equal {
-        Some(PlacesRow::zero())
+        Some(PlacesRow::nought())
     } else {
         let min_row = &minuend.row;
         let sub_row = &subtrahend.row;
@@ -284,19 +349,18 @@ pub fn pow(base: &PlacesRow, pow: u16) -> PlacesRow {
 
 /// Computes `dividend` and `divisor` ratio and remainder.
 ///
-/// Returns tuple with `PlacesRow` ratio and `PlacesRow` remainder in order or `None` when `divisor` is zero.
+/// Returns tuple with `PlacesRow` ratio and `PlacesRow` remainder in order or `None` when `divisor` is nought.
 pub fn divrem(dividend: &PlacesRow, divisor: &PlacesRow) -> Option<(PlacesRow, PlacesRow)> {
-    let zero = PlacesRow::zero();
-    if divisor == &zero {
+    if divisor.is_nought() {
         return None;
     }
 
     let rel = rel(dividend, divisor);
 
     let res = if rel == Rel::Lesser {
-        (zero, dividend.clone())
+        (PlacesRow::nought(), dividend.clone())
     } else if rel == Rel::Equal {
-        (PlacesRow { row: vec![1; 1] }, zero)
+        (PlacesRow::unity(), PlacesRow::nought())
     } else {
         let remratio = subtraction(&dividend.row, &divisor.row, true);
         (PlacesRow { row: remratio.1 }, PlacesRow { row: remratio.0 })
@@ -361,7 +425,7 @@ fn mulmul(row1: &Vec<u8>, row2: &Vec<u8>, times: u16) -> PlacesRow {
         i_sum = swap;
     }
 
-    // useless when both of factors cannot be zero
+    // useless when both of factors cannot be nought
     shrink_to_fit_raw(&mut mcand);
     PlacesRow { row: mcand }
 }
@@ -443,7 +507,7 @@ fn subtraction(minuend: &Vec<u8>, subtrahend: &Vec<u8>, remainder: bool) -> (Vec
     let diffrem_ptr = diffrem.as_ptr();
     let mut minuend_ptr = minuend.as_ptr();
 
-    let mut ratio = vec![0; 1];
+    let mut ratio = PlacesRow::nought_raw();
     let one = vec![1; 1];
     let mut takeover;
     let mut inx;
@@ -581,7 +645,7 @@ mod tests_of_units {
 
         #[test]
         fn new_from_num_test() {
-            let row = Row::new_from_num(1234567890);
+            let row = Row::new_from_num(000_1234567890);
             assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*row);
         }
 
@@ -644,7 +708,68 @@ mod tests_of_units {
             }
         }
 
+        use alloc::vec::Vec;
+
+        fn ac_unity() -> Vec<u8> {
+            [1].to_vec()
+        }
+
+        fn ac_nought() -> Vec<u8> {
+            [0].to_vec()
+        }
+
         #[test]
+        fn unity_raw() {
+            assert_eq!(ac_unity(), &*Row::unity_raw());
+        }
+
+        #[test]
+        fn nought_raw() {
+            assert_eq!(ac_nought(), &*Row::nought_raw());
+        }
+
+        #[test]
+        fn is_unity_raw() {
+            assert_eq!(true, Row::is_unity_raw(&ac_unity()));
+        }
+
+        #[test]
+        fn is_nought_raw() {
+            assert_eq!(true, Row::is_nought_raw(&ac_nought()));
+        }
+
+        #[test]
+        fn is_one_raw() {
+            let test = [3].to_vec();
+            assert_eq!(true, Row::is_one_raw(&test, 3));
+        }
+
+        #[test]
+        fn is_unity() {
+            let test = Row { row: ac_unity() };
+            assert_eq!(true, test.is_unity());
+        }
+
+        #[test]
+        fn is_nought() {
+            let test = Row { row: ac_nought() };
+            assert_eq!(true, test.is_nought());
+        }
+
+        #[test]
+        fn unity() {
+            let proof = Row { row: ac_unity() };
+            assert_eq!(proof, Row::unity());
+        }
+
+        #[test]
+        fn nought() {
+            let proof = Row { row: ac_nought() };
+            assert_eq!(proof, Row::nought());
+        }
+
+        #[test]
+        #[allow(deprecated)]
         fn zero_test() {
             assert_eq!(&[0], &*Row::zero());
         }
@@ -822,6 +947,50 @@ mod tests_of_units {
             let sum = add(&row, &row);
             assert_eq!("1361129467683753853853498429727072845820", sum.to_number());
         }
+
+        #[test]
+        fn addend1_is_nought() {
+            let addend1 = Row::nought();
+            let addend2 = Row::new_from_num(4321);
+            let sum = add(&addend1, &addend2);
+            assert_eq!(addend2, sum);
+        }
+
+        #[test]
+        fn addend2_is_nought() {
+            let addend1 = Row::new_from_num(4321);
+            let addend2 = Row::nought();
+            let sum = add(&addend1, &addend2);
+            assert_eq!(addend1, sum);
+        }
+    }
+
+    mod add_shorcut {
+        use crate::{add_shorcut, PlacesRow as Row};
+
+        #[test]
+        fn none_is_nought() {
+            assert_eq!(None, add_shorcut(&Row::unity_raw(), &Row::unity_raw()));
+        }
+
+        use alloc::vec;
+        #[test]
+        fn r1_is_nought() {
+            let r1 = Row::nought_raw();
+            let r2 = vec![1, 2, 3, 4];
+            let res = add_shorcut(&r1, &r2);
+            assert_eq!(Some(r2.clone()), res);
+            assert_ne!(r2.as_ptr(), res.unwrap().as_ptr());
+        }
+
+        #[test]
+        fn r2_is_nought() {
+            let r1 = vec![1, 2, 3, 4];
+            let r2 = Row::nought_raw();
+            let res = add_shorcut(&r1, &r2);
+            assert_eq!(Some(r1.clone()), res);
+            assert_ne!(r1.as_ptr(), res.unwrap().as_ptr());
+        }
     }
 
     /// Subtraction.
@@ -864,13 +1033,23 @@ mod tests_of_units {
         }
 
         #[test]
-        fn zero_num_test() {
-            let row1 = Row::new_from_num(0);
-            let row2 = Row::new_from_num(123456);
+        fn row1_nought_test() {
+            let row1 = Row::nought();
+            let row2 = Row::new_from_num(123456789_10111213);
             let prod = mul(&row1, &row2);
-            assert_eq!(&[0], &*prod);
-            let prod_cap = prod.row.capacity();
-            assert!(1 == prod_cap || prod_cap < row2.len());
+            let row = &prod.row;
+            assert_eq!(&[0], row.as_slice());
+            assert!(row.capacity() < row2.len());
+        }
+
+        #[test]
+        fn row2_nought_test() {
+            let row1 = Row::new_from_num(123456789_10111213);
+            let row2 = Row::nought();
+            let prod = mul(&row1, &row2);
+            let row = &prod.row;
+            assert_eq!(&[0], row.as_slice());
+            assert!(row.capacity() < row1.len());
         }
 
         #[test]
@@ -892,11 +1071,11 @@ mod tests_of_units {
     }
 
     /// For base ≥ 0 and exponent ≥ 0 power can be viewed as nothing more
-    /// than repetetive multiplication with number in question.    
+    /// than repetetive multiplication with number in question.
     /// 0º=1, 0¹=1×0, 0²=1×0×0, 0³=1×0×0×0, …
     /// 1º=1, 1¹=1×1, 1²=1×1×1, 1³=1×1×1×1, …
-    /// 2º=1, 2¹=1×2, 2²=1×2×2, 2³=1×2×2×2, …    
-    ///                   ⋮
+    /// 2º=1, 2¹=1×2, 2²=1×2×2, 2³=1×2×2×2, …
+    ///                   ⋮                   
     mod pow {
         use crate::{pow, PlacesRow as Row};
 
@@ -999,7 +1178,7 @@ mod tests_of_units {
 
             let ratrem = ratrem.unwrap();
 
-            assert_eq!(Row::zero(), ratrem.0);
+            assert_eq!(Row::nought(), ratrem.0);
             assert_eq!(dividend, ratrem.1);
         }
 
@@ -1030,7 +1209,7 @@ mod tests_of_units {
 
     /// Long multiplication fact notes:
     /// - When multiplying ones, maximum product is 81=9×9.
-    /// - Thus maximum tens product is 8=⌊81÷10⌋.    
+    /// - Thus maximum tens product is 8=⌊81÷10⌋.
     /// - Since 8+81=89 all results fit into 8=⌊89÷10⌋ tens.
     mod product {
         use crate::product as product_fn;
