@@ -4,8 +4,6 @@ relaxed
         - mul: 
             - 0 * x = 0 (reciprocal)
             - 1 * x = x (reciprocal)
-        - add:
-            - 0 + x = x (reciprocal)
         - sub:
             - x - 0 = x (negative not supported)
         - div:
@@ -16,6 +14,7 @@ relaxed
             - 1^n = 1 n∊ℕ₀
             - x^0 = 1
             - x^1 = x
+    - common zero (implies use of std, ownership via ptr)
 
 noticeable
     - implement substraction speed up by extending subtrahend to max place
