@@ -48,7 +48,7 @@ impl PlacesRow {
         }
 
         row.truncate(row_len);
-        Ok(PlacesRow { row })
+        Ok(Row { row })
     }
 
     /// Handy ctor for usage with _classic_ primitive numeric data type.
@@ -64,7 +64,7 @@ impl PlacesRow {
             }
         }
 
-        PlacesRow { row }
+        Row { row }
     }
 
     /// Handy ctor for usage with long numbers.
@@ -83,7 +83,7 @@ impl PlacesRow {
         let s_len = s.len();
 
         let row = if s_len == 0 {
-            PlacesRow::nought_raw()
+            Row::nought_raw()
         } else {
             let mut row = Vec::new();
             row.reserve_exact(s_len);
@@ -103,7 +103,7 @@ impl PlacesRow {
             row
         };
 
-        Ok(PlacesRow { row })
+        Ok(Row { row })
     }
 
     /// Returns `String` representation.
@@ -165,14 +165,14 @@ impl PlacesRow {
 
     /// Returns unity `PlacesRow`.
     pub fn unity() -> PlacesRow {
-        PlacesRow {
+        Row {
             row: Self::unity_raw(),
         }
     }
 
     /// Returns nought `PlacesRow`.
     pub fn nought() -> PlacesRow {
-        PlacesRow {
+        Row {
             row: Self::nought_raw(),
         }
     }
@@ -275,7 +275,7 @@ pub fn add(addend1: &PlacesRow, addend2: &PlacesRow) -> PlacesRow {
     let r2 = &addend2.row;
 
     match add_shorcut(r1, r2) {
-        Some(row) => return PlacesRow { row },
+        Some(row) => return Row { row },
         _ => {}
     }
 
@@ -298,13 +298,13 @@ pub fn add(addend1: &PlacesRow, addend2: &PlacesRow) -> PlacesRow {
     #[cfg(test)]
     assert!(sum_ptr == sum.as_ptr());
 
-    PlacesRow { row: sum }
+    Row { row: sum }
 }
 
 fn add_shorcut(r1: &RawRow, r2: &RawRow) -> Option<RawRow> {
-    if PlacesRow::is_nought_raw(r1) {
+    if Row::is_nought_raw(r1) {
         Some(r2.clone())
-    } else if PlacesRow::is_nought_raw(r2) {
+    } else if Row::is_nought_raw(r2) {
         Some(r1.clone())
     } else {
         None
@@ -327,7 +327,7 @@ pub fn sub(minuend: &PlacesRow, subtrahend: &PlacesRow) -> Option<PlacesRow> {
     Some(Row { row: diff })
 }
 
-fn sub_shortcut(minuend: &RawRow, subtrahend: &RawRow) -> Option<Option<PlacesRow>> {
+fn sub_shortcut(minuend: &RawRow, subtrahend: &RawRow) -> Option<Option<Row>> {
     if Row::is_nought_raw(subtrahend) {
         let row = Row {
             row: minuend.clone(),
@@ -357,9 +357,9 @@ pub fn mul(factor1: &PlacesRow, factor2: &PlacesRow) -> PlacesRow {
 pub fn pow(base: &PlacesRow, pow: u16) -> PlacesRow {
     let row = &base.row;
     if pow == 0 {
-        return PlacesRow { row: vec![1] };
+        return Row { row: vec![1] };
     } else if pow == 1 {
-        return PlacesRow { row: row.clone() };
+        return Row { row: row.clone() };
     }
 
     mulmul(row, row, pow - 1)
@@ -376,12 +376,12 @@ pub fn divrem(dividend: &PlacesRow, divisor: &PlacesRow) -> Option<(PlacesRow, P
     let rel = rel(dividend, divisor);
 
     let res = if rel == Rel::Lesser {
-        (PlacesRow::nought(), dividend.clone())
+        (Row::nought(), dividend.clone())
     } else if rel == Rel::Equal {
-        (PlacesRow::unity(), PlacesRow::nought())
+        (Row::unity(), Row::nought())
     } else {
         let remratio = subtraction(&dividend.row, &divisor.row, true);
-        (PlacesRow { row: remratio.1 }, PlacesRow { row: remratio.0 })
+        (Row { row: remratio.1 }, Row { row: remratio.0 })
     };
 
     Some(res)
@@ -391,7 +391,7 @@ pub fn divrem(dividend: &PlacesRow, divisor: &PlacesRow) -> Option<(PlacesRow, P
 ///
 /// Space for effecient power computation?
 ///   🡺 Inspect log₂ power speed up.
-fn mulmul(row1: &RawRow, row2: &RawRow, times: u16) -> PlacesRow {
+fn mulmul(row1: &RawRow, row2: &RawRow, times: u16) -> Row {
     let (mpler, mut mcand) = (row1, row2.clone());
 
     let mpler_len = mpler.len();
@@ -445,7 +445,7 @@ fn mulmul(row1: &RawRow, row2: &RawRow, times: u16) -> PlacesRow {
 
     // useless when both of factors cannot be nought
     shrink_to_fit_raw(&mut mcand);
-    PlacesRow { row: mcand }
+    Row { row: mcand }
 }
 
 /// Computes product of `mpler` and `mcand`.
@@ -525,7 +525,7 @@ fn subtraction(minuend: &RawRow, subtrahend: &RawRow, remainder: bool) -> (RawRo
     let diffrem_ptr = diffrem.as_ptr();
     let mut minuend_ptr = minuend.as_ptr();
 
-    let mut ratio = PlacesRow::nought_raw();
+    let mut ratio = Row::nought_raw();
     let one = vec![1; 1];
     let mut takeover;
     let mut inx;
@@ -1581,13 +1581,13 @@ mod tests_of_units {
 
             #[test]
             fn readme_sample_test() {
-                use crate::{divrem, PlacesRow};
+                use crate::{divrem, Row};
 
                 let dividend =
-                    PlacesRow::new_from_str("3402823669209384634633746074317682114565556668744123")
+                    Row::new_from_str("3402823669209384634633746074317682114565556668744123")
                         .unwrap();
                 let divisor =
-                    PlacesRow::new_from_str("14034568236692093846346337460345176821145655563453")
+                    Row::new_from_str("14034568236692093846346337460345176821145655563453")
                         .unwrap();
                 let ratio = "242";
                 let remainder = "6458155929897923817932408914149323848308022388497";
