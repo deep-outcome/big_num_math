@@ -301,6 +301,8 @@ pub fn add(addend1: &PlacesRow, addend2: &PlacesRow) -> PlacesRow {
     Row { row: sum }
 }
 
+// 0 +x = x
+// x +0 = x
 fn add_shortcut(addend1: &RawRow, addend2: &RawRow) -> Option<RawRow> {
     if Row::is_nought_raw(addend1) {
         Some(addend2.clone())
@@ -327,6 +329,9 @@ pub fn sub(minuend: &PlacesRow, subtrahend: &PlacesRow) -> Option<PlacesRow> {
     Some(Row { row: diff })
 }
 
+// x -0 = x
+// x -x = 0
+// a -b, a < b not supported
 fn sub_shortcut(minuend: &RawRow, subtrahend: &RawRow) -> Option<Option<Row>> {
     if Row::is_nought_raw(subtrahend) {
         let row = Row {
@@ -357,6 +362,11 @@ pub fn mul(factor1: &PlacesRow, factor2: &PlacesRow) -> PlacesRow {
     mulmul(factor1, factor2, 1)
 }
 
+// x ⋅0 = 0
+// 0 ⋅x = 0
+//
+// 1 ⋅x = x
+// x ⋅1 = x
 fn mul_shortcut(factor1: &RawRow, factor2: &RawRow) -> Option<RawRow> {
     if Row::is_nought_raw(factor1) || Row::is_nought_raw(factor2) {
         Some(Row::nought_raw())
