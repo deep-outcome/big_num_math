@@ -321,7 +321,7 @@ pub fn sub(minuend: &PlacesRow, subtrahend: &PlacesRow) -> Option<PlacesRow> {
     let subtrahend = &subtrahend.row;
 
     match sub_shortcut(minuend, subtrahend) {
-        Some(a) => return a,
+        Some(res) => return res,
         None => {}
     };
 
@@ -399,22 +399,42 @@ pub fn pow(base: &PlacesRow, pow: u16) -> PlacesRow {
 ///
 /// Returns tuple with `PlacesRow` ratio and `PlacesRow` remainder in order or `None` when `divisor` is nought.
 pub fn divrem(dividend: &PlacesRow, divisor: &PlacesRow) -> Option<(PlacesRow, PlacesRow)> {
-    if divisor.is_nought() {
-        return None;
+    let dividend = &dividend.row;
+    let divisor = &divisor.row;
+
+    match divrem_shortcut(dividend, divisor) {
+        Some(res) => return res,
+        None => {}
     }
 
-    let rel = rel(dividend, divisor);
+    let remratio = subtraction(&dividend, &divisor, true);
+    Some((Row { row: remratio.1 }, Row { row: remratio.0 }))
+}
 
-    let res = if rel == Rel::Lesser {
-        (Row::nought(), dividend.clone())
-    } else if rel == Rel::Equal {
-        (Row::unity(), Row::nought())
-    } else {
-        let remratio = subtraction(&dividend.row, &divisor.row, true);
-        (Row { row: remratio.1 }, Row { row: remratio.0 })
+// x ∶0, illegal
+// x ∶1 = x
+// a ∶b = 0Ra, a < b
+// x ∶x = 1
+fn divrem_shortcut(dividend: &RawRow, divisor: &RawRow) -> Option<Option<(Row, Row)>> {
+    if Row::is_nought_raw(divisor) {
+        return Some(None);
+    }
+
+    let end_clone = || Row {
+        row: dividend.clone(),
     };
 
-    Some(res)
+    let shortcut = if Row::is_unity_raw(divisor) {
+        (end_clone(), Row::nought())
+    } else {
+        match rel_raw(dividend, divisor) {
+            Rel::Lesser => (Row::nought(), end_clone()),
+            Rel::Equal => (Row::unity(), Row::nought()),
+            _ => return None,
+        }
+    };
+
+    Some(Some(shortcut))
 }
 
 /// Combined method allows to compute multiplication and power using shared code.
@@ -758,61 +778,61 @@ mod tests_of_units {
 
         use crate::RawRow;
 
-        fn ac_unity() -> RawRow {
+        fn unity() -> RawRow {
             [1].to_vec()
         }
 
-        fn ac_nought() -> RawRow {
+        fn nought() -> RawRow {
             [0].to_vec()
         }
 
         #[test]
-        fn unity_raw() {
-            assert_eq!(ac_unity(), &*Row::unity_raw());
+        fn unity_raw_test() {
+            assert_eq!(unity(), &*Row::unity_raw());
         }
 
         #[test]
-        fn nought_raw() {
-            assert_eq!(ac_nought(), &*Row::nought_raw());
+        fn nought_raw_test() {
+            assert_eq!(nought(), &*Row::nought_raw());
         }
 
         #[test]
-        fn is_unity_raw() {
-            assert_eq!(true, Row::is_unity_raw(&ac_unity()));
+        fn is_unity_raw_test() {
+            assert_eq!(true, Row::is_unity_raw(&unity()));
         }
 
         #[test]
-        fn is_nought_raw() {
-            assert_eq!(true, Row::is_nought_raw(&ac_nought()));
+        fn is_nought_raw_test() {
+            assert_eq!(true, Row::is_nought_raw(&nought()));
         }
 
         #[test]
-        fn is_one_raw() {
+        fn is_one_raw_test() {
             let test = [3].to_vec();
             assert_eq!(true, Row::is_one_raw(&test, 3));
         }
 
         #[test]
-        fn is_unity() {
-            let test = Row { row: ac_unity() };
+        fn is_unity_test() {
+            let test = Row { row: unity() };
             assert_eq!(true, test.is_unity());
         }
 
         #[test]
-        fn is_nought() {
-            let test = Row { row: ac_nought() };
+        fn is_nought_test() {
+            let test = Row { row: nought() };
             assert_eq!(true, test.is_nought());
         }
 
         #[test]
-        fn unity() {
-            let proof = Row { row: ac_unity() };
+        fn unity_test() {
+            let proof = Row { row: unity() };
             assert_eq!(proof, Row::unity());
         }
 
         #[test]
-        fn nought() {
-            let proof = Row { row: ac_nought() };
+        fn nought_test() {
+            let proof = Row { row: nought() };
             assert_eq!(proof, Row::nought());
         }
 
@@ -1009,7 +1029,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn addend1_is_nought() {
+        fn addend1_nought_test() {
             let addend1 = Row::nought();
             let addend2 = Row::new_from_num(4321);
             let sum = add(&addend1, &addend2);
@@ -1017,7 +1037,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn addend2_is_nought() {
+        fn addend2_nought_test() {
             let addend1 = Row::new_from_num(4321);
             let addend2 = Row::nought();
             let sum = add(&addend1, &addend2);
@@ -1029,13 +1049,13 @@ mod tests_of_units {
         use crate::{add_shortcut, Row};
 
         #[test]
-        fn none_is_nought() {
+        fn none_nought_test() {
             assert_eq!(None, add_shortcut(&Row::unity_raw(), &Row::unity_raw()));
         }
 
         use alloc::vec;
         #[test]
-        fn r1_is_nought() {
+        fn r1_nought_test() {
             let r1 = Row::nought_raw();
             let r2 = vec![1, 2, 3, 4];
             let res = add_shortcut(&r1, &r2);
@@ -1044,7 +1064,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn r2_is_nought() {
+        fn r2_nought_test() {
             let r1 = vec![1, 2, 3, 4];
             let r2 = Row::nought_raw();
             let res = add_shortcut(&r1, &r2);
@@ -1084,7 +1104,7 @@ mod tests_of_units {
         use crate::{sub_shortcut, Row};
 
         #[test]
-        fn nought_subtrahend() {
+        fn nought_subtrahend_test() {
             let minuend = Row::new_from_num(40);
             let subtrahend = Row::nought_raw();
 
@@ -1094,7 +1114,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn lesser_minuend() {
+        fn lesser_minuend_test() {
             let minuend = Row::new_from_num(0).row;
             let subtrahend = Row::new_from_num(1).row;
 
@@ -1103,7 +1123,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn equal_operands() {
+        fn equal_operands_test() {
             let minuend = Row::new_from_num(1364).row;
             let subtrahend = Row::new_from_num(1364).row;
 
@@ -1113,7 +1133,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn greater_minuend() {
+        fn greater_minuend_test() {
             let minuend = Row::new_from_num(2).row;
             let subtrahend = Row::new_from_num(1).row;
 
@@ -1155,9 +1175,9 @@ mod tests_of_units {
         }
 
         #[test]
-        fn zero_nums_test() {
-            let row1 = Row::new_from_num(0);
-            let row2 = Row::new_from_num(0);
+        fn both_nought_test() {
+            let row1 = Row::nought();
+            let row2 = Row::nought();
             let prod = mul(&row1, &row2);
             assert_eq!(&[0], &*prod);
         }
@@ -1176,7 +1196,7 @@ mod tests_of_units {
         use crate::{mul_shortcut, Row};
 
         #[test]
-        fn factor1_is_nought() {
+        fn factor1_nought_test() {
             let row1 = Row::nought_raw();
             let row2 = Row::new_from_num(333_990).row;
 
@@ -1185,7 +1205,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn factor2_is_nought() {
+        fn factor2_nought_test() {
             let row1 = Row::new_from_num(333_990).row;
             let row2 = Row::nought_raw();
 
@@ -1194,7 +1214,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn factor1_is_unity() {
+        fn factor1_unity_test() {
             let row1 = Row::unity_raw();
             let row2 = Row::new_from_num(333_990).row;
 
@@ -1203,7 +1223,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn factor2_is_unity() {
+        fn factor2_unity_test() {
             let row1 = Row::new_from_num(333_990).row;
             let row2 = Row::unity_raw();
 
@@ -1212,7 +1232,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn neither_is_unity_nor_nought() {
+        fn neither_unity_nor_nought_test() {
             let row = Row::new_from_num(2).row;
 
             let res = mul_shortcut(&row, &row);
@@ -1291,7 +1311,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn power_of_zero_test() {
+        fn power_of_nought_test() {
             let row = Row::new_from_num(0);
             let pow = pow(&row, 1000);
             assert_eq!(&[0], &*pow);
@@ -1310,7 +1330,7 @@ mod tests_of_units {
         use crate::{divrem, Row};
 
         #[test]
-        fn zero_divisor_test() {
+        fn nought_divisor_test() {
             let dividend = Row::new_from_num(1);
             let divisor = Row::new_from_num(0);
 
@@ -1354,6 +1374,68 @@ mod tests_of_units {
                 assert_eq!(ratio, ratrem.0);
                 assert_eq!(remainder, ratrem.1);
             }
+        }
+    }
+
+    mod divrem_shortcut {
+        use crate::{divrem_shortcut, Row};
+
+        #[test]
+        fn nought_divisor_test() {
+            let dividend = Row::nought_raw();
+            let divisor = Row::nought_raw();
+
+            let ratrem = divrem_shortcut(&dividend, &divisor);
+            assert_eq!(Some(None), ratrem);
+        }
+
+        #[test]
+        fn nought_dividend_test() {
+            let dividend = Row::nought_raw();
+            let divisor = Row::new_from_num(4).row;
+
+            let proof = (Row::nought(), Row::nought());
+            let ratrem = divrem_shortcut(&dividend, &divisor);
+            assert_eq!(Some(Some(proof)), ratrem);
+        }
+
+        #[test]
+        fn unity_divisor_test() {
+            let dividend = Row::nought_raw();
+            let divisor = Row::unity_raw();
+
+            let proof = (Row::nought(), Row::nought());
+            let ratrem = divrem_shortcut(&dividend, &divisor);
+            assert_eq!(Some(Some(proof)), ratrem);
+        }
+
+        #[test]
+        fn unity_divisor_test2() {
+            let dividend = Row::new_from_num(334_556);
+            let divisor = Row::unity_raw();
+
+            let proof = (dividend.clone(), Row::nought());
+            let ratrem = divrem_shortcut(&dividend.row, &divisor);
+            assert_eq!(Some(Some(proof)), ratrem);
+        }
+
+        #[test]
+        fn lesser_dividend_test() {
+            let dividend = Row::new_from_num(11);
+            let divisor = Row::new_from_num(12).row;
+
+            let proof = (Row::nought(), dividend.clone());
+            let ratrem = divrem_shortcut(&dividend.row, &divisor);
+            assert_eq!(Some(Some(proof)), ratrem);
+        }
+
+        #[test]
+        fn equal_operands_test() {
+            let num = Row::new_from_num(111_222_333_444).row;
+
+            let proof = (Row::unity(), Row::nought());
+            let ratrem = divrem_shortcut(&num, &num);
+            assert_eq!(Some(Some(proof)), ratrem);
         }
     }
 

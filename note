@@ -1,13 +1,11 @@
 relaxed
     - shortcuts:
-        - div:
-            - x / 1 = x ("negative" not supported)
-            - 0 / x = 0 (reciprocal illegal)
         - pow:
             - 0^n=0 n∊ℕ﹥₀
             - 1^n = 1 n∊ℕ₀
             - x^0 = 1
             - x^1 = x
+        - remove descriptive notes?
     - consider num ctors for other numbers
 
 noticeable
