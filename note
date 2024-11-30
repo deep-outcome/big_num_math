@@ -3,6 +3,10 @@ relaxed
         - mul: 
             - 0 * x = 0 (reciprocal)
             - 1 * x = x (reciprocal)
+        - add:
+            - 0 + 0 = 0
+        - sub:
+            - 0 - 0 = 0
         - div:
             - x / 1 = x ("negative" not supported)
             - 0 / x = 0 (reciprocal illegal)

@@ -274,7 +274,7 @@ pub fn add(addend1: &PlacesRow, addend2: &PlacesRow) -> PlacesRow {
     let r1 = &addend1.row;
     let r2 = &addend2.row;
 
-    match add_shorcut(r1, r2) {
+    match add_shortcut(r1, r2) {
         Some(row) => return Row { row },
         _ => {}
     }
@@ -301,11 +301,11 @@ pub fn add(addend1: &PlacesRow, addend2: &PlacesRow) -> PlacesRow {
     Row { row: sum }
 }
 
-fn add_shorcut(r1: &RawRow, r2: &RawRow) -> Option<RawRow> {
-    if Row::is_nought_raw(r1) {
-        Some(r2.clone())
-    } else if Row::is_nought_raw(r2) {
-        Some(r1.clone())
+fn add_shortcut(addend1: &RawRow, addend2: &RawRow) -> Option<RawRow> {
+    if Row::is_nought_raw(addend1) {
+        Some(addend2.clone())
+    } else if Row::is_nought_raw(addend2) {
+        Some(addend1.clone())
     } else {
         None
     }
@@ -346,7 +346,27 @@ fn sub_shortcut(minuend: &RawRow, subtrahend: &RawRow) -> Option<Option<Row>> {
 ///
 /// Returns `PlacesRow` with result.
 pub fn mul(factor1: &PlacesRow, factor2: &PlacesRow) -> PlacesRow {
-    mulmul(&factor1.row, &factor2.row, 1)
+    let factor1 = &factor1.row;
+    let factor2 = &factor2.row;
+
+    match mul_shortcut(factor1, factor2) {
+        Some(row) => return Row { row },
+        None => {}
+    };
+
+    mulmul(factor1, factor2, 1)
+}
+
+fn mul_shortcut(factor1: &RawRow, factor2: &RawRow) -> Option<RawRow> {
+    if Row::is_nought_raw(factor1) || Row::is_nought_raw(factor2) {
+        Some(Row::nought_raw())
+    } else if Row::is_unity_raw(factor1) {
+        Some(factor2.clone())
+    } else if Row::is_unity_raw(factor2) {
+        Some(factor1.clone())
+    } else {
+        None
+    }
 }
 
 /// Computes power `pow` of `base`.
@@ -995,12 +1015,12 @@ mod tests_of_units {
         }
     }
 
-    mod add_shorcut {
-        use crate::{add_shorcut, Row};
+    mod add_shortcut {
+        use crate::{add_shortcut, Row};
 
         #[test]
         fn none_is_nought() {
-            assert_eq!(None, add_shorcut(&Row::unity_raw(), &Row::unity_raw()));
+            assert_eq!(None, add_shortcut(&Row::unity_raw(), &Row::unity_raw()));
         }
 
         use alloc::vec;
@@ -1008,7 +1028,7 @@ mod tests_of_units {
         fn r1_is_nought() {
             let r1 = Row::nought_raw();
             let r2 = vec![1, 2, 3, 4];
-            let res = add_shorcut(&r1, &r2);
+            let res = add_shortcut(&r1, &r2);
             assert_eq!(Some(r2.clone()), res);
             assert_ne!(r2.as_ptr(), res.unwrap().as_ptr());
         }
@@ -1017,7 +1037,7 @@ mod tests_of_units {
         fn r2_is_nought() {
             let r1 = vec![1, 2, 3, 4];
             let r2 = Row::nought_raw();
-            let res = add_shorcut(&r1, &r2);
+            let res = add_shortcut(&r1, &r2);
             assert_eq!(Some(r1.clone()), res);
             assert_ne!(r1.as_ptr(), res.unwrap().as_ptr());
         }
@@ -1056,7 +1076,7 @@ mod tests_of_units {
         #[test]
         fn nought_subtrahend() {
             let minuend = Row::new_from_num(40);
-            let subtrahend = Row::new_from_num(0).row;
+            let subtrahend = Row::nought_raw();
 
             let proof = minuend.clone();
             let test = sub_shortcut(&minuend.row, &subtrahend);
@@ -1139,6 +1159,54 @@ mod tests_of_units {
             let proof =
                 "115792089237316195423570985008687907852589419931798687112530834793049593217025";
             assert_eq!(proof, prod.to_number());
+        }
+    }
+
+    mod mul_shortcut {
+        use crate::{mul_shortcut, Row};
+
+        #[test]
+        fn factor1_is_nought() {
+            let row1 = Row::nought_raw();
+            let row2 = Row::new_from_num(333_990).row;
+
+            let res = mul_shortcut(&row1, &row2);
+            assert_eq!(Some(row1), res);
+        }
+
+        #[test]
+        fn factor2_is_nought() {
+            let row1 = Row::new_from_num(333_990).row;
+            let row2 = Row::nought_raw();
+
+            let res = mul_shortcut(&row1, &row2);
+            assert_eq!(Some(row2), res);
+        }
+
+        #[test]
+        fn factor1_is_unity() {
+            let row1 = Row::unity_raw();
+            let row2 = Row::new_from_num(333_990).row;
+
+            let res = mul_shortcut(&row1, &row2);
+            assert_eq!(Some(row2), res);
+        }
+
+        #[test]
+        fn factor2_is_unity() {
+            let row1 = Row::new_from_num(333_990).row;
+            let row2 = Row::unity_raw();
+
+            let res = mul_shortcut(&row1, &row2);
+            assert_eq!(Some(row1), res);
+        }
+
+        #[test]
+        fn neither_is_unity_nor_nought() {
+            let row = Row::new_from_num(2).row;
+
+            let res = mul_shortcut(&row, &row);
+            assert_eq!(None, res);
         }
     }
 
