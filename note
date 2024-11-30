@@ -1,11 +1,8 @@
 relaxed
-    - consider num ctors for other numbers
     - shortcuts: 
         - mul: 
             - 0 * x = 0 (reciprocal)
             - 1 * x = x (reciprocal)
-        - sub:
-            - x - 0 = x (negative not supported)
         - div:
             - x / 1 = x ("negative" not supported)
             - 0 / x = 0 (reciprocal illegal)
@@ -14,7 +11,7 @@ relaxed
             - 1^n = 1 n∊ℕ₀
             - x^0 = 1
             - x^1 = x
-    - common zero (implies use of std, ownership via ptr)
+    - consider num ctors for other numbers
 
 noticeable
     - implement substraction speed up by extending subtrahend to max place

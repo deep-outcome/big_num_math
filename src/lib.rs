@@ -5,6 +5,7 @@
 
 extern crate alloc;
 type RawRow = Vec<u8>;
+type Row = PlacesRow;
 
 /// `PlacesRow` represents row of decimal places starting at ones (`0` index).
 #[derive(Clone, PartialEq, Debug)]
@@ -236,6 +237,10 @@ pub fn rel(num: &PlacesRow, comparand: &PlacesRow) -> Rel {
     let r1 = &num.row;
     let r2 = &comparand.row;
 
+    rel_raw(r1, r2)
+}
+
+fn rel_raw(r1: &RawRow, r2: &RawRow) -> Rel {
     // ⟺ no leading zeros
     // num.len() > comparand.len() ⇒ num > comparand
     // num.len() < comparand.len() ⇒ num < comparand
@@ -310,18 +315,31 @@ fn add_shorcut(r1: &RawRow, r2: &RawRow) -> Option<RawRow> {
 ///
 /// Returns difference `PlacesRow` if `minuend` ≥ `subtrahend`, `None` otherwise.
 pub fn sub(minuend: &PlacesRow, subtrahend: &PlacesRow) -> Option<PlacesRow> {
-    let rel = rel(minuend, subtrahend);
+    let minuend = &minuend.row;
+    let subtrahend = &subtrahend.row;
 
-    if rel == Rel::Lesser {
-        None
-    } else if rel == Rel::Equal {
-        Some(PlacesRow::nought())
-    } else {
-        let min_row = &minuend.row;
-        let sub_row = &subtrahend.row;
-        let diff = subtraction(&min_row, &sub_row, false).0;
-        Some(PlacesRow { row: diff })
+    match sub_shortcut(minuend, subtrahend) {
+        Some(a) => return a,
+        None => {}
+    };
+
+    let diff = subtraction(&minuend, &subtrahend, false).0;
+    Some(Row { row: diff })
+}
+
+fn sub_shortcut(minuend: &RawRow, subtrahend: &RawRow) -> Option<Option<PlacesRow>> {
+    if Row::is_nought_raw(subtrahend) {
+        let row = Row {
+            row: minuend.clone(),
+        };
+        return Some(Some(row));
     }
+
+    return match rel_raw(minuend, subtrahend) {
+        Rel::Lesser => Some(None),
+        Rel::Equal => Some(Some(Row::nought())),
+        _ => return None,
+    };
 }
 
 /// Computes `factor1` and `factor2` product.
@@ -588,11 +606,11 @@ fn ones(num: u8, takeover_ref: &mut u8) -> u8 {
 mod tests_of_units {
 
     mod placesrow {
-        use crate::PlacesRow as Row;
+        use crate::Row;
         use alloc::string::ToString;
 
         mod new_from_vec {
-            use crate::PlacesRow as Row;
+            use crate::Row;
             use alloc::vec;
 
             #[test]
@@ -650,7 +668,7 @@ mod tests_of_units {
         }
 
         mod new_from_str {
-            use crate::PlacesRow as Row;
+            use crate::Row;
 
             #[test]
             fn zero_len_test() {
@@ -691,7 +709,7 @@ mod tests_of_units {
         }
 
         mod to_number {
-            use crate::PlacesRow as Row;
+            use crate::Row;
             use alloc::vec;
 
             #[test]
@@ -861,23 +879,35 @@ mod tests_of_units {
 
     // Relational comparison.
     mod rel {
+        use crate::{rel, Rel, Row};
 
-        use crate::{rel, PlacesRow as Row, Rel};
+        #[test]
+        fn basic_test() {
+            let num = Row::new_from_num(155);
+            let comparand = Row::new_from_num(155);
+
+            assert_eq!(Rel::Equal, rel(&num, &comparand));
+        }
+    }
+
+    mod rel_raw {
+
+        use crate::{rel_raw, Rel, Row};
 
         #[test]
         fn longer_test() {
-            let num = Row::new_from_num(11);
-            let comparand = Row::new_from_num(9);
+            let num = Row::new_from_num(11).row;
+            let comparand = Row::new_from_num(9).row;
 
-            assert_eq!(Rel::Greater, rel(&num, &comparand));
+            assert_eq!(Rel::Greater, rel_raw(&num, &comparand));
         }
 
         #[test]
         fn shorter_test() {
-            let num = Row::new_from_num(9);
-            let comparand = Row::new_from_num(10);
+            let num = Row::new_from_num(9).row;
+            let comparand = Row::new_from_num(10).row;
 
-            assert_eq!(Rel::Lesser, rel(&num, &comparand));
+            assert_eq!(Rel::Lesser, rel_raw(&num, &comparand));
         }
 
         #[test]
@@ -885,16 +915,16 @@ mod tests_of_units {
             let num_num = 1234567899;
             let cpd_num = 1234567890;
 
-            let num = Row::new_from_num(num_num);
-            let comparand = Row::new_from_num(cpd_num);
+            let num = Row::new_from_num(num_num).row;
+            let comparand = Row::new_from_num(cpd_num).row;
 
-            assert_eq!(Rel::Greater, rel(&num, &comparand));
+            assert_eq!(Rel::Greater, rel_raw(&num, &comparand));
         }
 
         #[test]
         fn equal_test() {
             let num = Row::new_from_num(1234567890);
-            assert_eq!(Rel::Equal, rel(&num, &num));
+            assert_eq!(Rel::Equal, rel_raw(&num.row, &num.row));
         }
 
         #[test]
@@ -902,16 +932,16 @@ mod tests_of_units {
             let num_num = 1234567890;
             let cpd_num = 1234567899;
 
-            let num = Row::new_from_num(num_num);
-            let comparand = Row::new_from_num(cpd_num);
+            let num = Row::new_from_num(num_num).row;
+            let comparand = Row::new_from_num(cpd_num).row;
 
-            assert_eq!(Rel::Lesser, rel(&num, &comparand));
+            assert_eq!(Rel::Lesser, rel_raw(&num, &comparand));
         }
     }
 
     // Addition.
     mod add {
-        use crate::{add, PlacesRow as Row};
+        use crate::{add, Row};
 
         #[test]
         fn basic_test() {
@@ -966,7 +996,7 @@ mod tests_of_units {
     }
 
     mod add_shorcut {
-        use crate::{add_shorcut, PlacesRow as Row};
+        use crate::{add_shorcut, Row};
 
         #[test]
         fn none_is_nought() {
@@ -995,7 +1025,7 @@ mod tests_of_units {
 
     /// Subtraction.
     mod sub {
-        use crate::{sub, PlacesRow as Row};
+        use crate::{sub, Row};
 
         #[test]
         fn lesser_minuend_test() {
@@ -1020,9 +1050,51 @@ mod tests_of_units {
         }
     }
 
+    mod sub_shortcut {
+        use crate::{sub_shortcut, Row};
+
+        #[test]
+        fn nought_subtrahend() {
+            let minuend = Row::new_from_num(40);
+            let subtrahend = Row::new_from_num(0).row;
+
+            let proof = minuend.clone();
+            let test = sub_shortcut(&minuend.row, &subtrahend);
+            assert_eq!(Some(Some(proof)), test);
+        }
+
+        #[test]
+        fn lesser_minuend() {
+            let minuend = Row::new_from_num(0).row;
+            let subtrahend = Row::new_from_num(1).row;
+
+            let res = sub_shortcut(&minuend, &subtrahend);
+            assert_eq!(Some(None), res);
+        }
+
+        #[test]
+        fn equal_operands() {
+            let minuend = Row::new_from_num(1364).row;
+            let subtrahend = Row::new_from_num(1364).row;
+
+            let proof = Row::nought();
+            let test = sub_shortcut(&minuend, &subtrahend);
+            assert_eq!(Some(Some(proof)), test);
+        }
+
+        #[test]
+        fn greater_minuend() {
+            let minuend = Row::new_from_num(2).row;
+            let subtrahend = Row::new_from_num(1).row;
+
+            let res = sub_shortcut(&minuend, &subtrahend);
+            assert_eq!(None, res);
+        }
+    }
+
     /// Multiplication.
     mod mul {
-        use crate::{mul, PlacesRow as Row};
+        use crate::{mul, Row};
 
         #[test]
         fn basic_test() {
@@ -1077,7 +1149,7 @@ mod tests_of_units {
     /// 2º=1, 2¹=1×2, 2²=1×2×2, 2³=1×2×2×2, …
     ///                   ⋮                   
     mod pow {
-        use crate::{pow, PlacesRow as Row};
+        use crate::{pow, Row};
 
         #[test]
         fn basic_test() {
@@ -1157,7 +1229,7 @@ mod tests_of_units {
 
     /// Division with remainder.
     mod divrem {
-        use crate::{divrem, PlacesRow as Row};
+        use crate::{divrem, Row};
 
         #[test]
         fn zero_divisor_test() {
@@ -1337,7 +1409,7 @@ mod tests_of_units {
     mod subtraction {
 
         mod subtracting {
-            use crate::{subtraction, PlacesRow as Row};
+            use crate::{subtraction, Row};
             use alloc::vec;
 
             #[test]
@@ -1406,7 +1478,7 @@ mod tests_of_units {
         }
 
         mod remainder {
-            use crate::{subtraction, PlacesRow as Row};
+            use crate::{subtraction, Row};
             use alloc::vec;
 
             #[test]
