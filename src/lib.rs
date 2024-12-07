@@ -225,9 +225,12 @@ impl From<u128> for PlacesRow {
 /// Relation enumeration.
 #[derive(Debug, PartialEq)]
 pub enum Rel {
-    Greater,
+    /// Greater than comparand. Holds information about decimal difference, if there is some.
+    Greater(Option<DecCnt>),
+    /// Equal to comparand.
     Equal,
-    Lesser,
+    /// Lesser than comparand. Holds information about decimal difference, if there is some.
+    Lesser(Option<DecCnt>),
 }
 
 /// Checks relation of `num` to `comparand`.
@@ -241,28 +244,100 @@ pub fn rel(num: &PlacesRow, comparand: &PlacesRow) -> Rel {
 }
 
 fn rel_raw(r1: &RawRow, r2: &RawRow) -> Rel {
-    // ⟺ no leading zeros
-    // num.len() > comparand.len() ⇒ num > comparand
-    // num.len() < comparand.len() ⇒ num < comparand
-    // num.len() = comparand.len() ⇒ num ⪒ comparand
-    let r1_len = r1.len();
-    let r2_len = r2.len();
-
-    return if r1_len > r2_len {
-        Rel::Greater
-    } else if r1_len == r2_len {
-        for inx in (0..r2_len).rev() {
-            if r1[inx] > r2[inx] {
-                return Rel::Greater;
-            } else if r1[inx] < r2[inx] {
-                return Rel::Lesser;
+    match rel_dec_raw(r1, r2) {
+        RelDec::Greater(c) => Rel::Greater(Some(c)),
+        RelDec::Lesser(c) => Rel::Lesser(Some(c)),
+        RelDec::Equal(c) => {
+            let mut rel = Rel::Equal;
+            for inx in (0..c).rev() {
+                if r1[inx] > r2[inx] {
+                    rel = Rel::Greater(None);
+                    break;
+                } else if r1[inx] < r2[inx] {
+                    rel = Rel::Lesser(None);
+                    break;
+                }
             }
-        }
 
-        Rel::Equal
+            rel
+        }
+    }
+}
+
+/// Decimal places count.
+///
+/// Tuple fields describe places count and are defined as follow.
+/// |Name|Meaning    |
+/// |:--:|:--------- |
+/// |0   |number     |
+/// |1   |comparand  |
+/// |2   |difference |
+///
+/// Count relates to power of ten as table evinces.
+/// |  Count |    Relation                  |
+/// |:------:|:------------:                |
+/// | 0      | number < 10⁰ ⇒ number = 0    |
+/// | 1      | number < 10¹ ∧ number ≥ 10⁰  |
+/// | 2      | number < 10² ∧ number ≥ 10¹  |
+/// | ⋮      |   ⋮                          |
+/// | n      | number < 10ⁿ ∧ number ≥ 10ⁿ⁻¹|
+pub type DecCnt = (usize, usize, usize);
+
+/// Decimal relation enumeration.
+///
+/// Expresses relation of numbers in decimal places count.
+#[derive(Debug, PartialEq)]
+pub enum RelDec {
+    /// Count greater than comparand has. Holds information about respective counts.
+    Greater(DecCnt),
+    /// Count equal to comparand count. Holds count information.
+    Equal(usize),
+    /// Count lesser than comparand has. Holds information about respective counts.
+    Lesser(DecCnt),
+}
+
+/// Compares decimal places count.
+///
+/// Beware of nought values comparison. `fn deref` allows to view internal
+/// storage and for nought it has some length, exactly 1, but count would be `0` exactly.
+///
+/// Returns `RelDec` relation.
+pub fn rel_dec(num: &PlacesRow, comparand: &PlacesRow) -> RelDec {
+    let r1 = &num.row;
+    let r2 = &comparand.row;
+
+    rel_dec_raw(r1, r2)
+}
+
+// ⟺ no leading zeros
+// num.len() > comparand.len() ⇒ num > comparand
+// num.len() < comparand.len() ⇒ num < comparand
+// num.len() = comparand.len() ⇒ num ⪒ comparand
+fn rel_dec_raw(r1: &RawRow, r2: &RawRow) -> RelDec {
+    let r1_cnt = count(r1);
+    let r2_cnt = count(r2);
+
+    if r1_cnt == r2_cnt {
+        return RelDec::Equal(r1_cnt);
+    }
+
+    let mut cnts = (r1_cnt, r2_cnt, 0);
+
+    return if r1_cnt > r2_cnt {
+        cnts.2 = r1_cnt - r2_cnt;
+        RelDec::Greater(cnts)
     } else {
-        Rel::Lesser
+        cnts.2 = r2_cnt - r1_cnt;
+        RelDec::Lesser(cnts)
     };
+
+    fn count(r: &RawRow) -> usize {
+        if Row::is_nought_raw(r) {
+            0
+        } else {
+            r.len()
+        }
+    }
 }
 
 use alloc::{string::String, vec, vec::Vec};
@@ -341,7 +416,7 @@ fn sub_shortcut(minuend: &RawRow, subtrahend: &RawRow) -> Option<Option<Row>> {
     }
 
     return match rel_raw(minuend, subtrahend) {
-        Rel::Lesser => Some(None),
+        Rel::Lesser(_) => Some(None),
         Rel::Equal => Some(Some(Row::nought())),
         _ => return None,
     };
@@ -428,7 +503,7 @@ fn divrem_shortcut(dividend: &RawRow, divisor: &RawRow) -> Option<Option<(Row, R
         (end_clone(), Row::nought())
     } else {
         match rel_raw(dividend, divisor) {
-            Rel::Lesser => (Row::nought(), end_clone()),
+            Rel::Lesser(_) => (Row::nought(), end_clone()),
             Rel::Equal => (Row::unity(), Row::nought()),
             _ => return None,
         }
@@ -949,7 +1024,8 @@ mod tests_of_units {
             let num = Row::new_from_num(11).row;
             let comparand = Row::new_from_num(9).row;
 
-            assert_eq!(Rel::Greater, rel_raw(&num, &comparand));
+            let proof = Rel::Greater(Some((2, 1, 1)));
+            assert_eq!(proof, rel_raw(&num, &comparand));
         }
 
         #[test]
@@ -957,7 +1033,8 @@ mod tests_of_units {
             let num = Row::new_from_num(9).row;
             let comparand = Row::new_from_num(10).row;
 
-            assert_eq!(Rel::Lesser, rel_raw(&num, &comparand));
+            let proof = Rel::Lesser(Some((1, 2, 1)));
+            assert_eq!(proof, rel_raw(&num, &comparand));
         }
 
         #[test]
@@ -968,7 +1045,7 @@ mod tests_of_units {
             let num = Row::new_from_num(num_num).row;
             let comparand = Row::new_from_num(cpd_num).row;
 
-            assert_eq!(Rel::Greater, rel_raw(&num, &comparand));
+            assert_eq!(Rel::Greater(None), rel_raw(&num, &comparand));
         }
 
         #[test]
@@ -985,7 +1062,77 @@ mod tests_of_units {
             let num = Row::new_from_num(num_num).row;
             let comparand = Row::new_from_num(cpd_num).row;
 
-            assert_eq!(Rel::Lesser, rel_raw(&num, &comparand));
+            assert_eq!(Rel::Lesser(None), rel_raw(&num, &comparand));
+        }
+
+        #[test]
+        fn both_nought_test() {
+            let num = Row::new_from_num(0).row;
+            let rel_dec = rel_raw(&num, &num);
+
+            assert_eq!(Rel::Equal, rel_dec);
+        }
+    }
+
+    mod rel_dec {
+        use crate::{rel_dec, RelDec, Row};
+
+        #[test]
+        fn basic_test() {
+            let num = Row::new_from_num(9876543210);
+            let rel_dec = rel_dec(&num, &num);
+
+            assert_eq!(RelDec::Equal(10), rel_dec);
+        }
+
+        #[test]
+        #[rustfmt::skip]
+        fn readme_example_test() {
+            let number    = Row::new_from_str("1489754132134687989463132131").unwrap();
+            let comparand = Row::new_from_str(        "48645698946456531371").unwrap();
+            let rel_dec = rel_dec(&number, &comparand);
+
+            assert_eq!(RelDec::Greater((28, 20, 8)), rel_dec);
+        }
+    }
+
+    mod rel_dec_raw {
+        use crate::{rel_dec_raw, RelDec, Row};
+
+        #[test]
+        fn equal_test() {
+            let num = Row::new_from_num(9876543210).row;
+            let rel_dec = rel_dec_raw(&num, &num);
+
+            assert_eq!(RelDec::Equal(10), rel_dec);
+        }
+
+        #[test]
+        fn lesser_test() {
+            let num = Row::new_from_num(10).row;
+            let comparand = Row::new_from_num(9876543210).row;
+            let rel_dec = rel_dec_raw(&num, &comparand);
+
+            let proof = RelDec::Lesser((2, 10, 8));
+            assert_eq!(proof, rel_dec);
+        }
+
+        #[test]
+        fn greater_test() {
+            let num = Row::new_from_num(9876543210).row;
+            let comparand = Row::new_from_num(10).row;
+            let rel_dec = rel_dec_raw(&num, &comparand);
+
+            let proof = RelDec::Greater((10, 2, 8));
+            assert_eq!(proof, rel_dec);
+        }
+
+        #[test]
+        fn nought_test() {
+            let num = Row::new_from_num(0).row;
+            let rel_dec = rel_dec_raw(&num, &num);
+
+            assert_eq!(RelDec::Equal(0), rel_dec);
         }
     }
 
