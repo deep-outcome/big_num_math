@@ -11,7 +11,9 @@ Library for computations on large numbers.
     - relation operator
     - power
 
-### usage sample
+### usage samples
+
+##### power
 
 ```rust
 let row = PlacesRow::new_from_num(u128::MAX);
@@ -21,6 +23,8 @@ let number = pow.to_number();
 assert!(number.starts_with("8312324609993336522"));
 assert_eq!(19266, number.len());
 ```
+
+##### division with remainder
 
 ```rust
 let dividend = PlacesRow::new_from_str("3402823669209384634633746074317682114565556668744123").unwrap();
@@ -33,6 +37,8 @@ let ratrem = divrem(&dividend, &divisor).unwrap();
 assert_eq!(ratio, ratrem.0.to_number());
 assert_eq!(remainder, ratrem.1.to_number());
 ```
+
+##### decimal places relation
 
 ```rust
 let number    = Row::new_from_str("1489754132134687989463132131").unwrap();
