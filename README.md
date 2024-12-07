@@ -43,7 +43,7 @@ assert_eq!(remainder, ratrem.1.to_number());
 ```rust
 let number    = Row::new_from_str("1489754132134687989463132131").unwrap();
 let comparand = Row::new_from_str(        "48645698946456531371").unwrap();
-let rel_dec = rel_dec(&number, &comparand);
+let decrel = rel_dec(&number, &comparand);
 
-assert_eq!(RelDec::Greater((28, 20, 8)), rel_dec);
+assert_eq!(RelDec::Greater((28, 20, 8)), decrel);
 ```

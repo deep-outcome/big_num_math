@@ -1068,9 +1068,8 @@ mod tests_of_units {
         #[test]
         fn both_nought_test() {
             let num = Row::new_from_num(0).row;
-            let rel_dec = rel_raw(&num, &num);
 
-            assert_eq!(Rel::Equal, rel_dec);
+            assert_eq!(Rel::Equal, rel_raw(&num, &num));
         }
     }
 
@@ -1080,9 +1079,8 @@ mod tests_of_units {
         #[test]
         fn basic_test() {
             let num = Row::new_from_num(9876543210);
-            let rel_dec = rel_dec(&num, &num);
 
-            assert_eq!(RelDec::Equal(10), rel_dec);
+            assert_eq!(RelDec::Equal(10), rel_dec(&num, &num));
         }
 
         #[test]
@@ -1090,9 +1088,9 @@ mod tests_of_units {
         fn readme_example_test() {
             let number    = Row::new_from_str("1489754132134687989463132131").unwrap();
             let comparand = Row::new_from_str(        "48645698946456531371").unwrap();
-            let rel_dec = rel_dec(&number, &comparand);
+            let decrel = rel_dec(&number, &comparand);
 
-            assert_eq!(RelDec::Greater((28, 20, 8)), rel_dec);
+            assert_eq!(RelDec::Greater((28, 20, 8)), decrel);
         }
     }
 
@@ -1102,37 +1100,33 @@ mod tests_of_units {
         #[test]
         fn equal_test() {
             let num = Row::new_from_num(9876543210).row;
-            let rel_dec = rel_dec_raw(&num, &num);
 
-            assert_eq!(RelDec::Equal(10), rel_dec);
+            assert_eq!(RelDec::Equal(10), rel_dec_raw(&num, &num));
         }
 
         #[test]
         fn lesser_test() {
             let num = Row::new_from_num(10).row;
             let comparand = Row::new_from_num(9876543210).row;
-            let rel_dec = rel_dec_raw(&num, &comparand);
 
             let proof = RelDec::Lesser((2, 10, 8));
-            assert_eq!(proof, rel_dec);
+            assert_eq!(proof, rel_dec_raw(&num, &comparand));
         }
 
         #[test]
         fn greater_test() {
             let num = Row::new_from_num(9876543210).row;
             let comparand = Row::new_from_num(10).row;
-            let rel_dec = rel_dec_raw(&num, &comparand);
 
             let proof = RelDec::Greater((10, 2, 8));
-            assert_eq!(proof, rel_dec);
+            assert_eq!(proof, rel_dec_raw(&num, &comparand));
         }
 
         #[test]
         fn nought_test() {
             let num = Row::new_from_num(0).row;
-            let rel_dec = rel_dec_raw(&num, &num);
 
-            assert_eq!(RelDec::Equal(0), rel_dec);
+            assert_eq!(RelDec::Equal(0), rel_dec_raw(&num, &num));
         }
     }
 
