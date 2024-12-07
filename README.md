@@ -8,10 +8,10 @@ Library for computations on large numbers.
 - primitive simple functions only:
     - addition +substraction, 
     - multiplication +division
-    - relation operator
+    - relation operators
     - power
 
-### usage samples
+### Usage Samples
 
 ##### power
 
