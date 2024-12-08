@@ -6,6 +6,7 @@ relaxed
             - x^0 = 1
             - x^1 = x
     - consider num ctors for other numbers
+    - avoid places comparison for equal or greater branch
 
 noticeable
     - implement substraction speed up by extending subtrahend to max place
