@@ -1,13 +1,12 @@
 relaxed
+    - order of magnitude (exact, simplified)
     - shortcuts:
         - pow:
             - 0^n=0 n∊ℕ﹥₀
             - 1^n = 1 n∊ℕ₀
             - x^0 = 1
             - x^1 = x
-    - consider num ctors for other numbers
-    - avoid places comparison for equal or greater branch
-    - order of magnitude (exact, simplified)
+    - consider num ctors for other numbers    
 
 noticeable
     - implement substraction speed up by extending subtrahend to max place
