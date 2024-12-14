@@ -92,8 +92,8 @@ impl PlacesRow {
             for (c, sc) in s.chars().rev().zip(row.spare_capacity_mut()) {
                 err_inx -= 1;
                 if c.is_ascii_digit() {
-                    let d = from_ascii_digit(c);
-                    sc.write(d);
+                    let n = from_digit(c);
+                    sc.write(n);
                 } else {
                     return Err(Some(err_inx));
                 }
@@ -113,20 +113,7 @@ impl PlacesRow {
         let mut number = String::new();
         number.reserve_exact(len);
         for i in row.iter().rev() {
-            let digit = match i {
-                0 => '0',
-                1 => '1',
-                2 => '2',
-                3 => '3',
-                4 => '4',
-                5 => '5',
-                6 => '6',
-                7 => '7',
-                8 => '8',
-                9 => '9',
-                _ => panic!("Only ones supported."),
-            };
-
+            let digit = to_digit(*i);
             number.push(digit);
         }
 
@@ -207,7 +194,7 @@ fn len_without_leading_raw(row: &RawRow, lead: u8, upto: usize) -> usize {
     row_len
 }
 
-fn from_ascii_digit(c: char) -> u8 {
+fn from_digit(c: char) -> u8 {
     match c {
         '0' => 0,
         '1' => 1,
@@ -220,6 +207,22 @@ fn from_ascii_digit(c: char) -> u8 {
         '8' => 8,
         '9' => 9,
         _ => panic!("Unsupported char `{c}` conversion."),
+    }
+}
+
+fn to_digit(n: u8) -> char {
+    match n {
+        0 => '0',
+        1 => '1',
+        2 => '2',
+        3 => '3',
+        4 => '4',
+        5 => '5',
+        6 => '6',
+        7 => '7',
+        8 => '8',
+        9 => '9',
+        _ => panic!("Only number < 10 supported."),
     }
 }
 
@@ -859,13 +862,6 @@ mod tests_of_units {
                 let row = Row::new_from_vec(vec![0, 9, 8, 7, 6, 5, 4, 3, 2, 1]).unwrap();
                 assert_eq!("1234567890", row.to_number().as_str());
             }
-
-            #[test]
-            #[should_panic(expected = "Only ones supported.")]
-            fn only_ones_supported_test() {
-                let row = Row { row: vec![10] };
-                _ = row.to_number();
-            }
         }
 
         use crate::RawRow;
@@ -1019,19 +1015,19 @@ mod tests_of_units {
         }
     }
 
-    mod from_ascii_digit {
+    mod from_digit {
         extern crate std;
 
-        use crate::from_ascii_digit;
+        use crate::from_digit;
         use alloc::format;
         use alloc::string::{String, ToString};
         use std::panic::catch_unwind;
 
         #[test]
         fn basic_test() {
-            for n in 0..=9 {
-                let d = from_ascii_digit(n.to_string().chars().next().unwrap());
-                assert_eq!(n, d);
+            for proof in 0..=9 {
+                let test = from_digit(proof.to_string().chars().next().unwrap());
+                assert_eq!(proof, test);
             }
         }
 
@@ -1043,12 +1039,32 @@ mod tests_of_units {
                 let c = c as char;
 
                 let proof = format!("Unsupported char `{c}` conversion.");
-                let catch = catch_unwind(|| from_ascii_digit(c));
+                let catch = catch_unwind(|| from_digit(c));
 
                 assert!(catch.is_err());
                 let err = catch.unwrap_err().downcast::<String>().unwrap();
                 assert_eq!(proof, *err);
             }
+        }
+    }
+
+    mod to_digit {
+        use crate::to_digit;
+        use alloc::string::ToString;
+
+        #[test]
+        fn basic_test() {
+            for n in 0..=9 {
+                let test = to_digit(n);
+                let proof = n.to_string().chars().next().unwrap();
+                assert_eq!(proof, test);
+            }
+        }
+
+        #[test]
+        #[should_panic(expected = "Only number < 10 supported.")]
+        fn less_than_10_support_only() {
+            to_digit(10);
         }
     }
 
