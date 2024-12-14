@@ -47,3 +47,14 @@ let decrel = rel_dec(&number, &comparand);
 
 assert_eq!(RelDec::Greater((28, 20, 8)), decrel);
 ```
+
+##### order of magnitude
+
+```rust
+let number_1 = PlacesRow::new_from_num(3162277660168379331998893544432);
+let number_2 = PlacesRow::new_from_num(3162277660168379331998893544433);
+
+assert_eq!(Oom::Precise(30), ord_of_mag(&number_1, OomKind::Strict));
+assert_eq!(Oom::Precise(31), ord_of_mag(&number_2, OomKind::Strict));
+assert_eq!(Oom::Precise(30), ord_of_mag(&number_2, OomKind::Loose));
+```

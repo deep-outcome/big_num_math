@@ -1,5 +1,7 @@
+trivial
+    - extract raw methods from PlacesRow to module
+
 relaxed
-    - order of magnitude (exact, simplified)
     - shortcuts:
         - pow:
             - 0^n=0 n∊ℕ﹥₀

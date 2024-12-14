@@ -13,7 +13,7 @@ pub struct PlacesRow {
     row: RawRow,
 }
 
-use core::ops::Deref;
+use core::{cmp::Ordering, ops::Deref};
 impl Deref for PlacesRow {
     type Target = [u8];
 
@@ -238,6 +238,110 @@ impl From<u128> for PlacesRow {
     /// Converts `value` into `PlacesRow`.
     fn from(value: u128) -> Self {
         Self::new_from_num(value)
+    }
+}
+
+/// Represents 1,000 numbers of √10 ≈ 3.16.
+///
+/// Check with `fn ord_of_mag`.
+pub const SQUARE_ROOT_TEN_COMPARATOR: &str = "3162277660168379331998893544432718533719555139325216826857504852792594438639238221344248108379300295187347284152840055148548856030453880014690519596700153903344921657179259940659150153474113339484124085316929577090471576461044369257879062037808609941828371711548406328552999118596824564203326961604691314336128949791890266529543612676178781350061388186278580463683134952478031143769334671973819513185678403231241795402218308045872844614600253577579702828644029024407977896034543989163349222652612067792651676031048436697793756926155720500369894909469421850007358348844643882731109289109042348054235653403907274019786543725939641726001306990000955784463109626790694418336130181302894541703315807731626386395193793704654765220632063686587197822049312426053454111609356979828132452297000798883523759585328579251362964686511497675217123459559238039375625125369855194955325099947038843990336466165470647234999796132343403021857052187836676345789510732982875157945215771652139626324438399018484560935762602";
+
+/// Order of magnitude computation kind.
+#[derive(Clone, PartialEq, Debug)]
+pub enum OomKind {
+    /// Uses `√10` for relation.
+    ///
+    /// Check with `SQUARE_ROOT_TEN_COMPARATOR`.
+    Strict,
+    /// Uses `5` for relation.
+    Loose,
+}
+
+/// Order of magnitude enumeration.
+#[derive(Clone, PartialEq, Debug)]
+pub enum Oom {
+    /// Order of magnitude is not defined for nought `PlacesRow`.
+    Undefined,
+    /// Precise _oom_.
+    ///
+    /// Check with `Approx(usize)` variant.
+    Precise(usize),
+    /// Approximated _oom_ is result of operation on `PlacesRow` requiring
+    /// greater precision than provided by `SQUARE_ROOT_TEN_COMPARATOR`.
+    ///
+    /// Check with `fn ord_of_mag`.
+    Approx(usize),
+}
+
+/// Computes order of magnitude for `num` and `kind`.
+///
+/// OOM is defined for number _n_ as follows:
+///
+/// n = u ⋅ 10ⁱ, v ÷10 ≤ u < v, v = √10 ∨ v = 5
+///
+/// Then _i_ is order of magnitude of such number.
+///
+/// Evaluation is precise up to 1,000 numbers of `SQUARE_ROOT_TEN_COMPARATOR`.
+/// Any `num` requiring higher precision is considered to be of next order. That
+/// means its order of magnitude is arranged equal to its decimal places count
+/// and is reported as `Oom::Approx(usize)`.
+///
+/// Returns `Oom` enumeration.
+pub fn ord_of_mag(num: &PlacesRow, kind: OomKind) -> Oom {
+    let row = &num.row;
+    if Row::is_nought_raw(row) {
+        return Oom::Undefined;
+    }
+
+    let cmp = match kind {
+        OomKind::Strict => SQUARE_ROOT_TEN_COMPARATOR.chars().map(from_digit).collect(),
+        OomKind::Loose => vec![5],
+    };
+
+    let row_len = row.len();
+    let cmp_len = cmp.len();
+
+    let mut row_ix = row_len;
+    let mut cmp_ix = 0;
+
+    let mut num_less = None;
+
+    loop {
+        if row_ix == 0 || cmp_ix == cmp_len {
+            break;
+        }
+
+        row_ix = row_ix - 1;
+
+        if row[row_ix] < cmp[cmp_ix] {
+            num_less = Some(true);
+            break;
+        }
+
+        if row[row_ix] > cmp[cmp_ix] {
+            num_less = Some(false);
+            break;
+        }
+
+        cmp_ix = cmp_ix + 1;
+    }
+
+    let (num_less, precise) = if let Some(l) = num_less {
+        (l, true)
+    } else {
+        let ord = row_len.cmp(&cmp_len);
+        match ord {
+            Ordering::Greater => (false, kind == OomKind::Loose),
+            Ordering::Less => (true, true),
+            _ => (false, true),
+        }
+    };
+
+    let oom = if num_less { row_len - 1 } else { row_len };
+
+    match precise {
+        true => Oom::Precise(oom),
+        false => Oom::Approx(oom),
     }
 }
 
@@ -1032,7 +1136,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn unsupported_char() {
+        fn unsupported_char_test() {
             let uc = ['0' as u8 - 1, '9' as u8 + 1];
 
             for c in uc {
@@ -1063,8 +1167,112 @@ mod tests_of_units {
 
         #[test]
         #[should_panic(expected = "Only number < 10 supported.")]
-        fn less_than_10_support_only() {
+        fn less_than_10_support_only_test() {
             to_digit(10);
+        }
+    }
+
+    mod ord_of_mag {
+
+        use crate::{ord_of_mag, Oom, OomKind, PlacesRow, Row};
+
+        const PROOF: &str = "3162277660168379331998893544432718533719555139325216826857504852792594438639238221344248108379300295187347284152840055148548856030453880014690519596700153903344921657179259940659150153474113339484124085316929577090471576461044369257879062037808609941828371711548406328552999118596824564203326961604691314336128949791890266529543612676178781350061388186278580463683134952478031143769334671973819513185678403231241795402218308045872844614600253577579702828644029024407977896034543989163349222652612067792651676031048436697793756926155720500369894909469421850007358348844643882731109289109042348054235653403907274019786543725939641726001306990000955784463109626790694418336130181302894541703315807731626386395193793704654765220632063686587197822049312426053454111609356979828132452297000798883523759585328579251362964686511497675217123459559238039375625125369855194955325099947038843990336466165470647234999796132343403021857052187836676345789510732982875157945215771652139626324438399018484560935762602";
+
+        #[test]
+        fn consts_test() {
+            use crate::SQUARE_ROOT_TEN_COMPARATOR;
+
+            assert_eq!(1000, SQUARE_ROOT_TEN_COMPARATOR.len());
+            assert_eq!(PROOF, SQUARE_ROOT_TEN_COMPARATOR);
+        }
+
+        #[test]
+        fn nought_test() {
+            let r = Row::nought();
+            let oom = unsafe { core::mem::transmute::<u8, OomKind>(u8::MAX) };
+
+            assert_eq!(Oom::Undefined, ord_of_mag(&r, oom));
+        }
+
+        #[test]
+        fn readme_sample_test() {
+            let number_1 = PlacesRow::new_from_num(3162277660168379331998893544432);
+            let number_2 = PlacesRow::new_from_num(3162277660168379331998893544433);
+
+            assert_eq!(Oom::Precise(30), ord_of_mag(&number_1, OomKind::Strict));
+            assert_eq!(Oom::Precise(31), ord_of_mag(&number_2, OomKind::Strict));
+            assert_eq!(Oom::Precise(30), ord_of_mag(&number_2, OomKind::Loose));
+        }
+
+        mod strict {
+            use alloc::string::String;
+
+            use super::PROOF;
+            use crate::{ord_of_mag, Oom, OomKind::Strict, Row};
+
+            #[test]
+            fn universal_test() {
+                #[rustfmt::skip]
+                // lesser-shorter-greater triplets
+                let values = [
+                    (2,0), (3, 0), (4, 1),
+                    (30, 1), (31, 1), (32, 2),                    
+                    (315, 2), (316, 2), (317, 3), 
+                    (3161, 3), (3162, 3), (3163, 4),                       
+                    (316_227_765, 8), (316_227_766, 8), (316_227_767, 9),                                   
+                ];
+
+                for v in values {
+                    let r = Row::new_from_num(v.0);
+                    let o = ord_of_mag(&r, Strict);
+
+                    assert_eq!(Oom::Precise(v.1), o, "{:?}", v);
+                }
+            }
+
+            #[test]
+            fn full_precision_test() {
+                let r = Row::new_from_str(PROOF).unwrap();
+                let o = ord_of_mag(&r, Strict);
+
+                assert_eq!(Oom::Precise(PROOF.len()), o);
+            }
+
+            #[test]
+            fn behind_precision_test() {
+                let mut proof = String::from(PROOF);
+                proof.push('0');
+
+                let r = Row::new_from_str(proof.as_str()).unwrap();
+                let o = ord_of_mag(&r, Strict);
+
+                let proof_len = proof.len();
+                assert_eq!(1001, proof_len);
+                assert_eq!(Oom::Approx(proof_len), o);
+            }
+        }
+
+        mod loose {
+            use crate::{ord_of_mag, Oom, OomKind::Loose, Row};
+
+            #[test]
+            fn universal_test() {
+                #[rustfmt::skip]
+                let values = [                    
+                    // lesser-equal-greater triplet
+                    (4, 0)    , (5, 1)     , (6, 1),                    
+                    // lesser-longer-greater triplets
+                    (40, 1)   , (50, 2)    , (60, 2),                                                                                                                        
+                    (4000, 3) , (5000, 4)  , (6000, 4)                                                                                                                                                                
+                ];
+
+                for v in values {
+                    let r = Row::new_from_num(v.0);
+                    let o = ord_of_mag(&r, Loose);
+
+                    assert_eq!(Oom::Precise(v.1), o, "{:?}", v);
+                }
+            }
         }
     }
 
@@ -1151,7 +1359,7 @@ mod tests_of_units {
 
         #[test]
         #[rustfmt::skip]
-        fn readme_example_test() {
+        fn readme_sample_test() {
             let number    = Row::new_from_str("1489754132134687989463132131").unwrap();
             let comparand = Row::new_from_str(        "48645698946456531371").unwrap();
             let decrel = rel_dec(&number, &comparand);
