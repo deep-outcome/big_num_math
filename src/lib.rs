@@ -92,8 +92,8 @@ impl PlacesRow {
             for (c, sc) in s.chars().rev().zip(row.spare_capacity_mut()) {
                 err_inx -= 1;
                 if c.is_ascii_digit() {
-                    let d = c.to_digit(10).unwrap();
-                    sc.write(d as u8);
+                    let d = from_ascii_digit(c);
+                    sc.write(d);
                 } else {
                     return Err(Some(err_inx));
                 }
@@ -205,6 +205,22 @@ fn len_without_leading_raw(row: &RawRow, lead: u8, upto: usize) -> usize {
     }
 
     row_len
+}
+
+fn from_ascii_digit(c: char) -> u8 {
+    match c {
+        '0' => 0,
+        '1' => 1,
+        '2' => 2,
+        '3' => 3,
+        '4' => 4,
+        '5' => 5,
+        '6' => 6,
+        '7' => 7,
+        '8' => 8,
+        '9' => 9,
+        _ => panic!("Unsupported char `{c}` conversion."),
+    }
 }
 
 impl alloc::string::ToString for PlacesRow {
@@ -1000,6 +1016,39 @@ mod tests_of_units {
         fn upto_equal_len_test() {
             let count = len_without_leading_raw(&vec![5, 5, 5], 5, 3);
             assert_eq!(3, count);
+        }
+    }
+
+    mod from_ascii_digit {
+        extern crate std;
+
+        use crate::from_ascii_digit;
+        use alloc::format;
+        use alloc::string::{String, ToString};
+        use std::panic::catch_unwind;
+
+        #[test]
+        fn basic_test() {
+            for n in 0..=9 {
+                let d = from_ascii_digit(n.to_string().chars().next().unwrap());
+                assert_eq!(n, d);
+            }
+        }
+
+        #[test]
+        fn unsupported_char() {
+            let uc = ['0' as u8 - 1, '9' as u8 + 1];
+
+            for c in uc {
+                let c = c as char;
+
+                let proof = format!("Unsupported char `{c}` conversion.");
+                let catch = catch_unwind(|| from_ascii_digit(c));
+
+                assert!(catch.is_err());
+                let err = catch.unwrap_err().downcast::<String>().unwrap();
+                assert_eq!(proof, *err);
+            }
         }
     }
 
