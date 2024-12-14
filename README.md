@@ -5,10 +5,11 @@ Library for computations on large numbers.
     1. no plan for new functions (goniometric, radix, …)
     2. upcoming optimizations (memory consumption, speed up on some computations, ergonomy, …)
     3. `divrem` can perform unbearably when `divisor` is significantly smaller than `dividend` (as per point 2)
-- primitive simple functions only:
+- functions only:
     - addition +substraction, 
     - multiplication +division
     - relation operators
+    - order of magnitude
     - power
 
 ### Usage Samples

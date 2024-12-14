@@ -419,7 +419,7 @@ pub enum RelDec {
     Lesser(DecCnt),
 }
 
-/// Compares decimal places count.
+/// Compares decimal places count of `num` and `comparand`.
 ///
 /// Beware of nought values comparison. `fn deref` allows to view internal
 /// storage and for nought it has some length, exactly 1, but count would be `0` exactly.
