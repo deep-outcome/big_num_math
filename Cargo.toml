@@ -1,16 +1,15 @@
 [package]
 name = "big_num_math"
-version = "3.1.0"
+version = "3.1.1"
 edition = "2021"
 authors     = [ "software9119.technology" ]
 license     = "MIT"
 description = "Simple library for computations on large numbers."
 keywords    = [ "math", "large-numbers", "big-int" ]
 categories  = [ "no-std", "mathematics" ]
-repository  = "https://github.com/bravequickcleverfibreyarn/big_num_math"
+repository  = "https://github.com/deep-outcome/big_num_math"
 documentation = "https://docs.rs/big_num_math/latest/big_num_math/"
 readme        = "README.md"
-homepage      = "https://github.com/bravequickcleverfibreyarn/big_num_math"
 exclude = ["/note", "/rustfmt.toml.disabled"]
 
 [features]
