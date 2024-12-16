@@ -580,13 +580,30 @@ fn mul_shortcut(factor1: &RawRow, factor2: &RawRow) -> Option<RawRow> {
 /// Returns `PlacesRow` with result.
 pub fn pow(base: &PlacesRow, pow: u16) -> PlacesRow {
     let row = &base.row;
-    if pow == 0 {
-        return Row { row: vec![1] };
-    } else if pow == 1 {
-        return Row { row: row.clone() };
+
+    if let Some(row) = pow_shortcut(row, pow) {
+        return row;
     }
 
     mulmul(row, row, pow - 1)
+}
+
+// x⁰ = 1
+// x¹ = x
+// 0ⁿ = 0 n∊ℕ﹥₀
+// 1ⁿ = 1 n∊ℕ₀
+fn pow_shortcut(row: &RawRow, pow: u16) -> Option<Row> {
+    if pow == 0 {
+        Some(Row::unity())
+    } else if pow == 1 {
+        Some(Row { row: row.clone() })
+    } else if is_nought_raw(row) {
+        Some(Row::nought())
+    } else if is_unity_raw(row) {
+        Some(Row::unity())
+    } else {
+        None
+    }
 }
 
 /// Computes `dividend` and `divisor` ratio and remainder.
@@ -635,6 +652,11 @@ fn divrem_shortcut(dividend: &RawRow, divisor: &RawRow) -> Option<Option<(Row, R
 ///   🡺 Inspect log₂ power speed up.
 fn mulmul(row1: &RawRow, row2: &RawRow, times: u16) -> Row {
     let (mpler, mut mcand) = (row1, row2.clone());
+
+    #[cfg(feature = "one-power-mulmul-support")]
+    if times == 0 {
+        return Row { row: mcand };
+    }
 
     let mpler_len = mpler.len();
 
@@ -759,7 +781,7 @@ fn addition(addend_1: &RawRow, addend_2: Option<&RawRow>, sum: &mut RawRow, offs
 /// Returns difference/remainder and ration in order.
 //
 // NOTE: Support for longer subtrahend implies extended guard condition on
-// correction `inx < subtrahend_len && inx < minuend_len`.
+// correction `inx < subtrahend_len && inx < minuend_len`. See feature 'shorter-dividend-support'.
 fn subtraction(minuend: &RawRow, subtrahend: &RawRow, remainder: bool) -> (RawRow, RawRow) {
     let mut diffrem_populated = false;
 
@@ -1754,6 +1776,39 @@ mod tests_of_units {
         }
     }
 
+    mod pow_shortcut {
+        use super::nought;
+        use crate::{pow_shortcut, Row};
+
+        #[test]
+        fn zero_power_test() {
+            let row = nought();
+            let pow = pow_shortcut(&row, 0);
+            assert_eq!(Some(Row::unity()), pow);
+        }
+
+        #[test]
+        fn power_of_nought_test() {
+            let row = Row::nought();
+            let pow = pow_shortcut(&row.row, 1000);
+            assert_eq!(Some(row), pow);
+        }
+
+        #[test]
+        fn one_power_test() {
+            let row = Row::new_from_num(3030);
+            let pow = pow_shortcut(&row.row, 1);
+            assert_eq!(Some(row), pow);
+        }
+
+        #[test]
+        fn power_of_one_test() {
+            let row = Row::unity();
+            let pow = pow_shortcut(&row.row, u16::MAX);
+            assert_eq!(Some(row), pow);
+        }
+    }
+
     /// Division with remainder.
     mod divrem {
         use crate::{divrem, Row};
@@ -1857,6 +1912,32 @@ mod tests_of_units {
             let proof = (Row::nought(), dividend.clone());
             let ratrem = divrem_shortcut(&dividend.row, &divisor);
             assert_eq!(Some(Some(proof)), ratrem);
+        }
+    }
+
+    mod mulmul {
+        use crate::{mulmul, Row};
+
+        #[test]
+        fn power_of_nought_test() {
+            let row = Row::nought();
+            let pow = mulmul(&row.row, &row.row, 1000 - 1);
+            assert_eq!(row, pow);
+        }
+
+        #[test]
+        #[cfg(feature = "one-power-mulmul-support")]
+        fn one_power_test() {
+            let row = Row::new_from_num(3030);
+            let pow = mulmul(&row.row, &row.row, 1 - 1);
+            assert_eq!(row, pow);
+        }
+
+        #[test]
+        fn power_of_one_test() {
+            let row = Row::unity();
+            let pow = mulmul(&row.row, &row.row, u16::MAX - 1);
+            assert_eq!(row, pow);
         }
     }
 
