@@ -1,6 +1,3 @@
-trivial
-    - extract raw methods from PlacesRow to module
-
 relaxed
     - shortcuts:
         - pow:
