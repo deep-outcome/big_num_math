@@ -145,6 +145,13 @@ impl PlacesRow {
     pub fn zero() -> PlacesRow {
         Self::nought()
     }
+
+    /// Returns decimal places count.
+    ///
+    /// Check with `DecCnt` for detail on count properties.
+    pub fn places(&self) -> usize {
+        dec_pla_cnt_raw(&self.row)
+    }
 }
 
 fn shrink_to_fit_raw(row: &mut RawRow) {
@@ -342,6 +349,17 @@ pub fn ord_of_mag(num: &PlacesRow, kind: OomKind) -> Oom {
 }
 
 /// Relation enumeration.
+///
+/// ```
+/// use big_num_math::{rel, PlacesRow, Rel, DecCnt};
+/// let num_1 = PlacesRow::new_from_num(100);
+/// let num_2 = PlacesRow::new_from_num(101);
+/// let num_3 = PlacesRow::new_from_num(1);
+///
+/// assert_eq!(Rel::Lesser(None), rel(&num_1, &num_2));
+/// let cnt_1_cnt_2_dif: DecCnt = (1,3,2);
+/// assert_eq!(Rel::Lesser(Some(cnt_1_cnt_2_dif)), rel(&num_3, &num_1));
+/// ```
 #[derive(Debug, PartialEq, Clone)]
 pub enum Rel {
     /// Greater than comparand. Holds information about decimal difference, if there is some.
@@ -405,6 +423,17 @@ pub type DecCnt = (usize, usize, usize);
 /// Decimal relation enumeration.
 ///
 /// Expresses relation of numbers in decimal places count.
+///
+/// ```
+/// use big_num_math::{rel_dec, PlacesRow, RelDec, DecCnt};
+/// let num_1 = PlacesRow::new_from_num(333);
+/// let num_2 = PlacesRow::new_from_num(777);
+/// let num_3 = PlacesRow::new_from_num(1);
+///
+/// assert_eq!(RelDec::Equal(3), rel_dec(&num_1, &num_2));
+/// let cnt_1_cnt_2_dif: DecCnt = (1,3,2);
+/// assert_eq!(RelDec::Lesser(cnt_1_cnt_2_dif), rel_dec(&num_3, &num_1));
+/// ```
 #[derive(Debug, PartialEq, Clone)]
 pub enum RelDec {
     /// Count greater than comparand has. Holds information about respective counts.
@@ -433,8 +462,8 @@ pub fn rel_dec(num: &PlacesRow, comparand: &PlacesRow) -> RelDec {
 // num.len() < comparand.len() ⇒ num < comparand
 // num.len() = comparand.len() ⇒ num ⪒ comparand
 fn rel_dec_raw(r1: &RawRow, r2: &RawRow) -> RelDec {
-    let r1_cnt = count(r1);
-    let r2_cnt = count(r2);
+    let r1_cnt = dec_pla_cnt_raw(r1);
+    let r2_cnt = dec_pla_cnt_raw(r2);
 
     if r1_cnt == r2_cnt {
         return RelDec::Equal(r1_cnt);
@@ -449,13 +478,13 @@ fn rel_dec_raw(r1: &RawRow, r2: &RawRow) -> RelDec {
         cnts.2 = r2_cnt - r1_cnt;
         RelDec::Lesser(cnts)
     };
+}
 
-    fn count(r: &RawRow) -> usize {
-        if is_nought_raw(r) {
-            0
-        } else {
-            r.len()
-        }
+fn dec_pla_cnt_raw(r: &RawRow) -> usize {
+    if is_nought_raw(r) {
+        0
+    } else {
+        r.len()
     }
 }
 
@@ -1028,6 +1057,12 @@ mod tests_of_units {
         }
 
         #[test]
+        fn places_test() {
+            let unity = Row::unity();
+            assert_eq!(1, unity.places());
+        }
+
+        #[test]
         fn to_string_test() {
             let row = Row::new_from_num(1);
             assert_eq!("1", row.to_string());
@@ -1319,9 +1354,7 @@ mod tests_of_units {
         #[test]
         fn basic_test() {
             let num = Row::new_from_num(155);
-            let comparand = Row::new_from_num(155);
-
-            assert_eq!(Rel::Equal, rel(&num, &comparand));
+            assert_eq!(Rel::Equal, rel(&num, &num));
         }
     }
 
@@ -1437,6 +1470,33 @@ mod tests_of_units {
             let num = Row::new_from_num(0).row;
 
             assert_eq!(RelDec::Equal(0), rel_dec_raw(&num, &num));
+        }
+    }
+
+    mod dec_pla_cnt_raw {
+        use alloc::vec;
+
+        use crate::dec_pla_cnt_raw;
+
+        #[test]
+        fn nought_test() {
+            let nought = vec![0; 1];
+            assert_eq!(0, dec_pla_cnt_raw(&nought));
+        }
+
+        #[test]
+        fn basic_test() {
+            for test in [vec![1; 1], vec![1; 100]] {
+                assert_eq!(test.len(), dec_pla_cnt_raw(&test));
+            }
+        }
+
+        #[test]
+        // function falsely reports zero len as nought
+        // zero len happens nowhere, yet noted
+        fn zero_len_pseudo_test() {
+            let zero_len = vec![9; 0];
+            assert_eq!(0, dec_pla_cnt_raw(&zero_len));
         }
     }
 
