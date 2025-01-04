@@ -1,5 +1,6 @@
 relaxed    
-    - consider num ctors for other numbers    
+    - prime check?
+    - consider num ctors for other numbers
 
 noticeable
     - implement substraction speed up by extending subtrahend to max place
