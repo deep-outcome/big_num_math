@@ -548,7 +548,14 @@ pub fn sub(minuend: &PlacesRow, subtrahend: &PlacesRow) -> Option<PlacesRow> {
         None => {}
     };
 
-    let diff = subtraction(&minuend, &subtrahend, false).0;
+    let diff = subtraction(
+        &minuend,
+        &subtrahend,
+        false,
+        #[cfg(test)]
+        &mut 0,
+    )
+    .0;
     Some(Row { row: diff })
 }
 
@@ -647,7 +654,15 @@ pub fn divrem(dividend: &PlacesRow, divisor: &PlacesRow) -> Option<(PlacesRow, P
         None => {}
     }
 
-    let remratio = subtraction(&dividend, &divisor, true);
+    let remratio = divrem_acceleration(
+        &dividend,
+        &divisor,
+        #[cfg(test)]
+        &mut 0,
+        #[cfg(test)]
+        &mut 0,
+    );
+
     Some((Row { row: remratio.1 }, Row { row: remratio.0 }))
 }
 
@@ -673,6 +688,161 @@ fn divrem_shortcut(dividend: &RawRow, divisor: &RawRow) -> Option<Option<(Row, R
     };
 
     Some(Some(shortcut))
+}
+
+// in order to avoid highly excessive looping, divrem computation can be speed up
+// by simple substracting divisor 10 products first
+fn divrem_acceleration(
+    dividend: &RawRow,
+    divisor: &RawRow,
+    #[cfg(test)] w_ctr: &mut usize,
+    #[cfg(test)] ctr: &mut usize,
+) -> (RawRow, RawRow) {
+    let divisor_len = divisor.len();
+    let mut remend_len = dividend.len();
+
+    let mut ratio = vec![0];
+
+    if remend_len < divisor_len {
+        return (dividend.clone(), ratio);
+    }
+
+    let mut remainder = None;
+    let mut end = dividend;
+
+    if remend_len > divisor_len {
+        // widen divisor
+        let mut wdsor = vec![0; remend_len];
+        // e.g. 15 000 ÷ 15
+        // 5 -2 +1 = 4
+        // mpler = [0,0,0,1], one at 4ᵗʰ place
+        let mut mpler = vec![0; remend_len - divisor_len + 1];
+
+        // highest index
+        let sor_hg_ix = divisor_len - 1;
+
+        // can run in vain when remend_len == divisor_len +1 and
+        // divisor cannot be broaden up, also incurs extra reentrancy
+        // at function end
+        //   🡺 opt: shorcut execution
+        loop {
+            #[cfg(test)]
+            {
+                *w_ctr += 1;
+            }
+
+            let mut wr_ix = remend_len - 1;
+
+            let mut l_ix = wr_ix;
+            let mut r_ix = sor_hg_ix;
+
+            loop {
+                let end_num = end[l_ix];
+                let sor_num = divisor[r_ix];
+
+                // check whether divisor can be broaded up to
+                // end highest place
+                if end_num < sor_num {
+                    wr_ix -= 1;
+                    break;
+                }
+
+                if end_num > sor_num {
+                    break;
+                }
+
+                if r_ix == 0 {
+                    break;
+                }
+
+                l_ix -= 1;
+                r_ix -= 1;
+            }
+
+            #[cfg(test)]
+            {
+                // sor is always widen upto highest or second highestmost place
+                assert!(remend_len == wr_ix + 1 || remend_len == wr_ix + 2)
+            }
+
+            let wdsor_len = wr_ix + 1;
+
+            // shortening wdsor removes leading numbers
+            // which could influence computation in arithmetic
+            // (significants) or execution (zeros) means
+            unsafe { wdsor.set_len(wdsor_len) };
+
+            let mut sor_ix = sor_hg_ix;
+            loop {
+                wdsor[wr_ix] = divisor[sor_ix];
+
+                if sor_ix == 0 {
+                    break;
+                }
+
+                sor_ix -= 1;
+                wr_ix -= 1;
+            }
+
+            let remrat = subtraction(
+                end,
+                &wdsor,
+                true,
+                #[cfg(test)]
+                ctr,
+            );
+
+            // e.g. 15 000 ÷ 25 ⇒ 2 500
+            // 4 -2 = 2 ⇒ [0,0,1], one at index 2
+            //
+            // if mpler_wr_ix = 0 then multiplication is redundant
+            //   🡺 opt: shorcut execution
+            let mpler_wr_ix = wdsor_len - divisor_len;
+
+            // previous "extensions" are stripped simply
+            // by length shrinking
+            unsafe { mpler.set_len(mpler_wr_ix + 1) };
+            mpler[mpler_wr_ix] = 1;
+
+            //   🡺 opt: let mulmul return only RawRow
+            let rat = mulmul(&remrat.1, &mpler, 1);
+            addition(&rat.row, None, &mut ratio, 0);
+
+            remainder = Some(remrat.0);
+
+            end = remainder.as_ref().unwrap();
+            remend_len = end.len();
+
+            if remend_len < divisor_len {
+                return (remainder.unwrap(), ratio);
+            } else if remend_len == divisor_len {
+                // if end is nought and divisor_len = 1
+                // this break is redundant
+                //   🡺 opt: shorcut execution
+                break;
+            }
+        }
+    }
+
+    // runs only when remend_len == divisor_len
+    // if end is already rem this "runs in vain"
+
+    let (rem, rat) = subtraction(
+        end,
+        &divisor,
+        true,
+        #[cfg(test)]
+        ctr,
+    );
+
+    let rat = if remainder.is_some() {
+        addition(&rat, None, &mut ratio, 0);
+        ratio
+    } else {
+        rat
+    };
+
+    (rem, rat)
 }
 
 /// Combined method allows to compute multiplication and power using shared code.
@@ -811,7 +981,12 @@ fn addition(addend_1: &RawRow, addend_2: Option<&RawRow>, sum: &mut RawRow, offs
 //
 // NOTE: Support for longer subtrahend implies extended guard condition on
 // correction `inx < subtrahend_len && inx < minuend_len`. See feature 'shorter-dividend-support'.
-fn subtraction(minuend: &RawRow, subtrahend: &RawRow, remainder: bool) -> (RawRow, RawRow) {
+fn subtraction(
+    minuend: &RawRow,
+    subtrahend: &RawRow,
+    remainder: bool,
+    #[cfg(test)] ctr: &mut usize,
+) -> (RawRow, RawRow) {
     let mut diffrem_populated = false;
 
     let minuend_len = minuend.len();
@@ -826,6 +1001,11 @@ fn subtraction(minuend: &RawRow, subtrahend: &RawRow, remainder: bool) -> (RawRo
     let mut takeover;
     let mut inx;
     loop {
+        #[cfg(test)]
+        {
+            *ctr += 1;
+        }
+
         takeover = 0;
         inx = 0;
 
@@ -1920,6 +2100,34 @@ mod tests_of_units {
                 assert_eq!(remainder, ratrem.1);
             }
         }
+
+        // readme sample
+        #[test]
+        fn load_test() {
+            let dividend = Row::new_from_num(u128::MAX);
+            let divisor = Row::new_from_num(249);
+
+            let ratio = Row::new_from_num(1366595851088106278969375933460916511);
+            let remainder = Row::new_from_num(216);
+
+            let ratrem = divrem(&dividend, &divisor);
+            assert_eq!(Some((ratio, remainder)), ratrem);
+        }
+
+        #[test]
+        fn readme_sample_test() {
+            let dividend =
+                Row::new_from_str("3402823669209384634633746074317682114565556668744123").unwrap();
+            let divisor =
+                Row::new_from_str("14034568236692093846346337460345176821145655563453").unwrap();
+            let ratio = "242";
+            let remainder = "6458155929897923817932408914149323848308022388497";
+
+            let ratrem = divrem(&dividend, &divisor).unwrap();
+
+            assert_eq!(ratio, ratrem.0.to_number());
+            assert_eq!(remainder, ratrem.1.to_number());
+        }
     }
 
     mod divrem_shortcut {
@@ -1972,6 +2180,288 @@ mod tests_of_units {
             let proof = (Row::nought(), dividend.clone());
             let ratrem = divrem_shortcut(&dividend.row, &divisor);
             assert_eq!(Some(Some(proof)), ratrem);
+        }
+    }
+
+    mod divrem_acceleration {
+        use crate::{divrem_acceleration, Row};
+        use alloc::vec;
+
+        #[test]
+        fn basic_test() {
+            let dividend = Row::new_from_num(65000);
+            let divisor = vec![5];
+
+            let mut w_ctr = 0;
+            let mut ctr = 0;
+
+            let ratio = Row::new_from_num(13_000).row;
+
+            let remratio = divrem_acceleration(&dividend.row, &divisor, &mut w_ctr, &mut ctr);
+            assert_eq!(vec![0], remratio.0);
+            assert_eq!(ratio, remratio.1);
+
+            assert_eq!(2, w_ctr);
+            assert_eq!(7, ctr);
+
+            // 65000 -1× 50000 ⇒ 1 +1
+            // 15000 -3×  5000 ⇒ 3 +1
+            // rem 0           ⇒ Σ 7 = 4 +2 +1
+        }
+
+        #[test]
+        fn advanced_test1() {
+            let dividend = Row::new_from_num(65535);
+            let divisor = Row::new_from_num(277);
+
+            let mut w_ctr = 0;
+            let mut ctr = 0;
+
+            let remratio = divrem_acceleration(&dividend.row, &divisor.row, &mut w_ctr, &mut ctr);
+
+            assert_eq!(vec![3, 6, 1], remratio.0);
+            assert_eq!(vec![6, 3, 2], remratio.1);
+
+            assert_eq!(3, w_ctr);
+            assert_eq!(15, ctr);
+
+            // 65535 -2× 27700 ⇒ 2 +1
+            // 10135 -3×  2770 ⇒ 3 +1
+            // 1825  -6×   277 ⇒ 6 +1
+            // rem 163         ⇒ Σ 15 = 11 +3 +1
+        }
+
+        #[test]
+        fn advanced_test2() {
+            let dividend = Row::new_from_num(65535);
+            let divisor = vec![7, 2];
+
+            let mut w_ctr = 0;
+            let mut ctr = 0;
+
+            let remratio = divrem_acceleration(&dividend.row, &divisor, &mut w_ctr, &mut ctr);
+
+            assert_eq!(vec![6], remratio.0);
+            assert_eq!(vec![7, 2, 4, 2], remratio.1);
+
+            assert_eq!(4, w_ctr);
+            assert_eq!(19, ctr);
+
+            // 65535 -2× 27000 ⇒ 2 +1
+            // 11535 -4×  2700 ⇒ 4 +1
+            // 735   -2×   270 ⇒ 2 +1
+            // 195   -7×    27 ⇒ 7 +1
+            // rem 6           ⇒ Σ 19 = 15 +4 +0
+        }
+
+        #[test]
+        fn advanced_test3() {
+            let dividend = Row::new_from_num(99);
+            let divisor = vec![5];
+
+            let mut w_ctr = 0;
+            let mut ctr = 0;
+
+            let remratio = divrem_acceleration(&dividend.row, &divisor, &mut w_ctr, &mut ctr);
+
+            assert_eq!(vec![4], remratio.0);
+            assert_eq!(vec![9, 1], remratio.1);
+
+            assert_eq!(2, w_ctr);
+            assert_eq!(13, ctr);
+
+            // 99 -1× 50 ⇒ 1 +1
+            // 49 -9×  5 ⇒ 9 +1
+            // rem 4     ⇒ Σ 13 = 10 +2 +1
+        }
+
+        #[test]
+        fn advanced_test4() {
+            let dividend = Row::new_from_num(65535);
+            let divisor = Row::new_from_num(65536);
+
+            let mut w_ctr = 0;
+            let mut ctr = 0;
+
+            let remratio = divrem_acceleration(&dividend.row, &divisor.row, &mut w_ctr, &mut ctr);
+
+            assert_eq!(dividend.row, remratio.0);
+            assert_eq!(vec![0], remratio.1);
+
+            assert_eq!(0, w_ctr);
+            assert_eq!(1, ctr);
+            // rem 65535 ⇒ Σ 1 = 0 +1 (+0)
+        }
+
+        #[test]
+        fn advanced_test5() {
+            let num = &Row::new_from_num(65535).row;
+
+            let mut w_ctr = 0;
+            let mut ctr = 0;
+
+            let remratio = divrem_acceleration(&num, &num, &mut w_ctr, &mut ctr);
+
+            assert_eq!(vec![0], remratio.0);
+            assert_eq!(vec![1], remratio.1);
+
+            assert_eq!(0, w_ctr);
+            assert_eq!(2, ctr);
+            // 65535 -1× 65535 ⇒ 1 +1
+            // rem 0           ⇒ Σ 2 = 1 +1 (+0)
+        }
+
+        #[test]
+        fn advanced_test6() {
+            let dividend = Row::new_from_num(60_000);
+            let divisor = Row::new_from_num(6001); // cannot broaden up
+
+            let mut w_ctr = 0;
+            let mut ctr = 0;
+
+            let remratio = divrem_acceleration(&dividend.row, &divisor.row, &mut w_ctr, &mut ctr);
+
+            assert_eq!(vec![1, 9, 9, 5], remratio.0);
+            assert_eq!(vec![9], remratio.1);
+
+            assert_eq!(1, w_ctr);
+            assert_eq!(11, ctr);
+
+            // 60000 -9× 6001 ⇒ 9 +1
+            // rem 5991       ⇒ Σ 11 = 9 +1 +1
+        }
+
+        #[test]
+        fn advanced_test7() {
+            let dividend = Row::new_from_num(111);
+            let divisor = Row::new_from_num(1111);
+
+            let mut w_ctr = 0;
+            let mut ctr = 0;
+
+            let remratio = divrem_acceleration(&dividend.row, &divisor.row, &mut w_ctr, &mut ctr);
+
+            assert_eq!(dividend.row, remratio.0);
+            assert_eq!(vec![0], remratio.1);
+
+            assert_eq!(0, w_ctr);
+            assert_eq!(0, ctr);
+            // rem 111 ⇒ Σ 0
+        }
+
+        #[test]
+        fn advanced_test8() {
+            let dividend = Row::new_from_num(65535);
+            let divisor = Row::new_from_num(6552);
+
+            let mut w_ctr = 0;
+            let mut ctr = 0;
+
+            let remratio = divrem_acceleration(&dividend.row, &divisor.row, &mut w_ctr, &mut ctr);
+
+            assert_eq!(vec![5, 1], remratio.0);
+            assert_eq!(vec![0, 1], remratio.1);
+
+            assert_eq!(1, w_ctr);
+            assert_eq!(2, ctr);
+
+            // 65535 -1× 65520 ⇒ 1 +1
+            // rem 15          ⇒ Σ 2 = 1 +1 +0
+        }
+
+        #[test]
+        fn advanced_test9() {
+            let dividend = Row::new_from_num(65000);
+            let divisor = Row::new_from_num(65);
+
+            let mut w_ctr = 0;
+            let mut ctr = 0;
+
+            let remratio = divrem_acceleration(&dividend.row, &divisor.row, &mut w_ctr, &mut ctr);
+
+            assert_eq!(vec![0], remratio.0);
+            assert_eq!(vec![0, 0, 0, 1], remratio.1);
+
+            assert_eq!(1, w_ctr);
+            assert_eq!(2, ctr);
+
+            // 65000 -1× 65000 ⇒ 1 +1
+            // rem 0           ⇒ Σ 2 = 1 +1 +0
+        }
+
+        #[test]
+        fn advanced_test10() {
+            let dividend = Row::new_from_num(65001);
+            let divisor = Row::new_from_num(65);
+
+            let mut w_ctr = 0;
+            let mut ctr = 0;
+
+            let remratio = divrem_acceleration(&dividend.row, &divisor.row, &mut w_ctr, &mut ctr);
+
+            assert_eq!(vec![1], remratio.0);
+            assert_eq!(vec![0, 0, 0, 1], remratio.1);
+
+            assert_eq!(1, w_ctr);
+            assert_eq!(2, ctr);
+
+            // 65001 -1× 65000 ⇒ 1 +1
+            // rem 1           ⇒ Σ 2 = 1 +1 +0
+        }
+
+        #[test]
+        fn advanced_test11() {
+            let dividend = Row::new_from_num(60_000);
+            let divisor = Row::new_from_num(700);
+
+            let mut w_ctr = 0;
+            let mut ctr = 0;
+
+            let remratio = divrem_acceleration(&dividend.row, &divisor.row, &mut w_ctr, &mut ctr);
+
+            assert_eq!(vec![0, 0, 5], remratio.0);
+            assert_eq!(vec![5, 8], remratio.1);
+
+            assert_eq!(2, w_ctr);
+            assert_eq!(16, ctr);
+
+            // 60000 -8× 7000 ⇒ 8 +1
+            // 4000  -5×  700 ⇒ 5 +1
+            // rem 500        ⇒ Σ 16 = 13 +2 +1
+        }
+
+        #[test]
+        fn advanced_test12() {
+            let dividend = Row::new_from_num(13990);
+            let divisor = Row::new_from_num(130);
+
+            let mut w_ctr = 0;
+            let mut ctr = 0;
+
+            let remratio = divrem_acceleration(&dividend.row, &divisor.row, &mut w_ctr, &mut ctr);
+
+            assert_eq!(vec![0, 8], remratio.0);
+            assert_eq!(vec![7, 0, 1], remratio.1);
+
+            assert_eq!(1, w_ctr);
+            assert_eq!(10, ctr);
+
+            // 13990 -1× 13000 ⇒ 1 +1
+            // 990   -7×   130 ⇒ 7 +1
+            // rem 80          ⇒ Σ 10 = 8 +2 (+0)
+        }
+
+        #[test]
+        fn load_test() {
+            let dividend = Row::new_from_num(u128::MAX);
+            let divisor = Row::new_from_num(249);
+
+            let ratio = Row::new_from_num(1366595851088106278969375933460916511);
+
+            let remratio = divrem_acceleration(&dividend.row, &divisor.row, &mut 0, &mut 0);
+
+            assert_eq!(vec![6, 1, 2], remratio.0);
+            assert_eq!(ratio.row, remratio.1);
         }
     }
 
@@ -2136,7 +2626,7 @@ mod tests_of_units {
 
             #[test]
             fn basic_test() {
-                let diffcount = subtraction(&vec![9, 9], &vec![0, 1], false);
+                let diffcount = subtraction(&vec![9, 9], &vec![0, 1], false, &mut 0);
                 assert_eq!(&[9, 8], &*diffcount.0);
                 assert_eq!(&[1], &*diffcount.1);
             }
@@ -2145,7 +2635,7 @@ mod tests_of_units {
             // minuend must be "copied" to difference if subtrahend is
             // exhausted
             fn minuend_copy_test() {
-                let diffcount = subtraction(&vec![7, 7, 7], &vec![1], false);
+                let diffcount = subtraction(&vec![7, 7, 7], &vec![1], false, &mut 0);
                 assert_eq!(&[6, 7, 7], &*diffcount.0);
                 assert_eq!(&[1], &*diffcount.1);
             }
@@ -2162,7 +2652,7 @@ mod tests_of_units {
                     Row::new_from_str("281000909999999999999999999999999999999999999999999999999")
                         .unwrap();
 
-                let diffcount = subtraction(&minuend.row, &subtrahend.row, false);
+                let diffcount = subtraction(&minuend.row, &subtrahend.row, false, &mut 0);
                 assert_eq!(proof.row, diffcount.0);
                 assert_eq!(&[1], &*diffcount.1);
             }
@@ -2170,14 +2660,14 @@ mod tests_of_units {
             #[test]
             /// tests takeover ∈ [0,1] carry on
             fn takeover_test() {
-                let diffcount = subtraction(&vec![8, 2, 2, 0, 1], &vec![9, 2, 1, 1], false);
+                let diffcount = subtraction(&vec![8, 2, 2, 0, 1], &vec![9, 2, 1, 1], false, &mut 0);
                 assert_eq!(&[9, 9, 0, 9], &*diffcount.0);
                 assert_eq!(&[1], &*diffcount.1);
             }
 
             #[test]
             fn zero_truncation_test() {
-                let diffcount = subtraction(&vec![9, 9, 9], &vec![8, 9, 9], false);
+                let diffcount = subtraction(&vec![9, 9, 9], &vec![8, 9, 9], false, &mut 0);
                 let diff = diffcount.0;
                 assert_eq!(&[1], &*diff);
                 assert_eq!(&[1], &*diffcount.1);
@@ -2193,7 +2683,7 @@ mod tests_of_units {
             fn top_place_9_preservation_test() {
                 let minuend = &vec![1, 0, 9];
                 let subtrahend = vec![2, 0, 9];
-                let diffcount = subtraction(minuend, &subtrahend, false);
+                let diffcount = subtraction(minuend, &subtrahend, false, &mut 0);
                 assert_eq!(minuend, &*diffcount.0);
                 assert_eq!(&[0], &*diffcount.1);
             }
@@ -2204,7 +2694,7 @@ mod tests_of_units {
             fn lesser_minuend_test() {
                 let minuend = &vec![1, 1, 1];
                 let subtrahend = vec![3, 4, 7];
-                let diffcount = subtraction(minuend, &subtrahend, false);
+                let diffcount = subtraction(minuend, &subtrahend, false, &mut 0);
                 assert_eq!(minuend, &*diffcount.0);
                 assert_eq!(&[0], &*diffcount.1);
             }
@@ -2216,7 +2706,7 @@ mod tests_of_units {
 
             #[test]
             fn basic_test() {
-                let remratio = subtraction(&vec![3, 3], &vec![1, 1], true);
+                let remratio = subtraction(&vec![3, 3], &vec![1, 1], true, &mut 0);
                 assert_eq!(&[0], &*remratio.0);
                 assert_eq!(&[3], &*remratio.1);
             }
@@ -2225,21 +2715,21 @@ mod tests_of_units {
             // minuend must be "copied" to remainder if subtrahend is
             // exhausted
             fn minuend_copy_test() {
-                let remratio = subtraction(&vec![7, 7, 7], &vec![1], true);
+                let remratio = subtraction(&vec![7, 7, 7], &vec![1], true, &mut 0);
                 assert_eq!(&[0], &*remratio.0);
                 assert_eq!(&[7, 7, 7], &*remratio.1);
             }
 
             #[test]
             fn remainder_test() {
-                let remratio = subtraction(&vec![9], &vec![7], true);
+                let remratio = subtraction(&vec![9], &vec![7], true, &mut 0);
                 assert_eq!(&[2], &*remratio.0);
                 assert_eq!(&[1], &*remratio.1);
             }
 
             #[test]
             fn takeover_test() {
-                let remratio = subtraction(&vec![9, 0, 9], &vec![9], true);
+                let remratio = subtraction(&vec![9, 0, 9], &vec![9], true, &mut 0);
                 assert_eq!(&[0], &*remratio.0);
                 assert_eq!(&[1, 0, 1], &*remratio.1);
             }
@@ -2252,7 +2742,7 @@ mod tests_of_units {
             // - after `9`s truncation [2,0,0],
             // - after `0`s truncation [2]
             fn overrun_clearing_test() {
-                let remratio = subtraction(&vec![2, 0, 0, 7, 7], &vec![7, 7], true);
+                let remratio = subtraction(&vec![2, 0, 0, 7, 7], &vec![7, 7], true, &mut 0);
                 let remainder = remratio.0;
                 assert_ne!(vec![5, 2, 9, 9, 9], remainder);
                 assert_ne!(vec![2, 0, 9, 9, 9], remainder);
@@ -2269,7 +2759,7 @@ mod tests_of_units {
                 let remainder = Row::new_from_num(130);
                 let ratio = Row::new_from_num(1955483);
 
-                let remratio = subtraction(&minuend.row, &vec![1, 2, 3], true);
+                let remratio = subtraction(&minuend.row, &vec![1, 2, 3], true, &mut 0);
                 assert_eq!(&*remainder, &*remratio.0);
                 assert_eq!(&*ratio, &*remratio.1);
             }
@@ -2281,7 +2771,7 @@ mod tests_of_units {
                 let remainder = Row::new_from_num(2427757);
                 let ratio = Row::new_from_num(176);
 
-                let remratio = subtraction(&minuend.row, &subtrahend.row, true);
+                let remratio = subtraction(&minuend.row, &subtrahend.row, true, &mut 0);
                 assert_eq!(&*remainder, &*remratio.0);
                 assert_eq!(&*ratio, &*remratio.1);
             }
@@ -2293,7 +2783,7 @@ mod tests_of_units {
                 let remainder = Row::new_from_num(11473);
                 let ratio = Row::new_from_num(7283);
 
-                let remratio = subtraction(&minuend.row, &subtrahend.row, true);
+                let remratio = subtraction(&minuend.row, &subtrahend.row, true, &mut 0);
                 assert_eq!(&*remainder, &*remratio.0);
                 assert_eq!(&*ratio, &*remratio.1);
             }
@@ -2307,28 +2797,9 @@ mod tests_of_units {
             fn top_place_9_preservation_test() {
                 let minuend = vec![1, 1, 4, 5];
                 let subtrahend = vec![2, 0, 9];
-                let remratio = subtraction(&minuend, &subtrahend, true);
+                let remratio = subtraction(&minuend, &subtrahend, true, &mut 0);
                 assert_eq!(&[1, 0, 9], &*remratio.0);
                 assert_eq!(&[5], &*remratio.1);
-            }
-
-            #[test]
-            fn readme_sample_test() {
-                use crate::{divrem, Row};
-
-                let dividend =
-                    Row::new_from_str("3402823669209384634633746074317682114565556668744123")
-                        .unwrap();
-                let divisor =
-                    Row::new_from_str("14034568236692093846346337460345176821145655563453")
-                        .unwrap();
-                let ratio = "242";
-                let remainder = "6458155929897923817932408914149323848308022388497";
-
-                let ratrem = divrem(&dividend, &divisor).unwrap();
-
-                assert_eq!(ratio, ratrem.0.to_number());
-                assert_eq!(remainder, ratrem.1.to_number());
             }
 
             // [1,1,1] - [3,4,7] = [8,6,3]
@@ -2337,7 +2808,7 @@ mod tests_of_units {
             fn lesser_dividend_test() {
                 let dividend = &vec![1, 1, 1];
                 let divisor = vec![3, 4, 7];
-                let remratio = subtraction(dividend, &divisor, true);
+                let remratio = subtraction(dividend, &divisor, true, &mut 0);
                 assert_eq!(dividend, &*remratio.0);
                 assert_eq!(&[0], &*remratio.1);
             }
@@ -2346,7 +2817,7 @@ mod tests_of_units {
             #[test]
             fn equal_operands_test() {
                 let num = &vec![1, 1, 1];
-                let remratio = subtraction(num, num, true);
+                let remratio = subtraction(num, num, true, &mut 0);
                 assert_eq!(&[0], &*remratio.0);
                 assert_eq!(&[1], &*remratio.1);
             }
@@ -2356,7 +2827,7 @@ mod tests_of_units {
             fn shorter_dividend_test() {
                 let dividend = &vec![1, 1, 1];
                 let divisor = vec![0, 4, 6, 8, 9, 3, 4, 7];
-                let remratio = subtraction(dividend, &divisor, true);
+                let remratio = subtraction(dividend, &divisor, true, &mut 0);
                 assert_eq!(dividend, &*remratio.0);
                 assert_eq!(&[0], &*remratio.1);
             }

@@ -1,10 +1,9 @@
 ### BIG NUM MATH
 Library for computations on large numbers.
 
-- underdeveloped: 
+- development notes: 
     1. no plan for new functions (goniometric, radix, …)
-    2. upcoming optimizations (memory consumption, speed up on some computations, ergonomy, …)
-    3. `divrem` can perform unbearably when `divisor` is significantly smaller than `dividend` (as per point 2)
+    2. upcoming optimizations (memory consumption, speed up on some computations, ergonomy, …)    
 - functions only:
     - addition +substraction, 
     - multiplication +division
@@ -38,6 +37,18 @@ let ratrem = divrem(&dividend, &divisor).unwrap();
 assert_eq!(ratio, ratrem.0.to_number());
 assert_eq!(remainder, ratrem.1.to_number());
 ```
+
+```rust
+let dividend = Row::new_from_num(u128::MAX);
+let divisor = Row::new_from_num(249);
+
+let ratio = Row::new_from_num(1366595851088106278969375933460916511);
+let remainder = Row::new_from_num(216);
+
+let ratrem = divrem(&dividend, &divisor);
+assert_eq!(Some((ratio, remainder)), ratrem);
+```
+
 
 ##### decimal places relation
 
