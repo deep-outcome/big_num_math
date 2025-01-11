@@ -252,7 +252,7 @@ pub const SQUARE_ROOT_TEN_COMPARATOR: &str = "3162277660168379331998893544432718
 /// Order of magnitude computational kind.
 #[derive(Clone, PartialEq, Debug)]
 pub enum OomKind {
-    /// Uses `√10` for relation.    
+    /// Uses `√10` for relation.
     ///
     /// Check with `SQUARE_ROOT_TEN_COMPARATOR`.
     Strict,
@@ -721,38 +721,36 @@ fn divrem_acceleration(
         // highest index
         let sor_hg_ix = divisor_len - 1;
 
-        // can run in vain when remend_len == divisor_len +1 and
-        // divisor cannot be broaden up, also incurs extra reentrancy
-        // at function end
-        //   🡺 opt: shorcut execution
-        loop {
-            #[cfg(test)]
-            {
-                *w_ctr += 1;
-            }
-
+        'w: loop {
             let mut wr_ix = remend_len - 1;
 
             let mut l_ix = wr_ix;
             let mut r_ix = sor_hg_ix;
 
-            loop {
+            'ck: loop {
                 let end_num = end[l_ix];
                 let sor_num = divisor[r_ix];
 
                 // check whether divisor can be broaded up to
                 // end highest place
                 if end_num < sor_num {
-                    wr_ix -= 1;
-                    break;
+                    // same as remend_len == divisor_len +1
+                    if wr_ix == divisor_len {
+                        // rest of loop would run in vain otherwise
+                        // also could have reentrancy consequence
+                        break 'w;
+                    } else {
+                        wr_ix -= 1;
+                        break 'ck;
+                    }
                 }
 
                 if end_num > sor_num {
-                    break;
+                    break 'ck;
                 }
 
                 if r_ix == 0 {
-                    break;
+                    break 'ck;
                 }
 
                 l_ix -= 1;
@@ -761,23 +759,24 @@ fn divrem_acceleration(
 
             #[cfg(test)]
             {
+                *w_ctr += 1;
+
                 // sor is always widen upto highest or second highestmost place
                 assert!(remend_len == wr_ix + 1 || remend_len == wr_ix + 2)
             }
 
             let wdsor_len = wr_ix + 1;
-
             // shortening wdsor removes leading numbers
             // which could influence computation in arithmetic
             // (significants) or execution (zeros) means
             unsafe { wdsor.set_len(wdsor_len) };
 
             let mut sor_ix = sor_hg_ix;
-            loop {
+            'cp: loop {
                 wdsor[wr_ix] = divisor[sor_ix];
 
                 if sor_ix == 0 {
-                    break;
+                    break 'cp;
                 }
 
                 sor_ix -= 1;
@@ -794,10 +793,13 @@ fn divrem_acceleration(
 
             // e.g. 15 000 ÷ 25 ⇒ 2 500
             // 4 -2 = 2 ⇒ [0,0,1], one at index 2
-            //
-            // if mpler_wr_ix = 0 then multiplication is redundant
-            //   🡺 opt: shorcut execution
             let mpler_wr_ix = wdsor_len - divisor_len;
+
+            #[cfg(test)]
+            {
+                // unbroadable vain run safecheck
+                assert_eq!(true, mpler_wr_ix > 0);
+            }
 
             // previous "extensions" are stripped simply
             // by length shrinking
@@ -819,7 +821,7 @@ fn divrem_acceleration(
                 // if end is nought and divisor_len = 1
                 // this break is redundant
                 //   🡺 opt: shorcut execution
-                break;
+                break 'w;
             }
         }
     }
@@ -2224,13 +2226,13 @@ mod tests_of_units {
             assert_eq!(vec![3, 6, 1], remratio.0);
             assert_eq!(vec![6, 3, 2], remratio.1);
 
-            assert_eq!(3, w_ctr);
-            assert_eq!(15, ctr);
+            assert_eq!(2, w_ctr);
+            assert_eq!(14, ctr);
 
             // 65535 -2× 27700 ⇒ 2 +1
             // 10135 -3×  2770 ⇒ 3 +1
             // 1825  -6×   277 ⇒ 6 +1
-            // rem 163         ⇒ Σ 15 = 11 +3 +1
+            // rem 163         ⇒ Σ 14 = 11 +3 (+0)
         }
 
         #[test]
@@ -2246,14 +2248,14 @@ mod tests_of_units {
             assert_eq!(vec![6], remratio.0);
             assert_eq!(vec![7, 2, 4, 2], remratio.1);
 
-            assert_eq!(4, w_ctr);
+            assert_eq!(3, w_ctr);
             assert_eq!(19, ctr);
 
             // 65535 -2× 27000 ⇒ 2 +1
             // 11535 -4×  2700 ⇒ 4 +1
             // 735   -2×   270 ⇒ 2 +1
             // 195   -7×    27 ⇒ 7 +1
-            // rem 6           ⇒ Σ 19 = 15 +4 +0
+            // rem 6           ⇒ Σ 19 = 15 +4 (+0)
         }
 
         #[test]
@@ -2269,12 +2271,12 @@ mod tests_of_units {
             assert_eq!(vec![4], remratio.0);
             assert_eq!(vec![9, 1], remratio.1);
 
-            assert_eq!(2, w_ctr);
-            assert_eq!(13, ctr);
+            assert_eq!(1, w_ctr);
+            assert_eq!(12, ctr);
 
             // 99 -1× 50 ⇒ 1 +1
             // 49 -9×  5 ⇒ 9 +1
-            // rem 4     ⇒ Σ 13 = 10 +2 +1
+            // rem 4     ⇒ Σ 12 = 10 +2 (+0)
         }
 
         #[test]
@@ -2326,11 +2328,11 @@ mod tests_of_units {
             assert_eq!(vec![1, 9, 9, 5], remratio.0);
             assert_eq!(vec![9], remratio.1);
 
-            assert_eq!(1, w_ctr);
-            assert_eq!(11, ctr);
+            assert_eq!(0, w_ctr);
+            assert_eq!(10, ctr);
 
             // 60000 -9× 6001 ⇒ 9 +1
-            // rem 5991       ⇒ Σ 11 = 9 +1 +1
+            // rem 5991       ⇒ Σ 10 = 9 +1 (+0)
         }
 
         #[test]
@@ -2424,12 +2426,12 @@ mod tests_of_units {
             assert_eq!(vec![0, 0, 5], remratio.0);
             assert_eq!(vec![5, 8], remratio.1);
 
-            assert_eq!(2, w_ctr);
-            assert_eq!(16, ctr);
+            assert_eq!(1, w_ctr);
+            assert_eq!(15, ctr);
 
             // 60000 -8× 7000 ⇒ 8 +1
             // 4000  -5×  700 ⇒ 5 +1
-            // rem 500        ⇒ Σ 16 = 13 +2 +1
+            // rem 500        ⇒ Σ 15 = 13 +2 (+0)
         }
 
         #[test]
@@ -2451,6 +2453,28 @@ mod tests_of_units {
             // 13990 -1× 13000 ⇒ 1 +1
             // 990   -7×   130 ⇒ 7 +1
             // rem 80          ⇒ Σ 10 = 8 +2 (+0)
+        }
+
+        // explicit escape test, otherwise
+        // would violate mpler_wr_ix > 0 test in function body
+        #[test]
+        fn advanced_test13() {
+            let dividend = Row::new_from_num(111);
+            let divisor = Row::new_from_num(12);
+
+            let mut w_ctr = 0;
+            let mut ctr = 0;
+
+            let remratio = divrem_acceleration(&dividend.row, &divisor.row, &mut w_ctr, &mut ctr);
+
+            assert_eq!(vec![3], remratio.0);
+            assert_eq!(vec![9], remratio.1);
+
+            assert_eq!(0, w_ctr);
+            assert_eq!(10, ctr);
+
+            // 111 -9× 12 ⇒ 9 +1
+            // rem 3      ⇒ Σ 10 = 9 +1 (+0)
         }
 
         #[test]
