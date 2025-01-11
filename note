@@ -2,8 +2,7 @@ relaxed
     - prime check?
     - consider num ctors for other numbers
 
-noticeable
-    - implement substraction speed up by extending subtrahend to max place
+noticeable    
     - inspect mulmul without intermediate product: to be better only stack must employed (no Vec writes) => addition method split
     - make pow log effecient
     - mulmul escape for 0 multiplier

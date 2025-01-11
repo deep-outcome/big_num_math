@@ -49,7 +49,6 @@ let ratrem = divrem(&dividend, &divisor);
 assert_eq!(Some((ratio, remainder)), ratrem);
 ```
 
-
 ##### decimal places relation
 
 ```rust
