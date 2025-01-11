@@ -2104,14 +2104,16 @@ mod tests_of_units {
         // readme sample
         #[test]
         fn load_test() {
-            let dividend = Row::new_from_num(u128::MAX);
+            let dividend =
+                Row::new_from_str("99999340282366920938463463374607431768211455").unwrap();
             let divisor = Row::new_from_num(249);
 
-            let ratio = Row::new_from_num(1366595851088106278969375933460916511);
-            let remainder = Row::new_from_num(216);
+            let ratio = Row::new_from_str("401603776234405304973748848894005750073138").unwrap();
+            let remainder = Row::new_from_num(93);
 
-            let ratrem = divrem(&dividend, &divisor);
-            assert_eq!(Some((ratio, remainder)), ratrem);
+            let ratrem = divrem(&dividend, &divisor).unwrap();
+            assert_eq!(ratio, ratrem.0);
+            assert_eq!(remainder, ratrem.1);
         }
 
         #[test]
