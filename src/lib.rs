@@ -589,7 +589,8 @@ pub fn mul(factor1: &PlacesRow, factor2: &PlacesRow) -> PlacesRow {
         None => {}
     };
 
-    mulmul(factor1, factor2, 1)
+    let row = mulmul(factor1, factor2, 1);
+    PlacesRow { row }
 }
 
 // x ⋅0 = 0
@@ -621,7 +622,8 @@ pub fn pow(base: &PlacesRow, pow: u16) -> PlacesRow {
         return row;
     }
 
-    mulmul(row, row, pow - 1)
+    let row = mulmul(row, row, pow - 1);
+    Row { row }
 }
 
 // x⁰ = 1
@@ -821,9 +823,8 @@ fn divrem_acceleration(
             unsafe { mpler.set_len(mpler_wr_ix + 1) };
             mpler[mpler_wr_ix] = 1;
 
-            //   🡺 opt: let mulmul return only RawRow
             let rat = mulmul(&remrat.1, &mpler, 1);
-            addition(&rat.row, None, &mut ratio, 0);
+            addition(&rat, None, &mut ratio, 0);
 
             remainder = Some(remrat.0);
 
@@ -883,12 +884,12 @@ fn divrem_acceleration(
 ///
 /// Space for effecient power computation?
 ///   🡺 Inspect log₂ power speed up.
-fn mulmul(row1: &RawRow, row2: &RawRow, times: u16) -> Row {
+fn mulmul(row1: &RawRow, row2: &RawRow, times: u16) -> RawRow {
     let (mpler, mut mcand) = (row1, row2.clone());
 
     #[cfg(feature = "one-power-mulmul-support")]
     if times == 0 {
-        return Row { row: mcand };
+        return mcand;
     }
 
     let mpler_len = mpler.len();
@@ -942,7 +943,7 @@ fn mulmul(row1: &RawRow, row2: &RawRow, times: u16) -> Row {
 
     // useless when both of factors cannot be nought
     shrink_to_fit_raw(&mut mcand);
-    Row { row: mcand }
+    mcand
 }
 
 /// Computes product of `mpler` and `mcand`.
@@ -2226,7 +2227,7 @@ mod tests_of_units {
 
         #[derive(PartialEq, Eq, Debug)]
         pub enum EscCode {
-            Unset = 0,            
+            Unset = 0,
             /// place lesser initially
             Pli = 1,
             /// place lesser later
@@ -2650,27 +2651,29 @@ mod tests_of_units {
     }
 
     mod mulmul {
-        use crate::{mulmul, Row};
+        use crate::{mulmul, nought_raw, unity_raw};
 
         #[test]
         fn power_of_nought_test() {
-            let row = Row::nought();
-            let pow = mulmul(&row.row, &row.row, 1000 - 1);
+            let row = nought_raw();
+            let pow = mulmul(&row, &row, 1000 - 1);
             assert_eq!(row, pow);
         }
 
         #[test]
         #[cfg(feature = "one-power-mulmul-support")]
         fn one_power_test() {
+            use crate::Row;
+
             let row = Row::new_from_num(3030);
             let pow = mulmul(&row.row, &row.row, 1 - 1);
-            assert_eq!(row, pow);
+            assert_eq!(row.row, pow);
         }
 
         #[test]
         fn power_of_one_test() {
-            let row = Row::unity();
-            let pow = mulmul(&row.row, &row.row, u16::MAX - 1);
+            let row = unity_raw();
+            let pow = mulmul(&row, &row, u16::MAX - 1);
             assert_eq!(row, pow);
         }
     }
@@ -3052,4 +3055,5 @@ mod tests_of_units {
 }
 
 // cargo test --features ext-tests --release
+// cargo test --features ext-tests,shorter-dividend-support,one-power-mulmul-support --release
 // cargo test --release
