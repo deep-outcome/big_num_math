@@ -434,7 +434,7 @@ fn rel_raw(r1: &RawRow, r2: &RawRow) -> Rel {
 
 /// Decimal places count.
 ///
-/// Tuple fields describe places count and are defined as follow.
+/// Tuple fields describe places count and are defined as follows.
 /// |Name|Meaning    |
 /// |:--:|:--------- |
 /// |0   |number     |

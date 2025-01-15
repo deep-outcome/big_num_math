@@ -2,12 +2,12 @@
 Library for computations on large numbers.
 
 - development notes: 
-    1. no plan for new functions (goniometric, radix, …)
-    2. upcoming optimizations (memory consumption, speed up on some computations, ergonomy, …)    
+    1. little plan for new functions (goniometric[x], radix[✔️], …)
+    2. upcoming optimizations (memory consumption, speed up on some computations, …)
 - functions only:
     - addition +substraction, 
     - multiplication +division
-    - relation operators
+    - relation and decimal relation operators
     - order of magnitude
     - power
 
