@@ -16,7 +16,7 @@ Library for computations on large numbers.
 ##### power
 
 ```rust
-let row = PlacesRow::new_from_num(u128::MAX);
+let row = PlacesRow::new_from_u128(u128::MAX);
 let pow = pow(&row, 500);
 let number = pow.to_number();
 
@@ -40,10 +40,10 @@ assert_eq!(remainder, ratrem.1.to_number());
 
 ```rust
 let dividend = Row::new_from_str("99999340282366920938463463374607431768211455").unwrap();
-let divisor  = Row::new_from_num(249);
+let divisor  = Row::new_from_usize(249);
 
 let ratio     = Row::new_from_str("401603776234405304973748848894005750073138").unwrap();
-let remainder = Row::new_from_num(93);
+let remainder = Row::new_from_usize(93);
 
 let ratrem = divrem(&dividend, &divisor).unwrap();
 assert_eq!(ratio, ratrem.0);
@@ -63,8 +63,8 @@ assert_eq!(RelDec::Greater((28, 20, 8)), decrel);
 ##### order of magnitude
 
 ```rust
-let number_1 = PlacesRow::new_from_num(3162277660168379331998893544432);
-let number_2 = PlacesRow::new_from_num(3162277660168379331998893544433);
+let number_1 = PlacesRow::new_from_u128(3162277660168379331998893544432);
+let number_2 = PlacesRow::new_from_u128(3162277660168379331998893544433);
 
 assert_eq!(Oom::Precise(30), ord_of_mag(&number_1, OomKind::Strict));
 assert_eq!(Oom::Precise(31), ord_of_mag(&number_2, OomKind::Strict));

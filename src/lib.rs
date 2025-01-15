@@ -7,6 +7,24 @@ extern crate alloc;
 type RawRow = Vec<u8>;
 type Row = PlacesRow;
 
+macro_rules! new_from_num {
+    ($n:ident) => {{
+        let mut n = $n;
+        let mut row = Vec::new();
+        loop {
+            let d = n % 10;
+            row.push(d as u8);
+            n = n / 10;
+
+            if n == 0 {
+                break;
+            }
+        }
+
+        PlacesRow { row }
+    }};
+}
+
 /// `PlacesRow` represents row of decimal places starting at ones (`0` index).
 #[derive(Clone, PartialEq, Debug)]
 pub struct PlacesRow {
@@ -51,20 +69,19 @@ impl PlacesRow {
         Ok(Row { row })
     }
 
-    /// Handy ctor for usage with _classic_ primitive numeric data type.
-    pub fn new_from_num(mut num: u128) -> Self {
-        let mut row = Vec::new();
-        loop {
-            let d = num % 10;
-            row.push(d as u8);
-            num = num / 10;
+    /// Handy ctor for usage with primitive numeric data type.
+    pub fn new_from_u128(num: u128) -> Self {
+        new_from_num!(num)
+    }
 
-            if num == 0 {
-                break;
-            }
-        }
+    /// Handy ctor for usage with primitive numeric data type.
+    pub fn new_from_u64(num: u64) -> Self {
+        new_from_num!(num)
+    }
 
-        Row { row }
+    /// Handy ctor for usage with primitive numeric data type.
+    pub fn new_from_usize(num: usize) -> Self {
+        new_from_num!(num)
     }
 
     /// Handy ctor for usage with long numbers.
@@ -240,7 +257,21 @@ use core::convert::From;
 impl From<u128> for PlacesRow {
     /// Converts `value` into `PlacesRow`.
     fn from(value: u128) -> Self {
-        Self::new_from_num(value)
+        Self::new_from_u128(value)
+    }
+}
+
+impl From<u64> for PlacesRow {
+    /// Converts `value` into `PlacesRow`.
+    fn from(value: u64) -> Self {
+        Self::new_from_u64(value)
+    }
+}
+
+impl From<usize> for PlacesRow {
+    /// Converts `value` into `PlacesRow`.
+    fn from(value: usize) -> Self {
+        Self::new_from_usize(value)
     }
 }
 
@@ -352,9 +383,9 @@ pub fn ord_of_mag(num: &PlacesRow, kind: OomKind) -> Oom {
 ///
 /// ```
 /// use big_num_math::{rel, PlacesRow, Rel, DecCnt};
-/// let num_1 = PlacesRow::new_from_num(100);
-/// let num_2 = PlacesRow::new_from_num(101);
-/// let num_3 = PlacesRow::new_from_num(1);
+/// let num_1 = PlacesRow::new_from_usize(100);
+/// let num_2 = PlacesRow::new_from_usize(101);
+/// let num_3 = PlacesRow::new_from_usize(1);
 ///
 /// assert_eq!(Rel::Lesser(None), rel(&num_1, &num_2));
 /// let cnt_1_cnt_2_dif: DecCnt = (1,3,2);
@@ -426,9 +457,9 @@ pub type DecCnt = (usize, usize, usize);
 ///
 /// ```
 /// use big_num_math::{rel_dec, PlacesRow, RelDec, DecCnt};
-/// let num_1 = PlacesRow::new_from_num(333);
-/// let num_2 = PlacesRow::new_from_num(777);
-/// let num_3 = PlacesRow::new_from_num(1);
+/// let num_1 = PlacesRow::new_from_usize(333);
+/// let num_2 = PlacesRow::new_from_usize(777);
+/// let num_3 = PlacesRow::new_from_usize(1);
 ///
 /// assert_eq!(RelDec::Equal(3), rel_dec(&num_1, &num_2));
 /// let cnt_1_cnt_2_dif: DecCnt = (1,3,2);
@@ -1182,10 +1213,32 @@ mod tests_of_units {
             }
         }
 
-        #[test]
-        fn new_from_num_test() {
-            let row = Row::new_from_num(000_1234567890);
-            assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*row);
+        mod new_from {
+            use crate::Row;
+
+            #[test]
+            fn zero_test() {
+                let row = Row::new_from_usize(0);
+                assert_eq!(&[0], &*row);
+            }
+
+            #[test]
+            fn new_from_u128_test() {
+                let row = Row::new_from_u128(000_12345678900u128);
+                assert_eq!(&[0, 0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*row);
+            }
+
+            #[test]
+            fn new_from_u64_test() {
+                let row = Row::new_from_u64(000_1234567890u64);
+                assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*row);
+            }
+
+            #[test]
+            fn new_from_usize_test() {
+                let row = Row::new_from_usize(000_1234567890usize);
+                assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*row);
+            }
         }
 
         mod new_from_str {
@@ -1279,13 +1332,25 @@ mod tests_of_units {
 
         #[test]
         fn to_string_test() {
-            let row = Row::new_from_num(1);
+            let row = Row::new_from_usize(1);
             assert_eq!("1", row.to_string());
         }
 
         #[test]
-        fn from_test() {
-            let row: Row = From::from(123);
+        fn from_u128_test() {
+            let row: Row = From::<u128>::from(123);
+            assert_eq!(&[3, 2, 1], &*row);
+        }
+
+        #[test]
+        fn from_u64_test() {
+            let row: Row = From::<u64>::from(123);
+            assert_eq!(&[3, 2, 1], &*row);
+        }
+
+        #[test]
+        fn from_usize_test() {
+            let row: Row = From::<usize>::from(123);
             assert_eq!(&[3, 2, 1], &*row);
         }
     }
@@ -1482,8 +1547,8 @@ mod tests_of_units {
 
         #[test]
         fn readme_sample_test() {
-            let number_1 = PlacesRow::new_from_num(3162277660168379331998893544432);
-            let number_2 = PlacesRow::new_from_num(3162277660168379331998893544433);
+            let number_1 = PlacesRow::new_from_u128(3162277660168379331998893544432);
+            let number_2 = PlacesRow::new_from_u128(3162277660168379331998893544433);
 
             assert_eq!(Oom::Precise(30), ord_of_mag(&number_1, OomKind::Strict));
             assert_eq!(Oom::Precise(31), ord_of_mag(&number_2, OomKind::Strict));
@@ -1509,7 +1574,7 @@ mod tests_of_units {
                 ];
 
                 for v in values {
-                    let r = Row::new_from_num(v.0);
+                    let r = Row::new_from_usize(v.0);
                     let o = ord_of_mag(&r, Strict);
 
                     assert_eq!(Oom::Precise(v.1), o, "{:?}", v);
@@ -1553,7 +1618,7 @@ mod tests_of_units {
                 ];
 
                 for v in values {
-                    let r = Row::new_from_num(v.0);
+                    let r = Row::new_from_usize(v.0);
                     let o = ord_of_mag(&r, Loose);
 
                     assert_eq!(Oom::Precise(v.1), o, "{:?}", v);
@@ -1568,7 +1633,7 @@ mod tests_of_units {
 
         #[test]
         fn basic_test() {
-            let num = Row::new_from_num(155);
+            let num = Row::new_from_usize(155);
             assert_eq!(Rel::Equal, rel(&num, &num));
         }
     }
@@ -1579,8 +1644,8 @@ mod tests_of_units {
 
         #[test]
         fn longer_test() {
-            let num = Row::new_from_num(11).row;
-            let comparand = Row::new_from_num(9).row;
+            let num = Row::new_from_usize(11).row;
+            let comparand = Row::new_from_usize(9).row;
 
             let proof = Rel::Greater(Some((2, 1, 1)));
             assert_eq!(proof, rel_raw(&num, &comparand));
@@ -1588,8 +1653,8 @@ mod tests_of_units {
 
         #[test]
         fn shorter_test() {
-            let num = Row::new_from_num(9).row;
-            let comparand = Row::new_from_num(10).row;
+            let num = Row::new_from_usize(9).row;
+            let comparand = Row::new_from_usize(10).row;
 
             let proof = Rel::Lesser(Some((1, 2, 1)));
             assert_eq!(proof, rel_raw(&num, &comparand));
@@ -1600,15 +1665,15 @@ mod tests_of_units {
             let num_num = 1234567899;
             let cpd_num = 1234567890;
 
-            let num = Row::new_from_num(num_num).row;
-            let comparand = Row::new_from_num(cpd_num).row;
+            let num = Row::new_from_usize(num_num).row;
+            let comparand = Row::new_from_usize(cpd_num).row;
 
             assert_eq!(Rel::Greater(None), rel_raw(&num, &comparand));
         }
 
         #[test]
         fn equal_test() {
-            let num = Row::new_from_num(1234567890);
+            let num = Row::new_from_usize(1234567890);
             assert_eq!(Rel::Equal, rel_raw(&num.row, &num.row));
         }
 
@@ -1617,15 +1682,15 @@ mod tests_of_units {
             let num_num = 1234567890;
             let cpd_num = 1234567899;
 
-            let num = Row::new_from_num(num_num).row;
-            let comparand = Row::new_from_num(cpd_num).row;
+            let num = Row::new_from_usize(num_num).row;
+            let comparand = Row::new_from_usize(cpd_num).row;
 
             assert_eq!(Rel::Lesser(None), rel_raw(&num, &comparand));
         }
 
         #[test]
         fn both_nought_test() {
-            let num = Row::new_from_num(0).row;
+            let num = Row::new_from_usize(0).row;
 
             assert_eq!(Rel::Equal, rel_raw(&num, &num));
         }
@@ -1636,7 +1701,7 @@ mod tests_of_units {
 
         #[test]
         fn basic_test() {
-            let num = Row::new_from_num(9876543210);
+            let num = Row::new_from_usize(9876543210);
 
             assert_eq!(RelDec::Equal(10), rel_dec(&num, &num));
         }
@@ -1657,15 +1722,15 @@ mod tests_of_units {
 
         #[test]
         fn equal_test() {
-            let num = Row::new_from_num(9876543210).row;
+            let num = Row::new_from_usize(9876543210).row;
 
             assert_eq!(RelDec::Equal(10), rel_dec_raw(&num, &num));
         }
 
         #[test]
         fn lesser_test() {
-            let num = Row::new_from_num(10).row;
-            let comparand = Row::new_from_num(9876543210).row;
+            let num = Row::new_from_usize(10).row;
+            let comparand = Row::new_from_usize(9876543210).row;
 
             let proof = RelDec::Lesser((2, 10, 8));
             assert_eq!(proof, rel_dec_raw(&num, &comparand));
@@ -1673,8 +1738,8 @@ mod tests_of_units {
 
         #[test]
         fn greater_test() {
-            let num = Row::new_from_num(9876543210).row;
-            let comparand = Row::new_from_num(10).row;
+            let num = Row::new_from_usize(9876543210).row;
+            let comparand = Row::new_from_usize(10).row;
 
             let proof = RelDec::Greater((10, 2, 8));
             assert_eq!(proof, rel_dec_raw(&num, &comparand));
@@ -1682,7 +1747,7 @@ mod tests_of_units {
 
         #[test]
         fn nought_test() {
-            let num = Row::new_from_num(0).row;
+            let num = Row::new_from_usize(0).row;
 
             assert_eq!(RelDec::Equal(0), rel_dec_raw(&num, &num));
         }
@@ -1721,8 +1786,8 @@ mod tests_of_units {
 
         #[test]
         fn basic_test() {
-            let row1 = Row::new_from_num(4);
-            let row2 = Row::new_from_num(5);
+            let row1 = Row::new_from_usize(4);
+            let row2 = Row::new_from_usize(5);
 
             let sum = add(&row1, &row2);
             assert_eq!(&[9], &*sum.row);
@@ -1730,20 +1795,20 @@ mod tests_of_units {
 
         #[test]
         fn left_num_longer_test() {
-            let row1 = Row::new_from_num(10_000);
-            let row2 = Row::new_from_num(5);
+            let row1 = Row::new_from_usize(10_000);
+            let row2 = Row::new_from_usize(5);
 
             let sum = add(&row1, &row2);
-            assert_eq!(Row::new_from_num(10_005), sum);
+            assert_eq!(Row::new_from_usize(10_005), sum);
         }
 
         #[test]
         fn right_num_longer_test2() {
-            let row1 = Row::new_from_num(5);
-            let row2 = Row::new_from_num(10_000);
+            let row1 = Row::new_from_usize(5);
+            let row2 = Row::new_from_usize(10_000);
 
             let sum = add(&row1, &row2);
-            assert_eq!(Row::new_from_num(10_005), sum);
+            assert_eq!(Row::new_from_usize(10_005), sum);
         }
 
         #[test]
@@ -1757,14 +1822,14 @@ mod tests_of_units {
         #[test]
         fn addend1_nought_test() {
             let addend1 = Row::nought();
-            let addend2 = Row::new_from_num(4321);
+            let addend2 = Row::new_from_usize(4321);
             let sum = add(&addend1, &addend2);
             assert_eq!(addend2, sum);
         }
 
         #[test]
         fn addend2_nought_test() {
-            let addend1 = Row::new_from_num(4321);
+            let addend1 = Row::new_from_usize(4321);
             let addend2 = Row::nought();
             let sum = add(&addend1, &addend2);
             assert_eq!(addend1, sum);
@@ -1805,8 +1870,8 @@ mod tests_of_units {
 
         #[test]
         fn lesser_minuend_test() {
-            let minuend = Row::new_from_num(4);
-            let subtrahend = Row::new_from_num(5);
+            let minuend = Row::new_from_usize(4);
+            let subtrahend = Row::new_from_usize(5);
 
             assert!(sub(&minuend, &subtrahend).is_none());
         }
@@ -1814,10 +1879,10 @@ mod tests_of_units {
         #[test]
         fn universal_test() {
             for triplet in [(99, 11, 88), (133, 133, 0), (90, 19, 71), (700, 699, 1)] {
-                let minuend = Row::new_from_num(triplet.0);
-                let subtrahend = Row::new_from_num(triplet.1);
+                let minuend = Row::new_from_usize(triplet.0);
+                let subtrahend = Row::new_from_usize(triplet.1);
 
-                let proof = Row::new_from_num(triplet.2);
+                let proof = Row::new_from_usize(triplet.2);
                 let diff = sub(&minuend, &subtrahend);
                 assert!(diff.is_some());
 
@@ -1831,7 +1896,7 @@ mod tests_of_units {
 
         #[test]
         fn nought_subtrahend_test() {
-            let minuend = Row::new_from_num(40);
+            let minuend = Row::new_from_usize(40);
             let subtrahend = nought_raw();
 
             let proof = minuend.clone();
@@ -1841,8 +1906,8 @@ mod tests_of_units {
 
         #[test]
         fn lesser_minuend_test() {
-            let minuend = Row::new_from_num(0).row;
-            let subtrahend = Row::new_from_num(1).row;
+            let minuend = Row::new_from_usize(0).row;
+            let subtrahend = Row::new_from_usize(1).row;
 
             let res = sub_shortcut(&minuend, &subtrahend);
             assert_eq!(Some(None), res);
@@ -1850,8 +1915,8 @@ mod tests_of_units {
 
         #[test]
         fn equal_operands_test() {
-            let minuend = Row::new_from_num(1364).row;
-            let subtrahend = Row::new_from_num(1364).row;
+            let minuend = Row::new_from_usize(1364).row;
+            let subtrahend = Row::new_from_usize(1364).row;
 
             let proof = Row::nought();
             let test = sub_shortcut(&minuend, &subtrahend);
@@ -1860,8 +1925,8 @@ mod tests_of_units {
 
         #[test]
         fn greater_minuend_test() {
-            let minuend = Row::new_from_num(2).row;
-            let subtrahend = Row::new_from_num(1).row;
+            let minuend = Row::new_from_usize(2).row;
+            let subtrahend = Row::new_from_usize(1).row;
 
             let res = sub_shortcut(&minuend, &subtrahend);
             assert_eq!(None, res);
@@ -1874,8 +1939,8 @@ mod tests_of_units {
 
         #[test]
         fn basic_test() {
-            let row1 = Row::new_from_num(2);
-            let row2 = Row::new_from_num(3);
+            let row1 = Row::new_from_usize(2);
+            let row2 = Row::new_from_usize(3);
             let prod = mul(&row1, &row2);
             assert_eq!(&[6], &*prod);
         }
@@ -1883,7 +1948,7 @@ mod tests_of_units {
         #[test]
         fn row1_nought_test() {
             let row1 = Row::nought();
-            let row2 = Row::new_from_num(123456789_10111213);
+            let row2 = Row::new_from_usize(123456789_10111213);
             let prod = mul(&row1, &row2);
             let row = &prod.row;
             assert_eq!(&[0], row.as_slice());
@@ -1892,7 +1957,7 @@ mod tests_of_units {
 
         #[test]
         fn row2_nought_test() {
-            let row1 = Row::new_from_num(123456789_10111213);
+            let row1 = Row::new_from_usize(123456789_10111213);
             let row2 = Row::nought();
             let prod = mul(&row1, &row2);
             let row = &prod.row;
@@ -1910,7 +1975,7 @@ mod tests_of_units {
 
         #[test]
         fn advanced_test() {
-            let row = Row::new_from_num(u128::MAX);
+            let row = Row::new_from_u128(u128::MAX);
             let prod = mul(&row, &row);
             let proof =
                 "115792089237316195423570985008687907852589419931798687112530834793049593217025";
@@ -1924,7 +1989,7 @@ mod tests_of_units {
         #[test]
         fn factor1_nought_test() {
             let row1 = nought_raw();
-            let row2 = Row::new_from_num(333_990).row;
+            let row2 = Row::new_from_usize(333_990).row;
 
             let res = mul_shortcut(&row1, &row2);
             assert_eq!(Some(row1), res);
@@ -1932,7 +1997,7 @@ mod tests_of_units {
 
         #[test]
         fn factor2_nought_test() {
-            let row1 = Row::new_from_num(333_990).row;
+            let row1 = Row::new_from_usize(333_990).row;
             let row2 = nought_raw();
 
             let res = mul_shortcut(&row1, &row2);
@@ -1942,7 +2007,7 @@ mod tests_of_units {
         #[test]
         fn factor1_unity_test() {
             let row1 = unity_raw();
-            let row2 = Row::new_from_num(333_990).row;
+            let row2 = Row::new_from_usize(333_990).row;
 
             let res = mul_shortcut(&row1, &row2);
             assert_eq!(Some(row2), res);
@@ -1950,7 +2015,7 @@ mod tests_of_units {
 
         #[test]
         fn factor2_unity_test() {
-            let row1 = Row::new_from_num(333_990).row;
+            let row1 = Row::new_from_usize(333_990).row;
             let row2 = unity_raw();
 
             let res = mul_shortcut(&row1, &row2);
@@ -1959,7 +2024,7 @@ mod tests_of_units {
 
         #[test]
         fn neither_unity_nor_nought_test() {
-            let row = Row::new_from_num(2).row;
+            let row = Row::new_from_usize(2).row;
 
             let res = mul_shortcut(&row, &row);
             assert_eq!(None, res);
@@ -1977,14 +2042,14 @@ mod tests_of_units {
 
         #[test]
         fn basic_test() {
-            let row = Row::new_from_num(2);
+            let row = Row::new_from_usize(2);
             assert_eq!(&[4], &*pow(&row, 2));
         }
 
         #[test]
         fn advanced_test2() {
             let proof = Row::new_from_str("88817841970012523233890533447265625").unwrap();
-            let row = Row::new_from_num(25);
+            let row = Row::new_from_usize(25);
             assert_eq!(proof, pow(&row, 25));
         }
 
@@ -1995,7 +2060,7 @@ mod tests_of_units {
             )
             .unwrap();
 
-            let row = Row::new_from_num(998);
+            let row = Row::new_from_usize(998);
             assert_eq!(proof, pow(&row, 26));
         }
 
@@ -2006,7 +2071,7 @@ mod tests_of_units {
             )
             .unwrap();
 
-            let row = Row::new_from_num(2);
+            let row = Row::new_from_usize(2);
             assert_eq!(proof, pow(&row, 259));
         }
 
@@ -2014,7 +2079,7 @@ mod tests_of_units {
         #[cfg(feature = "ext-tests")]
         // readme sample
         fn advanced_test5() {
-            let row = Row::new_from_num(u128::MAX);
+            let row = Row::new_from_u128(u128::MAX);
             let pow = pow(&row, 500);
             let number = pow.to_number();
 
@@ -2024,28 +2089,28 @@ mod tests_of_units {
 
         #[test]
         fn zero_power_test() {
-            let row = Row::new_from_num(0);
+            let row = Row::new_from_usize(0);
             let pow = pow(&row, 0);
             assert_eq!(&[1], &*pow);
         }
 
         #[test]
         fn one_power_test() {
-            let row = Row::new_from_num(3030);
+            let row = Row::new_from_usize(3030);
             let pow = pow(&row, 1);
             assert_eq!(&[0, 3, 0, 3], &*pow);
         }
 
         #[test]
         fn power_of_nought_test() {
-            let row = Row::new_from_num(0);
+            let row = Row::new_from_usize(0);
             let pow = pow(&row, 1000);
             assert_eq!(&[0], &*pow);
         }
 
         #[test]
         fn power_of_one_test() {
-            let row = Row::new_from_num(1);
+            let row = Row::new_from_usize(1);
             let pow = pow(&row, u16::MAX);
             assert_eq!(&[1], &*pow);
         }
@@ -2071,7 +2136,7 @@ mod tests_of_units {
 
         #[test]
         fn one_power_test() {
-            let row = Row::new_from_num(3030);
+            let row = Row::new_from_usize(3030);
             let pow = pow_shortcut(&row.row, 1);
             assert_eq!(Some(row), pow);
         }
@@ -2090,8 +2155,8 @@ mod tests_of_units {
 
         #[test]
         fn nought_divisor_test() {
-            let dividend = Row::new_from_num(1);
-            let divisor = Row::new_from_num(0);
+            let dividend = Row::new_from_usize(1);
+            let divisor = Row::new_from_usize(0);
 
             let ratrem = divrem(&dividend, &divisor);
             assert!(ratrem.is_none());
@@ -2099,8 +2164,8 @@ mod tests_of_units {
 
         #[test]
         fn shorter_dividend_test() {
-            let dividend = Row::new_from_num(99);
-            let divisor = Row::new_from_num(999);
+            let dividend = Row::new_from_usize(99);
+            let divisor = Row::new_from_usize(999);
 
             let ratrem = divrem(&dividend, &divisor);
             assert!(ratrem.is_some());
@@ -2121,11 +2186,11 @@ mod tests_of_units {
                 (700, 699, 1, 1),
                 (700, 70, 10, 0),
             ] {
-                let dividend = Row::new_from_num(quadruplet.0);
-                let divisor = Row::new_from_num(quadruplet.1);
+                let dividend = Row::new_from_usize(quadruplet.0);
+                let divisor = Row::new_from_usize(quadruplet.1);
 
-                let ratio = Row::new_from_num(quadruplet.2);
-                let remainder = Row::new_from_num(quadruplet.3);
+                let ratio = Row::new_from_usize(quadruplet.2);
+                let remainder = Row::new_from_usize(quadruplet.3);
                 let ratrem = divrem(&dividend, &divisor);
 
                 assert!(ratrem.is_some());
@@ -2141,10 +2206,10 @@ mod tests_of_units {
         fn load_test() {
             let dividend =
                 Row::new_from_str("99999340282366920938463463374607431768211455").unwrap();
-            let divisor = Row::new_from_num(249);
+            let divisor = Row::new_from_usize(249);
 
             let ratio = Row::new_from_str("401603776234405304973748848894005750073138").unwrap();
-            let remainder = Row::new_from_num(93);
+            let remainder = Row::new_from_usize(93);
 
             let ratrem = divrem(&dividend, &divisor).unwrap();
             assert_eq!(ratio, ratrem.0);
@@ -2182,7 +2247,7 @@ mod tests_of_units {
         #[test]
         fn nought_dividend_test() {
             let dividend = nought_raw();
-            let divisor = Row::new_from_num(4).row;
+            let divisor = Row::new_from_usize(4).row;
 
             let proof = (Row::nought(), Row::nought());
             let ratrem = divrem_shortcut(&dividend, &divisor);
@@ -2201,7 +2266,7 @@ mod tests_of_units {
 
         #[test]
         fn unity_divisor_test2() {
-            let dividend = Row::new_from_num(334_556);
+            let dividend = Row::new_from_usize(334_556);
             let divisor = unity_raw();
 
             let proof = (dividend.clone(), Row::nought());
@@ -2211,8 +2276,8 @@ mod tests_of_units {
 
         #[test]
         fn shorter_dividend_test() {
-            let dividend = Row::new_from_num(99);
-            let divisor = Row::new_from_num(999).row;
+            let dividend = Row::new_from_usize(99);
+            let divisor = Row::new_from_usize(999).row;
 
             let proof = (Row::nought(), dividend.clone());
             let ratrem = divrem_shortcut(&dividend.row, &divisor);
@@ -2242,13 +2307,13 @@ mod tests_of_units {
 
         #[test]
         fn basic_test() {
-            let dividend = Row::new_from_num(65006);
+            let dividend = Row::new_from_usize(65006);
             let divisor = vec![5];
 
             let mut w_ctr = 0;
             let mut ctr = 0;
 
-            let ratio = Row::new_from_num(13001).row;
+            let ratio = Row::new_from_usize(13001).row;
 
             let mut esc = Unset;
             let remratio =
@@ -2269,8 +2334,8 @@ mod tests_of_units {
 
         #[test]
         fn advanced_test1() {
-            let dividend = Row::new_from_num(65535);
-            let divisor = Row::new_from_num(277);
+            let dividend = Row::new_from_usize(65535);
+            let divisor = Row::new_from_usize(277);
 
             let mut w_ctr = 0;
             let mut ctr = 0;
@@ -2297,7 +2362,7 @@ mod tests_of_units {
 
         #[test]
         fn advanced_test2() {
-            let dividend = Row::new_from_num(65535);
+            let dividend = Row::new_from_usize(65535);
             let divisor = vec![7, 2];
 
             let mut w_ctr = 0;
@@ -2321,7 +2386,7 @@ mod tests_of_units {
 
         #[test]
         fn advanced_test3() {
-            let dividend = Row::new_from_num(99);
+            let dividend = Row::new_from_usize(99);
             let divisor = vec![5];
 
             let mut w_ctr = 0;
@@ -2343,8 +2408,8 @@ mod tests_of_units {
 
         #[test]
         fn advanced_test4() {
-            let dividend = Row::new_from_num(65535);
-            let divisor = Row::new_from_num(65536);
+            let dividend = Row::new_from_usize(65535);
+            let divisor = Row::new_from_usize(65536);
 
             let mut w_ctr = 0;
             let mut ctr = 0;
@@ -2367,7 +2432,7 @@ mod tests_of_units {
 
         #[test]
         fn advanced_test5() {
-            let num = &Row::new_from_num(65535).row;
+            let num = &Row::new_from_usize(65535).row;
 
             let mut w_ctr = 0;
             let mut ctr = 0;
@@ -2387,8 +2452,8 @@ mod tests_of_units {
 
         #[test]
         fn advanced_test6() {
-            let dividend = Row::new_from_num(60_000);
-            let divisor = Row::new_from_num(6001); // cannot broaden up
+            let dividend = Row::new_from_usize(60_000);
+            let divisor = Row::new_from_usize(6001); // cannot broaden up
 
             let mut w_ctr = 0;
             let mut ctr = 0;
@@ -2410,8 +2475,8 @@ mod tests_of_units {
 
         #[test]
         fn advanced_test7() {
-            let dividend = Row::new_from_num(111);
-            let divisor = Row::new_from_num(1111);
+            let dividend = Row::new_from_usize(111);
+            let divisor = Row::new_from_usize(1111);
 
             let mut w_ctr = 0;
             let mut ctr = 0;
@@ -2431,8 +2496,8 @@ mod tests_of_units {
 
         #[test]
         fn advanced_test8() {
-            let dividend = Row::new_from_num(65535);
-            let divisor = Row::new_from_num(6552);
+            let dividend = Row::new_from_usize(65535);
+            let divisor = Row::new_from_usize(6552);
 
             let mut w_ctr = 0;
             let mut ctr = 0;
@@ -2457,8 +2522,8 @@ mod tests_of_units {
 
         #[test]
         fn advanced_test9() {
-            let dividend = Row::new_from_num(65000);
-            let divisor = Row::new_from_num(65);
+            let dividend = Row::new_from_usize(65000);
+            let divisor = Row::new_from_usize(65);
 
             let mut w_ctr = 0;
             let mut ctr = 0;
@@ -2483,8 +2548,8 @@ mod tests_of_units {
 
         #[test]
         fn advanced_test10() {
-            let dividend = Row::new_from_num(65001);
-            let divisor = Row::new_from_num(65);
+            let dividend = Row::new_from_usize(65001);
+            let divisor = Row::new_from_usize(65);
 
             let mut w_ctr = 0;
             let mut ctr = 0;
@@ -2506,8 +2571,8 @@ mod tests_of_units {
 
         #[test]
         fn advanced_test11() {
-            let dividend = Row::new_from_num(60_000);
-            let divisor = Row::new_from_num(700);
+            let dividend = Row::new_from_usize(60_000);
+            let divisor = Row::new_from_usize(700);
 
             let mut w_ctr = 0;
             let mut ctr = 0;
@@ -2533,8 +2598,8 @@ mod tests_of_units {
 
         #[test]
         fn advanced_test12() {
-            let dividend = Row::new_from_num(13990);
-            let divisor = Row::new_from_num(130);
+            let dividend = Row::new_from_usize(13990);
+            let divisor = Row::new_from_usize(130);
 
             let mut w_ctr = 0;
             let mut ctr = 0;
@@ -2562,8 +2627,8 @@ mod tests_of_units {
         // would violate mpler_wr_ix > 0 test in function body
         #[test]
         fn advanced_test13() {
-            let dividend = Row::new_from_num(111);
-            let divisor = Row::new_from_num(12);
+            let dividend = Row::new_from_usize(111);
+            let divisor = Row::new_from_usize(12);
 
             let mut w_ctr = 0;
             let mut ctr = 0;
@@ -2587,7 +2652,7 @@ mod tests_of_units {
         // lesser
         #[test]
         fn advanced_test14() {
-            let dividend = Row::new_from_num(5040);
+            let dividend = Row::new_from_usize(5040);
             let divisor = vec![0, 5];
 
             let mut w_ctr = 0;
@@ -2611,13 +2676,13 @@ mod tests_of_units {
         // not shortcut return for equals
         #[test]
         fn advanced_test15() {
-            let dividend = Row::new_from_num(65005);
+            let dividend = Row::new_from_usize(65005);
             let divisor = vec![5];
 
             let mut w_ctr = 0;
             let mut ctr = 0;
 
-            let ratio = Row::new_from_num(13_001).row;
+            let ratio = Row::new_from_usize(13_001).row;
 
             let mut esc = Unset;
             let remratio =
@@ -2638,10 +2703,10 @@ mod tests_of_units {
 
         #[test]
         fn load_test() {
-            let dividend = Row::new_from_num(u128::MAX);
-            let divisor = Row::new_from_num(249);
+            let dividend = Row::new_from_u128(u128::MAX);
+            let divisor = Row::new_from_usize(249);
 
-            let ratio = Row::new_from_num(1366595851088106278969375933460916511);
+            let ratio = Row::new_from_u128(1366595851088106278969375933460916511);
             let remratio =
                 divrem_acceleration(&dividend.row, &divisor.row, &mut 0, &mut 0, &mut Unset);
 
@@ -2665,7 +2730,7 @@ mod tests_of_units {
         fn one_power_test() {
             use crate::Row;
 
-            let row = Row::new_from_num(3030);
+            let row = Row::new_from_usize(3030);
             let pow = mulmul(&row.row, &row.row, 1 - 1);
             assert_eq!(row.row, pow);
         }
@@ -2942,9 +3007,9 @@ mod tests_of_units {
 
             #[test]
             fn advanced_test() {
-                let minuend = Row::new_from_num(627710173);
-                let remainder = Row::new_from_num(130);
-                let ratio = Row::new_from_num(1955483);
+                let minuend = Row::new_from_usize(627710173);
+                let remainder = Row::new_from_usize(130);
+                let ratio = Row::new_from_usize(1955483);
 
                 let remratio = subtraction(&minuend.row, &vec![1, 2, 3], true, &mut 0);
                 assert_eq!(&*remainder, &*remratio.0);
@@ -2953,10 +3018,10 @@ mod tests_of_units {
 
             #[test]
             fn advanced_test2() {
-                let minuend = Row::new_from_num(627710173);
-                let subtrahend = Row::new_from_num(3552741);
-                let remainder = Row::new_from_num(2427757);
-                let ratio = Row::new_from_num(176);
+                let minuend = Row::new_from_usize(627710173);
+                let subtrahend = Row::new_from_usize(3552741);
+                let remainder = Row::new_from_usize(2427757);
+                let ratio = Row::new_from_usize(176);
 
                 let remratio = subtraction(&minuend.row, &subtrahend.row, true, &mut 0);
                 assert_eq!(&*remainder, &*remratio.0);
@@ -2965,10 +3030,10 @@ mod tests_of_units {
 
             #[test]
             fn advanced_test3() {
-                let minuend = Row::new_from_num(242775712);
-                let subtrahend = Row::new_from_num(33333);
-                let remainder = Row::new_from_num(11473);
-                let ratio = Row::new_from_num(7283);
+                let minuend = Row::new_from_usize(242775712);
+                let subtrahend = Row::new_from_usize(33333);
+                let remainder = Row::new_from_usize(11473);
+                let ratio = Row::new_from_usize(7283);
 
                 let remratio = subtraction(&minuend.row, &subtrahend.row, true, &mut 0);
                 assert_eq!(&*remainder, &*remratio.0);

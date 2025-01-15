@@ -1,6 +1,5 @@
 relaxed    
-    - prime check?
-    - consider num ctors for other numbers
+    - prime check + sqrt (some primitve/naive impls)    
 
 noticeable    
     - inspect mulmul without intermediate product: to be better only stack must employed (no Vec writes) => addition method split
