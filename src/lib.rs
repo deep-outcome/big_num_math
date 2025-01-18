@@ -59,10 +59,13 @@ impl PlacesRow {
 
         let row_len = len_without_leading_raw(&row, 0, 1);
 
-        for ix in 0..row_len {
+        let mut ix = 0;
+        while ix < row_len {
             if row[ix] > 9 {
                 return Err(Some(ix));
             }
+
+            ix += 1;
         }
 
         row.truncate(row_len);
@@ -1221,7 +1224,7 @@ mod tests_of_units {
 
             #[test]
             fn unsupported_num_len_index_test() {
-                let row = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0, 0];
+                let row = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
                 let row = Row::new_from_vec(row);
 
                 assert!(row.is_err());
