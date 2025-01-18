@@ -2,7 +2,7 @@
 Library for computations on large numbers.
 
 - development notes: 
-    1. little plan for new functions (goniometric[x], radix[✔️], …)
+    1. little plan for new functions (goniometric[⨯], radix[🗸], …)
     2. upcoming optimizations (memory consumption, speed up on some computations, …)
 - functions only:
     - addition +substraction, 

@@ -21,7 +21,7 @@ macro_rules! new_from_num {
             }
         }
 
-        PlacesRow { row }
+        Row { row }
     }};
 }
 
@@ -70,12 +70,27 @@ impl PlacesRow {
     }
 
     /// Handy ctor for usage with primitive numeric data type.
-    pub fn new_from_u128(num: u128) -> Self {
+    pub fn new_from_u8(num: u8) -> Self {
+        new_from_num!(num)
+    }
+
+    /// Handy ctor for usage with primitive numeric data type.
+    pub fn new_from_u16(num: u16) -> Self {
+        new_from_num!(num)
+    }
+
+    /// Handy ctor for usage with primitive numeric data type.
+    pub fn new_from_u32(num: u32) -> Self {
         new_from_num!(num)
     }
 
     /// Handy ctor for usage with primitive numeric data type.
     pub fn new_from_u64(num: u64) -> Self {
+        new_from_num!(num)
+    }
+
+    /// Handy ctor for usage with primitive numeric data type.
+    pub fn new_from_u128(num: u128) -> Self {
         new_from_num!(num)
     }
 
@@ -254,10 +269,25 @@ impl alloc::string::ToString for PlacesRow {
 }
 
 use core::convert::From;
-impl From<u128> for PlacesRow {
+
+impl From<u8> for PlacesRow {
     /// Converts `value` into `PlacesRow`.
-    fn from(value: u128) -> Self {
-        Self::new_from_u128(value)
+    fn from(value: u8) -> Self {
+        Self::new_from_u8(value)
+    }
+}
+
+impl From<u16> for PlacesRow {
+    /// Converts `value` into `PlacesRow`.
+    fn from(value: u16) -> Self {
+        Self::new_from_u16(value)
+    }
+}
+
+impl From<u32> for PlacesRow {
+    /// Converts `value` into `PlacesRow`.
+    fn from(value: u32) -> Self {
+        Self::new_from_u32(value)
     }
 }
 
@@ -265,6 +295,13 @@ impl From<u64> for PlacesRow {
     /// Converts `value` into `PlacesRow`.
     fn from(value: u64) -> Self {
         Self::new_from_u64(value)
+    }
+}
+
+impl From<u128> for PlacesRow {
+    /// Converts `value` into `PlacesRow`.
+    fn from(value: u128) -> Self {
+        Self::new_from_u128(value)
     }
 }
 
@@ -1223,15 +1260,33 @@ mod tests_of_units {
             }
 
             #[test]
-            fn new_from_u128_test() {
-                let row = Row::new_from_u128(000_12345678900u128);
-                assert_eq!(&[0, 0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*row);
+            fn new_from_u8_test() {
+                let row = Row::new_from_u8(000_123u8);
+                assert_eq!(&[3, 2, 1], &*row);
+            }
+
+            #[test]
+            fn new_from_u16_test() {
+                let row = Row::new_from_u16(000_12345u16);
+                assert_eq!(&[5, 4, 3, 2, 1], &*row);
+            }
+
+            #[test]
+            fn new_from_u32_test() {
+                let row = Row::new_from_u32(000_1234567890u32);
+                assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*row);
             }
 
             #[test]
             fn new_from_u64_test() {
                 let row = Row::new_from_u64(000_1234567890u64);
                 assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*row);
+            }
+
+            #[test]
+            fn new_from_u128_test() {
+                let row = Row::new_from_u128(000_12345678900u128);
+                assert_eq!(&[0, 0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*row);
             }
 
             #[test]
@@ -1337,14 +1392,32 @@ mod tests_of_units {
         }
 
         #[test]
-        fn from_u128_test() {
-            let row: Row = From::<u128>::from(123);
+        fn from_u8_test() {
+            let row: Row = From::<u8>::from(123);
+            assert_eq!(&[3, 2, 1], &*row);
+        }
+
+        #[test]
+        fn from_u16_test() {
+            let row: Row = From::<u16>::from(123);
+            assert_eq!(&[3, 2, 1], &*row);
+        }
+
+        #[test]
+        fn from_u32_test() {
+            let row: Row = From::<u32>::from(123);
             assert_eq!(&[3, 2, 1], &*row);
         }
 
         #[test]
         fn from_u64_test() {
             let row: Row = From::<u64>::from(123);
+            assert_eq!(&[3, 2, 1], &*row);
+        }
+
+        #[test]
+        fn from_u128_test() {
+            let row: Row = From::<u128>::from(123);
             assert_eq!(&[3, 2, 1], &*row);
         }
 
