@@ -1301,7 +1301,7 @@ mod tests_of_units {
             let row = Row::new_from_u128(num);
 
             let mut esc = 0;
-            let test = into_num!(&row.row, u128, &mut esc);
+            let test = try_into_num!(&row.row, u128, &mut esc);
             assert_eq!(Some(num), test);
             assert_eq!(0, esc);
         }
@@ -1313,7 +1313,7 @@ mod tests_of_units {
             row = add(&row, &Row::unity());
 
             let mut esc = 0;
-            let test = into_num!(&row.row, u8, &mut esc);
+            let test = try_into_num!(&row.row, u8, &mut esc);
             assert_eq!(None, test);
             assert_eq!(3, esc);
         }
@@ -1324,7 +1324,7 @@ mod tests_of_units {
             let row = new_from_num!(num);
 
             let mut esc = 0;
-            let test = into_num!(&row.row, u8, &mut esc);
+            let test = try_into_num!(&row.row, u8, &mut esc);
             assert_eq!(None, test);
             assert_eq!(2, esc);
         }
@@ -1335,7 +1335,7 @@ mod tests_of_units {
             let row = new_from_num!(num);
 
             let mut esc = 0;
-            let test = into_num!(&row.row, u8, &mut esc);
+            let test = try_into_num!(&row.row, u8, &mut esc);
             assert_eq!(None, test);
             assert_eq!(1, esc);
         }
