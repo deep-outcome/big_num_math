@@ -25,6 +25,49 @@ macro_rules! new_from_num {
     }};
 }
 
+macro_rules! try_into_num {
+    ($r:expr,$t:ty,$esc:expr) => {{
+        let mut n = <$t>::default();
+        let mut ix = 0usize;
+        let len = $r.len();
+
+        let mut overflow = false;
+        while ix < len {
+            let place = $r[ix];
+            if place == 0 {
+                ix += 1;
+                continue;
+            }
+
+            if let Some(p) = <$t>::checked_pow(10, ix as u32) {
+                if let Some(m) = <$t>::checked_mul(p, place as $t) {
+                    if let Some(a) = <$t>::checked_add(m, n) {
+                        n = a;
+
+                        ix += 1;
+                        continue;
+                    } else {
+                        *$esc = 3;
+                    }
+                } else {
+                    *$esc = 2;
+                }
+            } else {
+                *$esc = 1;
+            }
+
+            overflow = true;
+            break;
+        }
+
+        if overflow == true {
+            None
+        } else {
+            Some(n)
+        }
+    }};
+}
+
 /// `PlacesRow` represents row of decimal places starting at ones (`0` index).
 #[derive(Clone, PartialEq, Debug)]
 pub struct PlacesRow {
@@ -100,6 +143,48 @@ impl PlacesRow {
     /// Handy ctor for usage with primitive numeric data type.
     pub fn new_from_usize(num: usize) -> Self {
         new_from_num!(num)
+    }
+
+    /// Convertor function.
+    ///
+    /// Returns `None` if is `PlacesRow` cannot fit into target type.
+    pub fn try_into_u8(&self) -> Option<u8> {
+        try_into_num!(&self.row, u8, &mut 0)
+    }
+
+    /// Convertor function.
+    ///
+    /// Returns `None` if is `PlacesRow` cannot fit into target type.
+    pub fn try_into_u16(&self) -> Option<u16> {
+        try_into_num!(&self.row, u16, &mut 0)
+    }
+
+    /// Convertor function.
+    ///
+    /// Returns `None` if is `PlacesRow` cannot fit into target type.
+    pub fn try_into_u32(&self) -> Option<u32> {
+        try_into_num!(&self.row, u32, &mut 0)
+    }
+
+    /// Convertor function.
+    ///
+    /// Returns `None` if is `PlacesRow` cannot fit into target type.
+    pub fn try_into_u64(&self) -> Option<u64> {
+        try_into_num!(&self.row, u64, &mut 0)
+    }
+
+    /// Convertor function.
+    ///
+    /// Returns `None` if is `PlacesRow` cannot fit into target type.
+    pub fn try_into_u128(&self) -> Option<u128> {
+        try_into_num!(&self.row, u128, &mut 0)
+    }
+
+    /// Convertor function.
+    ///
+    /// Returns `None` if is `PlacesRow` cannot fit into target type.
+    pub fn try_into_usize(&self) -> Option<usize> {
+        try_into_num!(&self.row, usize, &mut 0)
     }
 
     /// Handy ctor for usage with long numbers.
@@ -1197,6 +1282,70 @@ mod tests_of_units {
         [0].to_vec()
     }
 
+    use crate::Row;
+    use alloc::string::ToString;
+    use alloc::vec::Vec;
+
+    #[test]
+    fn new_from_num() {
+        let num = u128::MAX;
+        let row = new_from_num!(num);
+        let test = row.to_number();
+        let proof = num.to_string();
+
+        assert_eq!(proof, test);
+    }
+
+    mod into_num {
+        use crate::add;
+        use crate::Row;
+        use alloc::vec::Vec;
+
+        #[test]
+        fn basic_test() {
+            let num = u128::MAX;
+            let row = Row::new_from_u128(num);
+
+            let mut esc = 0;
+            let test = into_num!(&row.row, u128, &mut esc);
+            assert_eq!(Some(num), test);
+            assert_eq!(0, esc);
+        }
+
+        #[test]
+        fn add_overflow_test() {
+            let num = u8::MAX;
+            let mut row = new_from_num!(num);
+            row = add(&row, &Row::unity());
+
+            let mut esc = 0;
+            let test = into_num!(&row.row, u8, &mut esc);
+            assert_eq!(None, test);
+            assert_eq!(3, esc);
+        }
+
+        #[test]
+        fn mul_overflow_test() {
+            let num = 300;
+            let row = new_from_num!(num);
+
+            let mut esc = 0;
+            let test = into_num!(&row.row, u8, &mut esc);
+            assert_eq!(None, test);
+            assert_eq!(2, esc);
+        }
+
+        #[test]
+        fn pow_overflow_test() {
+            let num = 1000;
+            let row = new_from_num!(num);
+
+            let mut esc = 0;
+            let test = into_num!(&row.row, u8, &mut esc);
+            assert_eq!(None, test);
+            assert_eq!(1, esc);
+        }
+    }
     mod placesrow {
         use crate::Row;
         use alloc::string::ToString;
@@ -1296,6 +1445,64 @@ mod tests_of_units {
             fn new_from_usize_test() {
                 let row = Row::new_from_usize(000_1234567890usize);
                 assert_eq!(&[0, 9, 8, 7, 6, 5, 4, 3, 2, 1], &*row);
+            }
+        }
+
+        mod try_into {
+            use crate::Row;
+            use alloc::vec::Vec;
+
+            #[test]
+            fn try_into_u8() {
+                let num = u8::MAX;
+                let row = new_from_num!(num);
+                let test = row.try_into_u8();
+                assert_eq!(Some(num), test);
+            }
+
+            #[test]
+            fn try_into_u16() {
+                let num = u16::MAX;
+                let row = new_from_num!(num);
+
+                let test = row.try_into_u16();
+                assert_eq!(Some(num), test);
+            }
+
+            #[test]
+            fn try_into_u32() {
+                let num = u32::MAX;
+                let row = new_from_num!(num);
+
+                let test = row.try_into_u32();
+                assert_eq!(Some(num), test);
+            }
+
+            #[test]
+            fn try_into_u64() {
+                let num = u64::MAX;
+                let row = new_from_num!(num);
+
+                let test = row.try_into_u64();
+                assert_eq!(Some(num), test);
+            }
+
+            #[test]
+            fn try_into_u128() {
+                let num = u128::MAX;
+                let row = new_from_num!(num);
+
+                let test = row.try_into_u128();
+                assert_eq!(Some(num), test);
+            }
+
+            #[test]
+            fn try_into_usize() {
+                let num = usize::MAX;
+                let row = new_from_num!(num);
+
+                let test = row.try_into_usize();
+                assert_eq!(Some(num), test);
             }
         }
 
