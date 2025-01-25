@@ -147,42 +147,42 @@ impl PlacesRow {
 
     /// Convertor function.
     ///
-    /// Returns `None` if is `PlacesRow` cannot fit into target type.
+    /// Returns `None` if `PlacesRow` cannot fit into target type.
     pub fn try_into_u8(&self) -> Option<u8> {
         try_into_num!(&self.row, u8, &mut 0)
     }
 
     /// Convertor function.
     ///
-    /// Returns `None` if is `PlacesRow` cannot fit into target type.
+    /// Returns `None` if `PlacesRow` cannot fit into target type.
     pub fn try_into_u16(&self) -> Option<u16> {
         try_into_num!(&self.row, u16, &mut 0)
     }
 
     /// Convertor function.
     ///
-    /// Returns `None` if is `PlacesRow` cannot fit into target type.
+    /// Returns `None` if `PlacesRow` cannot fit into target type.
     pub fn try_into_u32(&self) -> Option<u32> {
         try_into_num!(&self.row, u32, &mut 0)
     }
 
     /// Convertor function.
     ///
-    /// Returns `None` if is `PlacesRow` cannot fit into target type.
+    /// Returns `None` if `PlacesRow` cannot fit into target type.
     pub fn try_into_u64(&self) -> Option<u64> {
         try_into_num!(&self.row, u64, &mut 0)
     }
 
     /// Convertor function.
     ///
-    /// Returns `None` if is `PlacesRow` cannot fit into target type.
+    /// Returns `None` if `PlacesRow` cannot fit into target type.
     pub fn try_into_u128(&self) -> Option<u128> {
         try_into_num!(&self.row, u128, &mut 0)
     }
 
     /// Convertor function.
     ///
-    /// Returns `None` if is `PlacesRow` cannot fit into target type.
+    /// Returns `None` if `PlacesRow` cannot fit into target type.
     pub fn try_into_usize(&self) -> Option<usize> {
         try_into_num!(&self.row, usize, &mut 0)
     }
@@ -1040,7 +1040,7 @@ pub fn heron_sqrt(num: &PlacesRow) -> PlacesRow {
     PlacesRow { row }
 }
 
-pub fn heron_sqrt_raw(row: &RawRow) -> RawRow {
+fn heron_sqrt_raw(row: &RawRow) -> RawRow {
     if is_unity_raw(&row) || is_nought_raw(&row) {
         return row.clone();
     }
@@ -2971,6 +2971,16 @@ mod tests_of_units {
 
             assert_eq!(vec![6, 1, 2], remratio.0);
             assert_eq!(ratio.row, remratio.1);
+        }
+    }
+
+    mod heron_sqrt {
+        use crate::{heron_sqrt, Row};
+
+        #[test]
+        fn basic_test() {
+            let row = Row::new_from_u8(16);
+            assert_eq!([4], &*heron_sqrt(&row));
         }
     }
 
