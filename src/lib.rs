@@ -812,15 +812,11 @@ pub fn divrem(dividend: &PlacesRow, divisor: &PlacesRow) -> Option<(PlacesRow, P
         None => {}
     }
 
-    let remratio = divrem_acceleration(
+    let remratio = divrem_accelerated(
         &dividend,
         &divisor,
         #[cfg(test)]
-        &mut 0,
-        #[cfg(test)]
-        &mut 0,
-        #[cfg(test)]
-        &mut EscCode::Unset,
+        &mut TestGauges::blank(),
     );
 
     Some((Row { row: remratio.1 }, Row { row: remratio.0 }))
@@ -851,16 +847,14 @@ fn divrem_shortcut(dividend: &RawRow, divisor: &RawRow) -> Option<Option<(Row, R
 }
 
 #[cfg(test)]
-use tests_of_units::divrem_acceleration::EscCode;
+use tests_of_units::divrem_accelerated::{DivRemEscCode, TestGauges};
 
 // in order to avoid highly excessive looping, divrem computation can be speed up
 // by simple substracting divisor 10 products first
-fn divrem_acceleration(
+fn divrem_accelerated(
     dividend: &RawRow,
     divisor: &RawRow,
-    #[cfg(test)] w_ctr: &mut usize,
-    #[cfg(test)] ctr: &mut usize,
-    #[cfg(test)] esc: &mut EscCode,
+    #[cfg(test)] tg: &mut TestGauges,
 ) -> (RawRow, RawRow) {
     let divisor_len = divisor.len();
     let mut remend_len = dividend.len();
@@ -870,7 +864,7 @@ fn divrem_acceleration(
     if remend_len < divisor_len {
         #[cfg(test)]
         {
-            *esc = EscCode::Pli
+            tg.esc = DivRemEscCode::Pli
         }
         return (dividend.clone(), ratio);
     }
@@ -908,7 +902,7 @@ fn divrem_acceleration(
 
                         #[cfg(test)]
                         {
-                            *esc = EscCode::Cbu
+                            tg.esc = DivRemEscCode::Cbu
                         }
 
                         break 'w;
@@ -932,7 +926,7 @@ fn divrem_acceleration(
 
             #[cfg(test)]
             {
-                *w_ctr += 1;
+                tg.w_ctr += 1;
 
                 // sor is always widen upto highest or second highestmost place
                 assert!(remend_len == wr_ix + 1 || remend_len == wr_ix + 2)
@@ -961,7 +955,7 @@ fn divrem_acceleration(
                 &wdsor,
                 true,
                 #[cfg(test)]
-                ctr,
+                &mut tg.ctr,
             );
 
             // e.g. 15 000 ÷ 25 ⇒ 2 500
@@ -991,14 +985,14 @@ fn divrem_acceleration(
             if remend_len < divisor_len {
                 #[cfg(test)]
                 {
-                    *esc = EscCode::Pll;
+                    tg.esc = DivRemEscCode::Pll;
                 }
                 return (remainder.unwrap(), ratio);
             } else if remend_len == divisor_len {
                 if end[wr_ix] < divisor[wr_ix] {
                     #[cfg(test)]
                     {
-                        *esc = EscCode::Lop;
+                        tg.esc = DivRemEscCode::Lop;
                     }
                     return (remainder.unwrap(), ratio);
                 }
@@ -1016,7 +1010,7 @@ fn divrem_acceleration(
         &divisor,
         true,
         #[cfg(test)]
-        ctr,
+        &mut tg.ctr,
     );
 
     let rat = if remainder.is_some() {
@@ -1028,8 +1022,8 @@ fn divrem_acceleration(
 
     #[cfg(test)]
     {
-        if *esc != EscCode::Cbu {
-            *esc = EscCode::Dcf;
+        if tg.esc != DivRemEscCode::Cbu {
+            tg.esc = DivRemEscCode::Dcf;
         }
     }
 
@@ -2568,13 +2562,12 @@ mod tests_of_units {
         }
     }
 
-    pub mod divrem_acceleration {
-        use crate::{divrem_acceleration, Row};
+    pub mod divrem_accelerated {
+        use crate::{divrem_accelerated, Row};
         use alloc::vec;
-        use EscCode::Unset;
 
         #[derive(PartialEq, Eq, Debug)]
-        pub enum EscCode {
+        pub enum DivRemEscCode {
             Unset = 0,
             /// place lesser initially
             Pli = 1,
@@ -2588,26 +2581,38 @@ mod tests_of_units {
             Cbu = 5,
         }
 
+        pub struct TestGauges {
+            pub w_ctr: usize,
+            pub ctr: usize,
+            pub esc: DivRemEscCode,
+        }
+
+        impl TestGauges {
+            pub fn blank() -> Self {
+                Self {
+                    w_ctr: 0,
+                    ctr: 0,
+                    esc: DivRemEscCode::Unset,
+                }
+            }
+        }
+
         #[test]
         fn basic_test() {
             let dividend = Row::new_from_usize(65006);
             let divisor = vec![5];
 
-            let mut w_ctr = 0;
-            let mut ctr = 0;
-
             let ratio = Row::new_from_usize(13001).row;
 
-            let mut esc = Unset;
-            let remratio =
-                divrem_acceleration(&dividend.row, &divisor, &mut w_ctr, &mut ctr, &mut esc);
-            assert_eq!(EscCode::Dcf, esc);
+            let mut tg = TestGauges::blank();
+            let remratio = divrem_accelerated(&dividend.row, &divisor, &mut tg);
+            assert_eq!(DivRemEscCode::Dcf, tg.esc);
 
             assert_eq!(vec![1], remratio.0);
             assert_eq!(ratio, remratio.1);
 
-            assert_eq!(2, w_ctr);
-            assert_eq!(8, ctr);
+            assert_eq!(2, tg.w_ctr);
+            assert_eq!(8, tg.ctr);
 
             // 65006 -1× 50000 ⇒ 1 +1
             // 15006 -3×  5000 ⇒ 3 +1
@@ -2620,22 +2625,14 @@ mod tests_of_units {
             let dividend = Row::new_from_usize(65535);
             let divisor = Row::new_from_usize(277);
 
-            let mut w_ctr = 0;
-            let mut ctr = 0;
-
-            let remratio = divrem_acceleration(
-                &dividend.row,
-                &divisor.row,
-                &mut w_ctr,
-                &mut ctr,
-                &mut Unset,
-            );
+            let mut tg = TestGauges::blank();
+            let remratio = divrem_accelerated(&dividend.row, &divisor.row, &mut tg);
 
             assert_eq!(vec![3, 6, 1], remratio.0);
             assert_eq!(vec![6, 3, 2], remratio.1);
 
-            assert_eq!(2, w_ctr);
-            assert_eq!(14, ctr);
+            assert_eq!(2, tg.w_ctr);
+            assert_eq!(14, tg.ctr);
 
             // 65535 -2× 27700 ⇒ 2 +1
             // 10135 -3×  2770 ⇒ 3 +1
@@ -2648,17 +2645,14 @@ mod tests_of_units {
             let dividend = Row::new_from_usize(65535);
             let divisor = vec![7, 2];
 
-            let mut w_ctr = 0;
-            let mut ctr = 0;
-
-            let remratio =
-                divrem_acceleration(&dividend.row, &divisor, &mut w_ctr, &mut ctr, &mut Unset);
+            let mut tg = TestGauges::blank();
+            let remratio = divrem_accelerated(&dividend.row, &divisor, &mut tg);
 
             assert_eq!(vec![6], remratio.0);
             assert_eq!(vec![7, 2, 4, 2], remratio.1);
 
-            assert_eq!(3, w_ctr);
-            assert_eq!(19, ctr);
+            assert_eq!(3, tg.w_ctr);
+            assert_eq!(19, tg.ctr);
 
             // 65535 -2× 27000 ⇒ 2 +1
             // 11535 -4×  2700 ⇒ 4 +1
@@ -2672,17 +2666,14 @@ mod tests_of_units {
             let dividend = Row::new_from_usize(99);
             let divisor = vec![5];
 
-            let mut w_ctr = 0;
-            let mut ctr = 0;
-
-            let remratio =
-                divrem_acceleration(&dividend.row, &divisor, &mut w_ctr, &mut ctr, &mut Unset);
+            let mut tg = TestGauges::blank();
+            let remratio = divrem_accelerated(&dividend.row, &divisor, &mut tg);
 
             assert_eq!(vec![4], remratio.0);
             assert_eq!(vec![9, 1], remratio.1);
 
-            assert_eq!(1, w_ctr);
-            assert_eq!(12, ctr);
+            assert_eq!(1, tg.w_ctr);
+            assert_eq!(12, tg.ctr);
 
             // 99 -1× 50 ⇒ 1 +1
             // 49 -9×  5 ⇒ 9 +1
@@ -2694,22 +2685,14 @@ mod tests_of_units {
             let dividend = Row::new_from_usize(65535);
             let divisor = Row::new_from_usize(65536);
 
-            let mut w_ctr = 0;
-            let mut ctr = 0;
-
-            let remratio = divrem_acceleration(
-                &dividend.row,
-                &divisor.row,
-                &mut w_ctr,
-                &mut ctr,
-                &mut Unset,
-            );
+            let mut tg = TestGauges::blank();
+            let remratio = divrem_accelerated(&dividend.row, &divisor.row, &mut tg);
 
             assert_eq!(dividend.row, remratio.0);
             assert_eq!(vec![0], remratio.1);
 
-            assert_eq!(0, w_ctr);
-            assert_eq!(1, ctr);
+            assert_eq!(0, tg.w_ctr);
+            assert_eq!(1, tg.ctr);
             // rem 65535 ⇒ Σ 1 = 0 +1 (+0)
         }
 
@@ -2717,18 +2700,15 @@ mod tests_of_units {
         fn advanced_test5() {
             let num = &Row::new_from_usize(65535).row;
 
-            let mut w_ctr = 0;
-            let mut ctr = 0;
-
-            let mut esc = Unset;
-            let remratio = divrem_acceleration(&num, &num, &mut w_ctr, &mut ctr, &mut esc);
-            assert_eq!(EscCode::Dcf, esc);
+            let mut tg = TestGauges::blank();
+            let remratio = divrem_accelerated(&num, &num, &mut tg);
+            assert_eq!(DivRemEscCode::Dcf, tg.esc);
 
             assert_eq!(vec![0], remratio.0);
             assert_eq!(vec![1], remratio.1);
 
-            assert_eq!(0, w_ctr);
-            assert_eq!(2, ctr);
+            assert_eq!(0, tg.w_ctr);
+            assert_eq!(2, tg.ctr);
             // 65535 -1× 65535 ⇒ 1 +1
             // rem 0           ⇒ Σ 2 = 1 +1 (+0)
         }
@@ -2738,19 +2718,15 @@ mod tests_of_units {
             let dividend = Row::new_from_usize(60_000);
             let divisor = Row::new_from_usize(6001); // cannot broaden up
 
-            let mut w_ctr = 0;
-            let mut ctr = 0;
-
-            let mut esc = Unset;
-            let remratio =
-                divrem_acceleration(&dividend.row, &divisor.row, &mut w_ctr, &mut ctr, &mut esc);
-            assert_eq!(EscCode::Cbu, esc);
+            let mut tg = TestGauges::blank();
+            let remratio = divrem_accelerated(&dividend.row, &divisor.row, &mut tg);
+            assert_eq!(DivRemEscCode::Cbu, tg.esc);
 
             assert_eq!(vec![1, 9, 9, 5], remratio.0);
             assert_eq!(vec![9], remratio.1);
 
-            assert_eq!(0, w_ctr);
-            assert_eq!(10, ctr);
+            assert_eq!(0, tg.w_ctr);
+            assert_eq!(10, tg.ctr);
 
             // 60000 -9× 6001 ⇒ 9 +1
             // rem 5991       ⇒ Σ 10 = 9 +1 (+0)
@@ -2761,19 +2737,15 @@ mod tests_of_units {
             let dividend = Row::new_from_usize(111);
             let divisor = Row::new_from_usize(1111);
 
-            let mut w_ctr = 0;
-            let mut ctr = 0;
-
-            let mut esc = Unset;
-            let remratio =
-                divrem_acceleration(&dividend.row, &divisor.row, &mut w_ctr, &mut ctr, &mut esc);
-            assert_eq!(EscCode::Pli, esc);
+            let mut tg = TestGauges::blank();
+            let remratio = divrem_accelerated(&dividend.row, &divisor.row, &mut tg);
+            assert_eq!(DivRemEscCode::Pli, tg.esc);
 
             assert_eq!(dividend.row, remratio.0);
             assert_eq!(vec![0], remratio.1);
 
-            assert_eq!(0, w_ctr);
-            assert_eq!(0, ctr);
+            assert_eq!(0, tg.w_ctr);
+            assert_eq!(0, tg.ctr);
             // rem 111 ⇒ Σ 0
         }
 
@@ -2782,22 +2754,14 @@ mod tests_of_units {
             let dividend = Row::new_from_usize(65535);
             let divisor = Row::new_from_usize(6552);
 
-            let mut w_ctr = 0;
-            let mut ctr = 0;
-
-            let remratio = divrem_acceleration(
-                &dividend.row,
-                &divisor.row,
-                &mut w_ctr,
-                &mut ctr,
-                &mut Unset,
-            );
+            let mut tg = TestGauges::blank();
+            let remratio = divrem_accelerated(&dividend.row, &divisor.row, &mut tg);
 
             assert_eq!(vec![5, 1], remratio.0);
             assert_eq!(vec![0, 1], remratio.1);
 
-            assert_eq!(1, w_ctr);
-            assert_eq!(2, ctr);
+            assert_eq!(1, tg.w_ctr);
+            assert_eq!(2, tg.ctr);
 
             // 65535 -1× 65520 ⇒ 1 +1
             // rem 15          ⇒ Σ 2 = 1 +1 +0
@@ -2808,22 +2772,14 @@ mod tests_of_units {
             let dividend = Row::new_from_usize(65000);
             let divisor = Row::new_from_usize(65);
 
-            let mut w_ctr = 0;
-            let mut ctr = 0;
-
-            let remratio = divrem_acceleration(
-                &dividend.row,
-                &divisor.row,
-                &mut w_ctr,
-                &mut ctr,
-                &mut Unset,
-            );
+            let mut tg = TestGauges::blank();
+            let remratio = divrem_accelerated(&dividend.row, &divisor.row, &mut tg);
 
             assert_eq!(vec![0], remratio.0);
             assert_eq!(vec![0, 0, 0, 1], remratio.1);
 
-            assert_eq!(1, w_ctr);
-            assert_eq!(2, ctr);
+            assert_eq!(1, tg.w_ctr);
+            assert_eq!(2, tg.ctr);
 
             // 65000 -1× 65000 ⇒ 1 +1
             // rem 0           ⇒ Σ 2 = 1 +1 +0
@@ -2834,19 +2790,15 @@ mod tests_of_units {
             let dividend = Row::new_from_usize(65001);
             let divisor = Row::new_from_usize(65);
 
-            let mut w_ctr = 0;
-            let mut ctr = 0;
-
-            let mut esc = Unset;
-            let remratio =
-                divrem_acceleration(&dividend.row, &divisor.row, &mut w_ctr, &mut ctr, &mut esc);
-            assert_eq!(EscCode::Pll, esc);
+            let mut tg = TestGauges::blank();
+            let remratio = divrem_accelerated(&dividend.row, &divisor.row, &mut tg);
+            assert_eq!(DivRemEscCode::Pll, tg.esc);
 
             assert_eq!(vec![1], remratio.0);
             assert_eq!(vec![0, 0, 0, 1], remratio.1);
 
-            assert_eq!(1, w_ctr);
-            assert_eq!(2, ctr);
+            assert_eq!(1, tg.w_ctr);
+            assert_eq!(2, tg.ctr);
 
             // 65001 -1× 65000 ⇒ 1 +1
             // rem 1           ⇒ Σ 2 = 1 +1 +0
@@ -2857,22 +2809,14 @@ mod tests_of_units {
             let dividend = Row::new_from_usize(60_000);
             let divisor = Row::new_from_usize(700);
 
-            let mut w_ctr = 0;
-            let mut ctr = 0;
-
-            let remratio = divrem_acceleration(
-                &dividend.row,
-                &divisor.row,
-                &mut w_ctr,
-                &mut ctr,
-                &mut Unset,
-            );
+            let mut tg = TestGauges::blank();
+            let remratio = divrem_accelerated(&dividend.row, &divisor.row, &mut tg);
 
             assert_eq!(vec![0, 0, 5], remratio.0);
             assert_eq!(vec![5, 8], remratio.1);
 
-            assert_eq!(1, w_ctr);
-            assert_eq!(15, ctr);
+            assert_eq!(1, tg.w_ctr);
+            assert_eq!(15, tg.ctr);
 
             // 60000 -8× 7000 ⇒ 8 +1
             // 4000  -5×  700 ⇒ 5 +1
@@ -2884,22 +2828,14 @@ mod tests_of_units {
             let dividend = Row::new_from_usize(13990);
             let divisor = Row::new_from_usize(130);
 
-            let mut w_ctr = 0;
-            let mut ctr = 0;
-
-            let remratio = divrem_acceleration(
-                &dividend.row,
-                &divisor.row,
-                &mut w_ctr,
-                &mut ctr,
-                &mut Unset,
-            );
+            let mut tg = TestGauges::blank();
+            let remratio = divrem_accelerated(&dividend.row, &divisor.row, &mut tg);
 
             assert_eq!(vec![0, 8], remratio.0);
             assert_eq!(vec![7, 0, 1], remratio.1);
 
-            assert_eq!(1, w_ctr);
-            assert_eq!(10, ctr);
+            assert_eq!(1, tg.w_ctr);
+            assert_eq!(10, tg.ctr);
 
             // 13990 -1× 13000 ⇒ 1 +1
             // 990   -7×   130 ⇒ 7 +1
@@ -2913,19 +2849,15 @@ mod tests_of_units {
             let dividend = Row::new_from_usize(111);
             let divisor = Row::new_from_usize(12);
 
-            let mut w_ctr = 0;
-            let mut ctr = 0;
-
-            let mut esc = Unset;
-            let remratio =
-                divrem_acceleration(&dividend.row, &divisor.row, &mut w_ctr, &mut ctr, &mut esc);
-            assert_eq!(EscCode::Cbu, esc);
+            let mut tg = TestGauges::blank();
+            let remratio = divrem_accelerated(&dividend.row, &divisor.row, &mut tg);
+            assert_eq!(DivRemEscCode::Cbu, tg.esc);
 
             assert_eq!(vec![3], remratio.0);
             assert_eq!(vec![9], remratio.1);
 
-            assert_eq!(0, w_ctr);
-            assert_eq!(10, ctr);
+            assert_eq!(0, tg.w_ctr);
+            assert_eq!(10, tg.ctr);
 
             // 111 -9× 12 ⇒ 9 +1
             // rem 3      ⇒ Σ 10 = 9 +1 (+0)
@@ -2938,19 +2870,15 @@ mod tests_of_units {
             let dividend = Row::new_from_usize(5040);
             let divisor = vec![0, 5];
 
-            let mut w_ctr = 0;
-            let mut ctr = 0;
-
-            let mut esc = Unset;
-            let remratio =
-                divrem_acceleration(&dividend.row, &divisor, &mut w_ctr, &mut ctr, &mut esc);
-            assert_eq!(EscCode::Lop, esc);
+            let mut tg = TestGauges::blank();
+            let remratio = divrem_accelerated(&dividend.row, &divisor, &mut tg);
+            assert_eq!(DivRemEscCode::Lop, tg.esc);
 
             assert_eq!(vec![0, 4], remratio.0);
             assert_eq!(vec![0, 0, 1], remratio.1);
 
-            assert_eq!(1, w_ctr);
-            assert_eq!(2, ctr);
+            assert_eq!(1, tg.w_ctr);
+            assert_eq!(2, tg.ctr);
 
             // 5040 -1× 5000 ⇒ 1 +1
             // rem 40        ⇒ Σ 2 = 1 +1 +0
@@ -2962,21 +2890,17 @@ mod tests_of_units {
             let dividend = Row::new_from_usize(65005);
             let divisor = vec![5];
 
-            let mut w_ctr = 0;
-            let mut ctr = 0;
-
             let ratio = Row::new_from_usize(13_001).row;
 
-            let mut esc = Unset;
-            let remratio =
-                divrem_acceleration(&dividend.row, &divisor, &mut w_ctr, &mut ctr, &mut esc);
-            assert_eq!(EscCode::Dcf, esc);
+            let mut tg = TestGauges::blank();
+            let remratio = divrem_accelerated(&dividend.row, &divisor, &mut tg);
+            assert_eq!(DivRemEscCode::Dcf, tg.esc);
 
             assert_eq!(vec![0], remratio.0);
             assert_eq!(ratio, remratio.1);
 
-            assert_eq!(2, w_ctr);
-            assert_eq!(8, ctr);
+            assert_eq!(2, tg.w_ctr);
+            assert_eq!(8, tg.ctr);
 
             // 65005 -1× 50000 ⇒ 1 +1
             // 15005 -3×  5000 ⇒ 3 +1
@@ -2991,7 +2915,7 @@ mod tests_of_units {
 
             let ratio = Row::new_from_u128(1366595851088106278969375933460916511);
             let remratio =
-                divrem_acceleration(&dividend.row, &divisor.row, &mut 0, &mut 0, &mut Unset);
+                divrem_accelerated(&dividend.row, &divisor.row, &mut TestGauges::blank());
 
             assert_eq!(vec![6, 1, 2], remratio.0);
             assert_eq!(ratio.row, remratio.1);
