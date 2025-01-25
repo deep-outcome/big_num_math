@@ -1030,6 +1030,59 @@ fn divrem_accelerated(
     (rem, rat)
 }
 
+
+/// Computes integer square root of `num`.
+///
+/// Returns `PlacesRow` with result.
+///
+/// Uses Heron's method.
+pub fn heron_sqrt(num: &PlacesRow) -> PlacesRow {
+    let row = heron_sqrt_raw(&num.row);
+    PlacesRow { row }
+}
+
+pub fn heron_sqrt_raw(row: &RawRow) -> RawRow {
+    if is_unity_raw(&row) || is_nought_raw(&row) {
+        return row.clone();
+    }
+
+    let two = &vec![2];
+    let mut cur = divrem_accelerated(
+        row,
+        two,
+        #[cfg(test)]
+        &mut TestGauges::blank(),
+    )
+    .1;
+
+    loop {
+        let mut rat = divrem_accelerated(
+            &row,
+            &cur,
+            #[cfg(test)]
+            &mut TestGauges::blank(),
+        )
+        .1;
+
+        addition(&cur, None, &mut rat, 0);
+        let nex = divrem_accelerated(
+            &rat,
+            &two,
+            #[cfg(test)]
+            &mut TestGauges::blank(),
+        )
+        .1;
+
+        if let Rel::Lesser(_) = rel_raw(&nex, &cur) {
+            cur = nex;
+        } else {
+            break;
+        }
+    }
+
+    cur
+}
+
 /// Combined method allows to compute multiplication and power using shared code.
 ///
 /// Space for effecient power computation?
@@ -2919,6 +2972,75 @@ mod tests_of_units {
 
             assert_eq!(vec![6, 1, 2], remratio.0);
             assert_eq!(ratio.row, remratio.1);
+        }
+    }
+
+
+    mod heron_sqrt_raw {
+        use crate::{heron_sqrt_raw, nought_raw, unity_raw, Row};
+        use alloc::vec;
+
+        #[test]
+        fn test_2() {
+            assert_eq!(vec![1], heron_sqrt_raw(&vec![2]));
+        }
+
+        #[test]
+        fn test_3() {
+            assert_eq!(vec![1], heron_sqrt_raw(&vec![3]));
+        }
+
+        #[test]
+        fn test_4() {
+            assert_eq!(vec![2], heron_sqrt_raw(&vec![4]));
+        }
+
+        #[test]
+        fn test_7() {
+            assert_eq!(vec![2], heron_sqrt_raw(&vec![8]));
+        }
+
+        #[test]
+        fn test_8() {
+            assert_eq!(vec![3], heron_sqrt_raw(&vec![9]));
+        }
+
+        #[test]
+        fn test_17() {
+            let test = Row::new_from_u8(17);
+            assert_eq!(vec![4], heron_sqrt_raw(&test.row));
+        }
+
+        #[test]
+        fn test_24() {
+            let test = Row::new_from_u8(24);
+            assert_eq!(vec![4], heron_sqrt_raw(&test.row));
+        }
+
+        #[test]
+        fn test_25() {
+            let test = Row::new_from_u8(25);
+            assert_eq!(vec![5], heron_sqrt_raw(&test.row));
+        }
+
+        #[test]
+        fn load_test() {
+            let test = Row::new_from_str(
+                "999999999999999999999999999999999999998000000000000000000000000000000000000001",
+            )
+            .unwrap();
+            let proof = Row::new_from_str("999999999999999999999999999999999999999").unwrap();
+            assert_eq!(proof.row, heron_sqrt_raw(&test.row));
+        }
+
+        #[test]
+        fn unity_test() {
+            assert_eq!(unity_raw(), heron_sqrt_raw(&unity_raw()));
+        }
+
+        #[test]
+        fn nought_test() {
+            assert_eq!(nought_raw(), heron_sqrt_raw(&nought_raw()));
         }
     }
 

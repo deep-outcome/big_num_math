@@ -14,5 +14,6 @@ exclude = ["/note", "/rustfmt.toml.disabled"]
 
 [features]
 ext-tests = []
+ext-tests2 = []
 shorter-dividend-support = []
 one-power-mulmul-support = []
