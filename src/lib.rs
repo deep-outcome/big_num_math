@@ -145,42 +145,42 @@ impl PlacesRow {
         new_from_num!(num)
     }
 
-    /// Convertor function.
+    /// Convertor method.
     ///
     /// Returns `None` if `PlacesRow` cannot fit into target type.
     pub fn try_into_u8(&self) -> Option<u8> {
         try_into_num!(&self.row, u8, &mut 0)
     }
 
-    /// Convertor function.
+    /// Convertor method.
     ///
     /// Returns `None` if `PlacesRow` cannot fit into target type.
     pub fn try_into_u16(&self) -> Option<u16> {
         try_into_num!(&self.row, u16, &mut 0)
     }
 
-    /// Convertor function.
+    /// Convertor method.
     ///
     /// Returns `None` if `PlacesRow` cannot fit into target type.
     pub fn try_into_u32(&self) -> Option<u32> {
         try_into_num!(&self.row, u32, &mut 0)
     }
 
-    /// Convertor function.
+    /// Convertor method.
     ///
     /// Returns `None` if `PlacesRow` cannot fit into target type.
     pub fn try_into_u64(&self) -> Option<u64> {
         try_into_num!(&self.row, u64, &mut 0)
     }
 
-    /// Convertor function.
+    /// Convertor method.
     ///
     /// Returns `None` if `PlacesRow` cannot fit into target type.
     pub fn try_into_u128(&self) -> Option<u128> {
         try_into_num!(&self.row, u128, &mut 0)
     }
 
-    /// Convertor function.
+    /// Convertor method.
     ///
     /// Returns `None` if `PlacesRow` cannot fit into target type.
     pub fn try_into_usize(&self) -> Option<usize> {
@@ -3038,6 +3038,13 @@ mod tests_of_units {
             )
             .unwrap();
             let proof = Row::new_from_str("999999999999999999999999999999999999999").unwrap();
+            assert_eq!(proof.row, heron_sqrt_raw(&test.row));
+        }
+
+        #[test]
+        fn readme_sample_test() {
+            let test = Row::new_from_str("9754610577924096936222542295378750190521").unwrap();
+            let proof = Row::new_from_u128(98_765_432_100_123_456_789);
             assert_eq!(proof.row, heron_sqrt_raw(&test.row));
         }
 

@@ -2,7 +2,7 @@
 Library for computations on large numbers.
 
 - development notes: 
-    1. little plan for new functions (goniometric[⨯], radix[🗸], …)
+    1. little plan for new functions
     2. upcoming optimizations (memory consumption, speed up on some computations, …)
 - functions only:
     - addition +substraction, 
@@ -10,6 +10,7 @@ Library for computations on large numbers.
     - relation and decimal relation operators
     - order of magnitude
     - power
+    - integer square root
 
 ### Usage Samples
 
@@ -69,4 +70,12 @@ let number_2 = PlacesRow::new_from_u128(3162277660168379331998893544433);
 assert_eq!(Oom::Precise(30), ord_of_mag(&number_1, OomKind::Strict));
 assert_eq!(Oom::Precise(31), ord_of_mag(&number_2, OomKind::Strict));
 assert_eq!(Oom::Precise(30), ord_of_mag(&number_2, OomKind::Loose));
+```
+
+##### square root
+
+```rust
+let test = Row::new_from_str("9754610577924096936222542295378750190521").unwrap();
+let proof = Row::new_from_u128(98_765_432_100_123_456_789);
+assert_eq!(proof.row, heron_sqrt_raw(&test.row));
 ```
