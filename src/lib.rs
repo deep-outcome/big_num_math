@@ -1030,7 +1030,6 @@ fn divrem_accelerated(
     (rem, rat)
 }
 
-
 /// Computes integer square root of `num`.
 ///
 /// Returns `PlacesRow` with result.
@@ -1939,7 +1938,7 @@ mod tests_of_units {
             #[test]
             fn universal_test() {
                 #[rustfmt::skip]
-                let values = [                    
+                let values = [
                     // lesser-equal-greater triplet
                     (4, 0)    , (5, 1)     , (6, 1),                    
                     // lesser-longer-greater triplets
@@ -2974,7 +2973,6 @@ mod tests_of_units {
             assert_eq!(ratio.row, remratio.1);
         }
     }
-
 
     mod heron_sqrt_raw {
         use crate::{heron_sqrt_raw, nought_raw, unity_raw, Row};
