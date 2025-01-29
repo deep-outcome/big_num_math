@@ -1,5 +1,6 @@
 relaxed
     - nth prime
+    - is greater/lesser inspection methods for rel results
 
 noticeable    
     - inspect mulmul without intermediate product: to be better only stack must employed (no Vec writes) => addition method split
