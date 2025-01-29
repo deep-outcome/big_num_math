@@ -75,7 +75,7 @@ assert_eq!(Oom::Precise(30), ord_of_mag(&number_2, OomKind::Loose));
 ##### square root
 
 ```rust
-let test = Row::new_from_str("9754610577924096936222542295378750190521").unwrap();
+let test  = Row::new_from_str("9754610577924096936222542295378750190521").unwrap();
 let proof = Row::new_from_u128(98_765_432_100_123_456_789);
-assert_eq!(proof.row, heron_sqrt_raw(&test.row));
+assert_eq!(proof, heron_sqrt(&test));
 ```

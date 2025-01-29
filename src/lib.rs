@@ -2982,6 +2982,14 @@ mod tests_of_units {
             let row = Row::new_from_u8(16);
             assert_eq!([4], &*heron_sqrt(&row));
         }
+        
+        #[test]
+        #[rustfmt::skip]
+        fn readme_sample_test() {
+            let test  = Row::new_from_str("9754610577924096936222542295378750190521").unwrap();
+            let proof = Row::new_from_u128(98_765_432_100_123_456_789);
+            assert_eq!(proof, heron_sqrt(&test));
+        }
     }
 
     mod heron_sqrt_raw {
@@ -3038,13 +3046,6 @@ mod tests_of_units {
             )
             .unwrap();
             let proof = Row::new_from_str("999999999999999999999999999999999999999").unwrap();
-            assert_eq!(proof.row, heron_sqrt_raw(&test.row));
-        }
-
-        #[test]
-        fn readme_sample_test() {
-            let test = Row::new_from_str("9754610577924096936222542295378750190521").unwrap();
-            let proof = Row::new_from_u128(98_765_432_100_123_456_789);
             assert_eq!(proof.row, heron_sqrt_raw(&test.row));
         }
 
