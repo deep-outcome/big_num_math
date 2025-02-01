@@ -1033,7 +1033,8 @@ use tests_of_units::prime_ck::{PrimeCkEscCode, PrimeCkTestGauges};
 ///
 /// Unity is not considered to be prime number.
 ///
-/// Computation is intemperately time consuming on large numbers, especially large prime numbers.
+/// Computation is intemperately time consuming on large numbers, especially large prime numbers, or 
+/// generally on numbers having large divisor only.
 ///
 /// Optionally, allows for time limited computation. Early interruption can be insubstantially delayed
 /// due nature of limit verification.
