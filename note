@@ -1,5 +1,5 @@
 relaxed
-    - nth prime
+    - nth prime/prime gen
     - is greater/lesser inspection methods for rel results
 
 noticeable    
@@ -14,3 +14,4 @@ tough
 questionable
     - reflect to lite, especially to mishmas proj:
         - mulmul escape for 0 multiplier
+    - make computations safe against overflow

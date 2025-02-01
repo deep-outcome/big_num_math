@@ -1,14 +1,11 @@
 //! Allows to compute on big numbers. No negative numbers support. Provides only some
 //! basic mathematical functions.
 
-#![no_std]
-
-extern crate alloc;
 type RawRow = Vec<u8>;
 type Row = PlacesRow;
 
 macro_rules! new_from_num {
-    ($n:ident) => {{
+    ($n:expr) => {{
         let mut n = $n;
         let mut row = Vec::new();
         loop {
@@ -349,7 +346,7 @@ fn to_digit(n: u8) -> char {
     }
 }
 
-impl alloc::string::ToString for PlacesRow {
+impl std::string::ToString for PlacesRow {
     /// Returns `String` representation.
     fn to_string(&self) -> String {
         self.to_number()
@@ -357,6 +354,7 @@ impl alloc::string::ToString for PlacesRow {
 }
 
 use core::convert::From;
+use std::time::{Duration, Instant};
 
 impl From<u8> for PlacesRow {
     /// Converts `value` into `PlacesRow`.
@@ -643,8 +641,6 @@ fn dec_pla_cnt_raw(r: &RawRow) -> usize {
         r.len()
     }
 }
-
-use alloc::{string::String, vec, vec::Vec};
 
 /// Computes `addend1` and `addend2` sum.
 ///
@@ -1030,6 +1026,334 @@ fn divrem_accelerated(
     (rem, rat)
 }
 
+#[cfg(test)]
+use tests_of_units::prime_ck::{PrimeCkEscCode, PrimeCkTestGauges};
+
+/// Examines `num` primality.
+///
+/// Unity is not considered to be prime number.
+///
+/// Computation is intemperately time consuming on large numbers, especially large prime numbers.
+///
+/// Optionally, allows for time limited computation. Early interruption can be insubstantially delayed
+/// due nature of limit verification.
+///
+/// Returns `None` for computation with exhausted timeframe.
+pub fn prime_ck(
+    num: &PlacesRow,
+    lim: Option<Duration>,
+    #[cfg(test)] tg: &mut PrimeCkTestGauges,
+) -> Option<bool> {
+    let row = &num.row;
+
+    {
+        if is_one_raw(row, 2) || is_one_raw(row, 3) || is_one_raw(row, 5) || is_one_raw(row, 7) {
+            #[cfg(test)]
+            {
+                tg.esc = PrimeCkEscCode::Ar;
+            }
+            return Some(true);
+        }
+
+        let one = row[0];
+        if one % 2 == 0 || one == 5 || is_unity_raw(&row) {
+            #[cfg(test)]
+            {
+                tg.esc = PrimeCkEscCode::Ob;
+            }
+            return Some(false);
+        }
+    }
+
+    {
+        let mut sum = nought_raw();
+        let mut ix = 0;
+
+        let len = row.len();
+        while ix < len {
+            addition(&vec![row[ix]], None, &mut sum, 0);
+            ix += 1;
+        }
+
+        let rem = divrem_accelerated(
+            &sum,
+            &vec![3],
+            #[cfg(test)]
+            &mut TestGauges::blank(),
+        )
+        .0;
+
+        if is_nought_raw(&rem) {
+            #[cfg(test)]
+            {
+                tg.esc = PrimeCkEscCode::Dt;
+            }
+            return Some(false);
+        }
+    }
+
+    // 1 < a ≤ b < num, num = a ⋅b = √num ⋅√num
+    //  ⇒ a=b=√num ∨ a < b ⇒ a < √num ∧ b > √num
+    let sqrt = heron_sqrt_raw(&row);
+
+    #[cfg(test)]
+    {
+        if let Some(n) = try_into_num!(&sqrt, usize, &mut 0) {
+            tg.sqrt = n
+        }
+    }
+
+    // counters initial state when starting at 7
+    let mut accel_cnt: [isize; 10] = [
+        1,   // 3
+        -1,  // 7
+        -3,  // 11
+        -4,  // 13
+        -6,  // 17
+        -7,  // 19
+        -9,  // 23
+        -12, // 29
+        -13, // 31
+        -16, // 37
+    ];
+
+    let then = Instant::now();
+    let (limited, limit) = if let Some(d) = lim {
+        (true, d)
+    } else {
+        (false, Duration::ZERO)
+    };
+
+    let increment = vec![2];
+    let mut probe = vec![5];
+    loop {
+        if limited && limit <= then.elapsed() {
+            return None;
+        }
+
+        addition(&increment, None, &mut probe, 0);
+
+        if let Rel::Greater(_) = rel_raw(&probe, &sqrt) {
+            #[cfg(test)]
+            {
+                if !tg.check_starts {
+                    tg.esc = PrimeCkEscCode::Pn;
+                }
+            }
+
+            return Some(true);
+        }
+
+        accel_cnt[0] += 1;
+        accel_cnt[1] += 1;
+        accel_cnt[2] += 1;
+
+        accel_cnt[3] += 1;
+        accel_cnt[4] += 1;
+        accel_cnt[5] += 1;
+
+        accel_cnt[6] += 1;
+        accel_cnt[7] += 1;
+        accel_cnt[8] += 1;
+        accel_cnt[9] += 1;
+
+        #[cfg(test)]
+        {
+            if tg.check_starts {
+                let probe_val = try_into_num!(probe, usize, &mut 0).unwrap();
+                if accel_cnt[0] == 3 {
+                    tg.esc = PrimeCkEscCode::Hit3Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if probe[0] == 5 {
+                    tg.esc = PrimeCkEscCode::Hit5Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[1] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit7Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[2] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit11Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[3] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit13Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[4] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit17Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[5] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit19Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[6] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit23Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[7] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit29Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[8] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit31Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[9] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit37Start;
+                    tg.peekhole = probe_val;
+                }
+            }
+        }
+
+        // probe not prime
+        let mut probe_np = false;
+        if accel_cnt[0] == 3 {
+            accel_cnt[0] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[0] += 1;
+            }
+        }
+
+        if probe[0] == 5 {
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[1] += 1;
+            }
+        }
+
+        if accel_cnt[1] == 7 {
+            accel_cnt[1] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[2] += 1;
+            }
+        }
+
+        if accel_cnt[2] == 11 {
+            accel_cnt[2] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[3] += 1;
+            }
+        }
+
+        if accel_cnt[3] == 13 {
+            accel_cnt[3] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[4] += 1;
+            }
+        }
+
+        if accel_cnt[4] == 17 {
+            accel_cnt[4] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[5] += 1;
+            }
+        }
+
+        if accel_cnt[5] == 19 {
+            accel_cnt[5] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[6] += 1;
+            }
+        }
+
+        if accel_cnt[6] == 23 {
+            accel_cnt[6] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[7] += 1;
+            }
+        }
+
+        if accel_cnt[7] == 29 {
+            accel_cnt[7] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[8] += 1;
+            }
+        }
+
+        if accel_cnt[8] == 31 {
+            accel_cnt[8] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[9] += 1;
+            }
+        }
+
+        if accel_cnt[9] == 37 {
+            accel_cnt[9] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[10] += 1;
+            }
+        }
+
+        if probe_np {
+            continue;
+        }
+
+        let rem = divrem_accelerated(
+            row,
+            &probe,
+            #[cfg(test)]
+            &mut TestGauges::blank(),
+        )
+        .0;
+
+        if is_nought_raw(&rem) {
+            #[cfg(test)]
+            {
+                if !tg.check_starts {
+                    tg.esc = PrimeCkEscCode::Np;
+                }
+            }
+
+            return Some(false);
+        }
+    }
+}
+
 /// Computes integer square root of `num`.
 ///
 /// Returns `PlacesRow` with result.
@@ -1329,9 +1653,6 @@ mod tests_of_units {
     }
 
     use crate::Row;
-    use alloc::string::ToString;
-    use alloc::vec::Vec;
-
     #[test]
     fn new_from_num() {
         let num = u128::MAX;
@@ -1345,7 +1666,6 @@ mod tests_of_units {
     mod into_num {
         use crate::add;
         use crate::Row;
-        use alloc::vec::Vec;
 
         #[test]
         fn basic_test() {
@@ -1394,11 +1714,9 @@ mod tests_of_units {
     }
     mod placesrow {
         use crate::Row;
-        use alloc::string::ToString;
 
         mod new_from_vec {
             use crate::Row;
-            use alloc::vec;
 
             #[test]
             fn basic_test() {
@@ -1496,7 +1814,6 @@ mod tests_of_units {
 
         mod try_into {
             use crate::Row;
-            use alloc::vec::Vec;
 
             #[test]
             fn try_into_u8() {
@@ -1595,7 +1912,6 @@ mod tests_of_units {
 
         mod to_number {
             use crate::Row;
-            use alloc::vec;
 
             #[test]
             fn basic_test() {
@@ -1686,7 +2002,6 @@ mod tests_of_units {
 
     mod shrink_to_fit_raw {
         use crate::shrink_to_fit_raw;
-        use alloc::vec::Vec;
 
         #[test]
         fn zero_truncation_test() {
@@ -1717,7 +2032,6 @@ mod tests_of_units {
 
     mod truncate_leading_raw {
         use crate::truncate_leading_raw;
-        use alloc::vec;
 
         #[test]
         fn basic_test() {
@@ -1729,7 +2043,6 @@ mod tests_of_units {
 
     mod len_without_leading_raw {
         use crate::len_without_leading_raw;
-        use alloc::vec;
 
         #[test]
         fn counting_test() {
@@ -1800,11 +2113,8 @@ mod tests_of_units {
     }
 
     mod from_digit {
-        extern crate std;
 
         use crate::from_digit;
-        use alloc::format;
-        use alloc::string::{String, ToString};
         use std::panic::catch_unwind;
 
         #[test]
@@ -1834,7 +2144,6 @@ mod tests_of_units {
 
     mod to_digit {
         use crate::to_digit;
-        use alloc::string::ToString;
 
         #[test]
         fn basic_test() {
@@ -1885,7 +2194,6 @@ mod tests_of_units {
         }
 
         mod strict {
-            use alloc::string::String;
 
             use super::PROOF;
             use crate::{ord_of_mag, Oom, OomKind::Strict, Row};
@@ -1896,8 +2204,8 @@ mod tests_of_units {
                 // lesser-shorter-greater triplets
                 let values = [
                     (2,0), (3, 0), (4, 1),
-                    (30, 1), (31, 1), (32, 2),                    
-                    (315, 2), (316, 2), (317, 3), 
+                    (30, 1), (31, 1), (32, 2),
+                    (315, 2), (316, 2), (317, 3),
                     (3161, 3), (3162, 3), (3163, 4),                       
                     (316_227_765, 8), (316_227_766, 8), (316_227_767, 9),                                   
                 ];
@@ -1940,9 +2248,9 @@ mod tests_of_units {
                 #[rustfmt::skip]
                 let values = [
                     // lesser-equal-greater triplet
-                    (4, 0)    , (5, 1)     , (6, 1),                    
+                    (4, 0)    , (5, 1)     , (6, 1),
                     // lesser-longer-greater triplets
-                    (40, 1)   , (50, 2)    , (60, 2),                                                                                                                        
+                    (40, 1)   , (50, 2)    , (60, 2),
                     (4000, 3) , (5000, 4)  , (6000, 4)                                                                                                                                                                
                 ];
 
@@ -2083,7 +2391,6 @@ mod tests_of_units {
     }
 
     mod dec_pla_cnt_raw {
-        use alloc::vec;
 
         use crate::dec_pla_cnt_raw;
 
@@ -2173,7 +2480,6 @@ mod tests_of_units {
             assert_eq!(None, add_shortcut(&unity_raw(), &unity_raw()));
         }
 
-        use alloc::vec;
         #[test]
         fn r1_nought_test() {
             let r1 = nought_raw();
@@ -2616,7 +2922,6 @@ mod tests_of_units {
 
     pub mod divrem_accelerated {
         use crate::{divrem_accelerated, Row};
-        use alloc::vec;
 
         #[derive(PartialEq, Eq, Debug)]
         pub enum DivRemEscCode {
@@ -2974,9 +3279,325 @@ mod tests_of_units {
         }
     }
 
+    pub mod prime_ck {
+        use std::time::Duration;
+
+        use crate::{prime_ck, Row};
+
+        #[derive(PartialEq, Debug)]
+        pub enum PrimeCkEscCode {
+            Unset,
+            // prime number
+            Pn,
+            // needed for arithmetical correctness of consequent verifications
+            Ar,
+            // obviously not prime
+            Ob,
+            // sum divisible by three
+            Dt,
+            // not prime
+            Np,
+            Hit3Start,
+            Hit5Start,
+            Hit7Start,
+            Hit11Start,
+            Hit13Start,
+            Hit17Start,
+            Hit19Start,
+            Hit23Start,
+            Hit29Start,
+            Hit31Start,
+            Hit37Start,
+        }
+
+        pub struct PrimeCkTestGauges {
+            pub esc: PrimeCkEscCode,
+            pub check_starts: bool,
+            pub cntrs: [usize; 11],
+            pub peekhole: usize,
+            pub sqrt: usize,
+        }
+
+        impl PrimeCkTestGauges {
+            fn blank() -> Self {
+                Self {
+                    esc: PrimeCkEscCode::Unset,
+                    check_starts: false,
+                    cntrs: [0; 11],
+                    peekhole: 0,
+                    sqrt: 0,
+                }
+            }
+        }
+
+        #[test]
+        fn basic_test() {
+            let row = new_from_num!(4643);
+            assert_eq!(
+                Some(true),
+                prime_ck(&row, None, &mut PrimeCkTestGauges::blank())
+            );
+        }
+
+        #[test]
+        fn basic_values_test() {
+            let vals = [
+                (0, PrimeCkEscCode::Ob),
+                (1, PrimeCkEscCode::Ob),
+                (2, PrimeCkEscCode::Ar),
+                (3, PrimeCkEscCode::Ar),
+                (4, PrimeCkEscCode::Ob),
+                (5, PrimeCkEscCode::Ar),
+                (6, PrimeCkEscCode::Ob),
+                (7, PrimeCkEscCode::Ar),
+                (8, PrimeCkEscCode::Ob),
+                (9, PrimeCkEscCode::Dt),
+                (10, PrimeCkEscCode::Ob),
+            ];
+
+            for v in vals {
+                let mut tg = PrimeCkTestGauges::blank();
+                let row = new_from_num!(v.0);
+
+                let pn = v.1 == PrimeCkEscCode::Ar;
+                assert_eq!(Some(pn), prime_ck(&row, None, &mut tg), "{}", v.0);
+                assert_eq!(v.1, tg.esc, "{}", v.0);
+            }
+        }
+
+        #[test]
+        fn advaced_values_test() {
+            let vals = [
+                (11, PrimeCkEscCode::Pn),
+                (13, PrimeCkEscCode::Pn),
+                (15, PrimeCkEscCode::Ob),
+                (17, PrimeCkEscCode::Pn),
+                (19, PrimeCkEscCode::Pn),
+                (21, PrimeCkEscCode::Dt),
+                (23, PrimeCkEscCode::Pn),
+                (25, PrimeCkEscCode::Ob),
+                (27, PrimeCkEscCode::Dt),
+                (29, PrimeCkEscCode::Pn),
+                (31, PrimeCkEscCode::Pn),
+                (33, PrimeCkEscCode::Dt),
+                (35, PrimeCkEscCode::Ob),
+                (37, PrimeCkEscCode::Pn),
+            ];
+
+            for v in vals {
+                let mut tg = PrimeCkTestGauges::blank();
+                let row = new_from_num!(v.0);
+
+                let pn = v.1 == PrimeCkEscCode::Pn;
+                assert_eq!(Some(pn), prime_ck(&row, None, &mut tg), "{}", v.0);
+                assert_eq!(v.1, tg.esc, "{}", v.0);
+            }
+        }
+
+        #[test]
+        fn division_cache_test() {
+            // probe starts at 7
+            let vals = [
+                // beware, 3 does not starts in negative thus
+                // acts as if it was already hit, false hit
+                // ⌊√83⌋ = 9
+                (83, PrimeCkEscCode::Hit3Start, 9),
+                // beware, shares repetition with 3
+                // but is subsequent in setting block, false hit
+                // ⌊√227⌋ = 15
+                (227, PrimeCkEscCode::Hit5Start, 15),
+                (49, PrimeCkEscCode::Hit7Start, 7),
+                (121, PrimeCkEscCode::Hit11Start, 11),
+                (169, PrimeCkEscCode::Hit13Start, 13),
+                (289, PrimeCkEscCode::Hit17Start, 17),
+                (361, PrimeCkEscCode::Hit19Start, 19),
+                (529, PrimeCkEscCode::Hit23Start, 23),
+                (841, PrimeCkEscCode::Hit29Start, 29),
+                (961, PrimeCkEscCode::Hit31Start, 31),
+                (1369, PrimeCkEscCode::Hit37Start, 37),
+            ];
+
+            for v in vals {
+                let mut tg = PrimeCkTestGauges::blank();
+                tg.check_starts = true;
+                let row = new_from_num!(v.0);
+
+                _ = prime_ck(&row, None, &mut tg);
+                assert_eq!(v.1, tg.esc, "{}", v.0);
+                assert_eq!(v.2, tg.sqrt, "{}", v.0);
+                assert_eq!(v.2, tg.peekhole, "{}", v.0);
+            }
+        }
+
+        #[test]
+        fn division_cache_test2() {
+            let mut tg = PrimeCkTestGauges::blank();
+
+            // √12323 ≈ 111
+            let row = new_from_num!(12323);
+
+            assert_eq!(Some(true), prime_ck(&row, None, &mut tg));
+
+            // ...........................................................................................
+            // : 0 : 1 : 2 : 3 : 4 : 5  : 6  : 7  : 8  : 9  : 10 : 11 : 12 : 13 : 14 : 15 : 16 : 17 : 18 :
+            // :...:...:...:...:...:....:....:....:....:....:....:....:....:....:....:....:....:....:....:
+            // : 1 : 3 : 5 : 7 : 9 : 11 : 13 : 15 : 17 : 19 : 21 : 23 : 25 : 27 : 29 : 31 : 33 : 35 : 37 :
+            // :...:...:...:...:...:....:....:....:....:....:....:....:....:....:....:....:....:....:....:
+
+            assert_eq!(111, tg.sqrt);
+
+            // probe starts at 7
+            let proof = [
+                18, //  3, 3…37,   9…111
+                10, //  5, 3…21,  15…105
+                7,  //  7, 3…15,  21…105
+                4,  // 11, 3 …9,  33 …99
+                3,  // 13, 3 …7,  39 …91
+                2,  // 17, 3 …5,  51 …85
+                2,  // 19, 3 …5,  57 …95
+                1,  // 23, 3 …3,  69 …69
+                1,  // 29, 3 …3,  87 …87
+                1,  // 31, 3 …3,  93 …93
+                1,  // 37, 3 …3, 111…111
+            ];
+
+            for (ix, c) in tg.cntrs.iter().enumerate() {
+                assert_eq!(proof[ix], *c, "{ix}");
+            }
+        }
+
+        #[test]
+        fn easy_discard_test() {
+            let vals = [0, 1, 1000, 2222, 3008, 5005, 5025, 7275];
+
+            for v in vals {
+                let row = new_from_num!(v);
+                let mut tg = PrimeCkTestGauges::blank();
+                assert_eq!(Some(false), prime_ck(&row, None, &mut tg), "{}", v);
+                assert_eq!(PrimeCkEscCode::Ob, tg.esc, "{}", v);
+            }
+        }
+
+        #[test]
+        fn timeframe_exhaustion_test() {
+            let prime = Row::new_from_str(
+                "5210644015679228794060694325390955853335898483908056458352183851018372555735221",
+            )
+            .unwrap();
+            let duration = Duration::from_secs(2);
+
+            assert_eq!(
+                None,
+                prime_ck(&prime, Some(duration), &mut PrimeCkTestGauges::blank())
+            );
+        }
+
+        #[test]
+        fn primes_test() {
+            let primes = [
+                "4003",
+                "7919",
+                "19373",
+                "100005583",
+                "100010717",
+                "1000037299",
+                "1000062023",
+                "100000012561",
+                "100000002199",
+                "100000015333",
+                "2932031007403",
+            ];
+
+            for p in primes {
+                let mut tg = PrimeCkTestGauges::blank();
+                let row = Row::new_from_str(p).unwrap();
+                assert_eq!(
+                    Some(true),
+                    prime_ck(&row, None, &mut tg),
+                    "{}",
+                    row.to_number()
+                );
+                assert_eq!(PrimeCkEscCode::Pn, tg.esc, "{}", row.to_number());
+            }
+        }
+
+        #[test]
+        #[cfg(feature = "ext-tests2")]
+        fn primes_ext_test() {
+            let primes = [
+                "9999999900000001",
+                "909090909090909091",
+                "768614336404564651",
+            ];
+
+            for p in primes {
+                let mut tg = PrimeCkTestGauges::blank();
+                let row = Row::new_from_str(p).unwrap();
+                assert_eq!(
+                    Some(true),
+                    prime_ck(&row, None, &mut tg),
+                    "{}",
+                    row.to_number()
+                );
+                assert_eq!(PrimeCkEscCode::Pn, tg.esc, "{}", row.to_number());
+            }
+        }
+
+        // finish unseen yet
+        #[test]
+        #[cfg(feature = "ext-tests3")]
+        fn primes_ext2_test() {
+            let primes = [
+                "5210644015679228794060694325390955853335898483908056458352183851018372555735221",
+                 "6864797660130609714981900799081393217269435300143305409394463459185543183397656052122559640661454554977296311391480858037121987999716643812574028291115057151",
+                  "531137992816767098689588206552468627329593117727031923199444138200403559860852242739162502265229285668889329486246501015346579337652707239409519978766587351943831270835393219031728127"  
+            ];
+
+            for p in primes {
+                let mut tg = PrimeCkTestGauges::blank();
+                let row = Row::new_from_str(p).unwrap();
+                assert_eq!(
+                    Some(true),
+                    prime_ck(&row, None, &mut tg),
+                    "{}",
+                    row.to_number()
+                );
+                assert_eq!(PrimeCkEscCode::Pn, tg.esc, "{}", row.to_number());
+            }
+        }
+
+        #[test]
+        fn not_primes_test() {
+            let not_primes = [
+                ("6", PrimeCkEscCode::Ob),
+                ("4009", PrimeCkEscCode::Np),
+                ("7917", PrimeCkEscCode::Dt),
+                ("19371", PrimeCkEscCode::Dt),
+                ("100005587", PrimeCkEscCode::Np),
+                ("100010713", PrimeCkEscCode::Np),
+                ("1000037291", PrimeCkEscCode::Np),
+                ("1000062029", PrimeCkEscCode::Np),
+                ("5210644015679228794060694325390955853335898483908056458352183851018372555735223",  PrimeCkEscCode::Dt),
+                ("6864797660130609714981900799081393217269435300143305409394463459185543183397656052122559640661454554977296311391480858037121987999716643812574028291115057153", PrimeCkEscCode::Dt),
+                ("531137992816767098689588206552468627329593117727031923199444138200403559860852242739162502265229285668889329486246501015346579337652707239409519978766587351943831270835393219031728121", PrimeCkEscCode::Np)
+            ];
+
+            for np in not_primes {
+                let mut tg = PrimeCkTestGauges::blank();
+                let row = Row::new_from_str(np.0).unwrap();
+                assert_eq!(
+                    Some(false),
+                    prime_ck(&row, None, &mut tg),
+                    "{}",
+                    row.to_number()
+                );
+                assert_eq!(np.1, tg.esc, "{}", row.to_number());
+            }
+        }
+    }
+
     mod heron_sqrt {
         use crate::{heron_sqrt, Row};
-
         #[test]
         fn basic_test() {
             let row = Row::new_from_u8(16);
@@ -2994,7 +3615,6 @@ mod tests_of_units {
 
     mod heron_sqrt_raw {
         use crate::{heron_sqrt_raw, nought_raw, unity_raw, Row};
-        use alloc::vec;
 
         #[test]
         fn test_2() {
@@ -3094,8 +3714,6 @@ mod tests_of_units {
     /// - Since 8+81=89 all results fit into 8=⌊89÷10⌋ tens.
     mod product {
         use crate::product as product_fn;
-        use alloc::vec;
-        use alloc::vec::Vec;
 
         #[test]
         fn basic_test() {
@@ -3128,7 +3746,6 @@ mod tests_of_units {
 
         mod one_addend {
             use crate::addition;
-            use alloc::vec;
 
             #[test]
             fn basic_test() {
@@ -3173,8 +3790,6 @@ mod tests_of_units {
 
         mod two_addends {
             use crate::addition;
-            use alloc::vec;
-            use alloc::vec::Vec;
 
             #[test]
             fn basic_test() {
@@ -3219,7 +3834,6 @@ mod tests_of_units {
 
         mod subtracting {
             use crate::{subtraction, Row};
-            use alloc::vec;
 
             #[test]
             fn basic_test() {
@@ -3299,7 +3913,6 @@ mod tests_of_units {
 
         mod remainder {
             use crate::{subtraction, Row};
-            use alloc::vec;
 
             #[test]
             fn basic_test() {
