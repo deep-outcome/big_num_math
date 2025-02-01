@@ -3603,7 +3603,7 @@ mod tests_of_units {
             let row = Row::new_from_u8(16);
             assert_eq!([4], &*heron_sqrt(&row));
         }
-        
+
         #[test]
         #[rustfmt::skip]
         fn readme_sample_test() {
