@@ -1036,7 +1036,7 @@ use tests_of_units::prime_ck::{PrimeCkEscCode, PrimeCkTestGauges};
 /// Computation is intemperately time consuming on large numbers, especially large prime numbers, or
 /// generally on numbers having large divisor only.
 ///
-/// Optionally, allows for time limited computation. Early interruption can be insubstantially delayed
+/// Optionally, allows for time-limited computation. Early interruption can be insubstantially delayed
 /// due nature of limit verification.
 ///
 /// Returns `None` for computation with exhausted timeframe.
@@ -3594,6 +3594,16 @@ mod tests_of_units {
                 );
                 assert_eq!(np.1, tg.esc, "{}", row.to_number());
             }
+        }
+
+        #[test]
+        fn readme_sample_test() {
+            let num = Row::new_from_str("340282366920938463463374607431768211479").unwrap();
+            let limit = Duration::from_secs(3);
+            assert_eq!(
+                Some(false),
+                prime_ck(&num, Some(limit), &mut PrimeCkTestGauges::blank())
+            );
         }
     }
 

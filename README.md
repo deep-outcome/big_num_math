@@ -11,6 +11,7 @@ Library for computations on large numbers.
     - order of magnitude
     - power
     - integer square root
+    - primality check
 
 ### Usage Samples
 
@@ -78,4 +79,11 @@ assert_eq!(Oom::Precise(30), ord_of_mag(&number_2, OomKind::Loose));
 let test  = Row::new_from_str("9754610577924096936222542295378750190521").unwrap();
 let proof = Row::new_from_u128(98_765_432_100_123_456_789);
 assert_eq!(proof, heron_sqrt(&test));
+```
+##### primality check
+
+```rust
+let num = Row::new_from_str("340282366920938463463374607431768211479").unwrap();
+let limit = Duration::from_secs(3);
+assert_eq!(Some(false), prime_ck(&num, Some(limit)));
 ```
