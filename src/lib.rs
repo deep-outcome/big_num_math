@@ -1105,18 +1105,34 @@ pub fn prime_ck(
     }
 
     // counters initial state when starting at 7
-    let mut accel_cnt: [isize; 10] = [
+    let mut accel_cnt: [isize; 25] = [
         1,   // 3
-        -1,  // 7
-        -3,  // 11
-        -4,  // 13
-        -6,  // 17
-        -7,  // 19
-        -9,  // 23
-        -12, // 29
-        -13, // 31
-        -16, // 37
+        -1,  // 7   +2 ⋅2
+        -3,  // 11  +2 ⋅2
+        -4,  // 13  +2 ⋅1
+        -6,  // 17  +2 ⋅2
+        -7,  // 19  +2 ⋅1
+        -9,  // 23  +2 ⋅2
+        -12, // 29  +2 ⋅3
+        -13, // 31  +2 ⋅1
+        -16, // 37  +2 ⋅3
+        -18, // 41  +2 ⋅2
+        -19, // 43  +2 ⋅1
+        -21, // 47  +2 ⋅2
+        -24, // 53  +2 ⋅3
+        -27, // 59  +2 ⋅3
+        -28, // 61  +2 ⋅1
+        -31, // 67  +2 ⋅3
+        -33, // 71  +2 ⋅2
+        -34, // 73  +2 ⋅1
+        -37, // 79  +2 ⋅3
+        -39, // 83  +2 ⋅2
+        -42, // 89  +2 ⋅3
+        -46, // 97  +2 ⋅4
+        -48, // 101 +2 ⋅2
+        -49, // 103 +2 ⋅1
     ];
+    
 
     let then = Instant::now();
     let (limited, limit) = if let Some(d) = lim {
@@ -1148,72 +1164,164 @@ pub fn prime_ck(
         accel_cnt[0] += 1;
         accel_cnt[1] += 1;
         accel_cnt[2] += 1;
-
         accel_cnt[3] += 1;
         accel_cnt[4] += 1;
-        accel_cnt[5] += 1;
 
+        accel_cnt[5] += 1;
         accel_cnt[6] += 1;
         accel_cnt[7] += 1;
         accel_cnt[8] += 1;
         accel_cnt[9] += 1;
+
+        accel_cnt[10] += 1;
+        accel_cnt[11] += 1;
+        accel_cnt[12] += 1;
+        accel_cnt[13] += 1;
+        accel_cnt[14] += 1;
+
+        accel_cnt[15] += 1;
+        accel_cnt[16] += 1;
+        accel_cnt[17] += 1;
+        accel_cnt[18] += 1;
+        accel_cnt[19] += 1;
+
+        accel_cnt[20] += 1;
+        accel_cnt[21] += 1;
+        accel_cnt[22] += 1;
+        accel_cnt[23] += 1;
+        accel_cnt[24] += 1;
 
         #[cfg(test)]
         {
             if tg.check_starts {
                 let probe_val = try_into_num!(probe, usize, &mut 0).unwrap();
                 if accel_cnt[0] == 3 {
-                    tg.esc = PrimeCkEscCode::Hit3Start;
+                    tg.esc = PrimeCkEscCode::Hit_3_Start;
                     tg.peekhole = probe_val;
                 }
 
                 if probe[0] == 5 {
-                    tg.esc = PrimeCkEscCode::Hit5Start;
+                    tg.esc = PrimeCkEscCode::Hit_5_Start;
                     tg.peekhole = probe_val;
                 }
 
                 if accel_cnt[1] == 0 {
-                    tg.esc = PrimeCkEscCode::Hit7Start;
+                    tg.esc = PrimeCkEscCode::Hit_7_Start;
                     tg.peekhole = probe_val;
                 }
 
                 if accel_cnt[2] == 0 {
-                    tg.esc = PrimeCkEscCode::Hit11Start;
+                    tg.esc = PrimeCkEscCode::Hit_11_Start;
                     tg.peekhole = probe_val;
                 }
 
                 if accel_cnt[3] == 0 {
-                    tg.esc = PrimeCkEscCode::Hit13Start;
+                    tg.esc = PrimeCkEscCode::Hit_13_Start;
                     tg.peekhole = probe_val;
                 }
 
                 if accel_cnt[4] == 0 {
-                    tg.esc = PrimeCkEscCode::Hit17Start;
+                    tg.esc = PrimeCkEscCode::Hit_17_Start;
                     tg.peekhole = probe_val;
                 }
 
                 if accel_cnt[5] == 0 {
-                    tg.esc = PrimeCkEscCode::Hit19Start;
+                    tg.esc = PrimeCkEscCode::Hit_19_Start;
                     tg.peekhole = probe_val;
                 }
 
                 if accel_cnt[6] == 0 {
-                    tg.esc = PrimeCkEscCode::Hit23Start;
+                    tg.esc = PrimeCkEscCode::Hit_23_Start;
                     tg.peekhole = probe_val;
                 }
 
                 if accel_cnt[7] == 0 {
-                    tg.esc = PrimeCkEscCode::Hit29Start;
+                    tg.esc = PrimeCkEscCode::Hit_29_Start;
                     tg.peekhole = probe_val;
                 }
 
                 if accel_cnt[8] == 0 {
-                    tg.esc = PrimeCkEscCode::Hit31Start;
+                    tg.esc = PrimeCkEscCode::Hit_31_Start;
                     tg.peekhole = probe_val;
                 }
 
                 if accel_cnt[9] == 0 {
-                    tg.esc = PrimeCkEscCode::Hit37Start;
+                    tg.esc = PrimeCkEscCode::Hit_37_Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[10] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit_41_Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[11] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit_43_Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[12] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit_47_Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[13] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit_53_Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[14] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit_59_Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[15] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit_61_Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[16] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit_67_Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[17] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit_71_Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[18] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit_73_Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[19] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit_79_Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[20] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit_83_Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[21] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit_89_Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[22] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit_97_Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[23] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit_101_Start;
+                    tg.peekhole = probe_val;
+                }
+
+                if accel_cnt[24] == 0 {
+                    tg.esc = PrimeCkEscCode::Hit_103_Start;
                     tg.peekhole = probe_val;
                 }
             }
@@ -1327,6 +1435,150 @@ pub fn prime_ck(
             #[cfg(test)]
             {
                 tg.cntrs[10] += 1;
+            }
+        }
+
+        if accel_cnt[10] == 41 {
+            accel_cnt[10] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[11] += 1;
+            }
+        }
+
+        if accel_cnt[11] == 43 {
+            accel_cnt[11] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[12] += 1;
+            }
+        }
+
+        if accel_cnt[12] == 47 {
+            accel_cnt[12] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[13] += 1;
+            }
+        }
+
+        if accel_cnt[13] == 53 {
+            accel_cnt[13] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[14] += 1;
+            }
+        }
+
+        if accel_cnt[14] == 59 {
+            accel_cnt[14] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[15] += 1;
+            }
+        }
+
+        if accel_cnt[15] == 61 {
+            accel_cnt[15] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[16] += 1;
+            }
+        }
+
+        if accel_cnt[16] == 67 {
+            accel_cnt[16] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[17] += 1;
+            }
+        }
+
+        if accel_cnt[17] == 71 {
+            accel_cnt[17] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[18] += 1;
+            }
+        }
+
+        if accel_cnt[18] == 73 {
+            accel_cnt[18] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[19] += 1;
+            }
+        }
+        if accel_cnt[19] == 79 {
+            accel_cnt[19] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[20] += 1;
+            }
+        }
+        if accel_cnt[20] == 83 {
+            accel_cnt[20] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[21] += 1;
+            }
+        }
+        if accel_cnt[21] == 89 {
+            accel_cnt[21] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[22] += 1;
+            }
+        }
+        if accel_cnt[22] == 97 {
+            accel_cnt[22] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[23] += 1;
+            }
+        }
+        if accel_cnt[23] == 101 {
+            accel_cnt[23] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[24] += 1;
+            }
+        }
+        if accel_cnt[24] == 103 {
+            accel_cnt[24] = 0;
+            probe_np = true;
+
+            #[cfg(test)]
+            {
+                tg.cntrs[25] += 1;
             }
         }
 
@@ -3286,6 +3538,7 @@ mod tests_of_units {
         use crate::{prime_ck, Row};
 
         #[derive(PartialEq, Debug)]
+        #[allow(non_camel_case_types)]
         pub enum PrimeCkEscCode {
             Unset,
             // prime number
@@ -3298,23 +3551,38 @@ mod tests_of_units {
             Dt,
             // not prime
             Np,
-            Hit3Start,
-            Hit5Start,
-            Hit7Start,
-            Hit11Start,
-            Hit13Start,
-            Hit17Start,
-            Hit19Start,
-            Hit23Start,
-            Hit29Start,
-            Hit31Start,
-            Hit37Start,
+            Hit_3_Start,
+            Hit_5_Start,
+            Hit_7_Start,
+            Hit_11_Start,
+            Hit_13_Start,
+            Hit_17_Start,
+            Hit_19_Start,
+            Hit_23_Start,
+            Hit_29_Start,
+            Hit_31_Start,
+            Hit_37_Start,
+            Hit_41_Start,
+            Hit_43_Start,
+            Hit_47_Start,
+            Hit_53_Start,
+            Hit_59_Start,
+            Hit_61_Start,
+            Hit_67_Start,
+            Hit_71_Start,
+            Hit_73_Start,
+            Hit_79_Start,
+            Hit_83_Start,
+            Hit_89_Start,
+            Hit_97_Start,
+            Hit_101_Start,
+            Hit_103_Start,
         }
 
         pub struct PrimeCkTestGauges {
             pub esc: PrimeCkEscCode,
             pub check_starts: bool,
-            pub cntrs: [usize; 11],
+            pub cntrs: [usize; 26],
             pub peekhole: usize,
             pub sqrt: usize,
         }
@@ -3324,7 +3592,7 @@ mod tests_of_units {
                 Self {
                     esc: PrimeCkEscCode::Unset,
                     check_starts: false,
-                    cntrs: [0; 11],
+                    cntrs: [0; 26],
                     peekhole: 0,
                     sqrt: 0,
                 }
@@ -3402,20 +3670,35 @@ mod tests_of_units {
                 // beware, 3 does not starts in negative thus
                 // acts as if it was already hit, false hit
                 // ⌊√83⌋ = 9
-                (83, PrimeCkEscCode::Hit3Start, 9),
+                (83, PrimeCkEscCode::Hit_3_Start, 9),
                 // beware, shares repetition with 3
                 // but is subsequent in setting block, false hit
                 // ⌊√227⌋ = 15
-                (227, PrimeCkEscCode::Hit5Start, 15),
-                (49, PrimeCkEscCode::Hit7Start, 7),
-                (121, PrimeCkEscCode::Hit11Start, 11),
-                (169, PrimeCkEscCode::Hit13Start, 13),
-                (289, PrimeCkEscCode::Hit17Start, 17),
-                (361, PrimeCkEscCode::Hit19Start, 19),
-                (529, PrimeCkEscCode::Hit23Start, 23),
-                (841, PrimeCkEscCode::Hit29Start, 29),
-                (961, PrimeCkEscCode::Hit31Start, 31),
-                (1369, PrimeCkEscCode::Hit37Start, 37),
+                (227, PrimeCkEscCode::Hit_5_Start, 15),
+                (49, PrimeCkEscCode::Hit_7_Start, 7),
+                (121, PrimeCkEscCode::Hit_11_Start, 11),
+                (169, PrimeCkEscCode::Hit_13_Start, 13),
+                (289, PrimeCkEscCode::Hit_17_Start, 17),
+                (361, PrimeCkEscCode::Hit_19_Start, 19),
+                (529, PrimeCkEscCode::Hit_23_Start, 23),
+                (841, PrimeCkEscCode::Hit_29_Start, 29),
+                (961, PrimeCkEscCode::Hit_31_Start, 31),
+                (1369, PrimeCkEscCode::Hit_37_Start, 37),
+                (1681, PrimeCkEscCode::Hit_41_Start, 41),
+                (1849, PrimeCkEscCode::Hit_43_Start, 43),
+                (2209, PrimeCkEscCode::Hit_47_Start, 47),
+                (2809, PrimeCkEscCode::Hit_53_Start, 53),
+                (3481, PrimeCkEscCode::Hit_59_Start, 59),
+                (3721, PrimeCkEscCode::Hit_61_Start, 61),
+                (4489, PrimeCkEscCode::Hit_67_Start, 67),
+                (5041, PrimeCkEscCode::Hit_71_Start, 71),
+                (5329, PrimeCkEscCode::Hit_73_Start, 73),
+                (6241, PrimeCkEscCode::Hit_79_Start, 79),
+                (6889, PrimeCkEscCode::Hit_83_Start, 83),
+                (7921, PrimeCkEscCode::Hit_89_Start, 89),
+                (9409, PrimeCkEscCode::Hit_97_Start, 97),
+                (10201, PrimeCkEscCode::Hit_101_Start, 101),
+                (10609, PrimeCkEscCode::Hit_103_Start, 103),
             ];
 
             for v in vals {
@@ -3434,36 +3717,61 @@ mod tests_of_units {
         fn division_cache_test2() {
             let mut tg = PrimeCkTestGauges::blank();
 
-            // √12323 ≈ 111
-            let row = new_from_num!(12323);
+            // √96,721 = 311
+            let row = new_from_num!(96_721);
 
-            assert_eq!(Some(true), prime_ck(&row, None, &mut tg));
+            assert_eq!(Some(false), prime_ck(&row, None, &mut tg));
 
-            // ...........................................................................................
-            // : 0 : 1 : 2 : 3 : 4 : 5  : 6  : 7  : 8  : 9  : 10 : 11 : 12 : 13 : 14 : 15 : 16 : 17 : 18 :
-            // :...:...:...:...:...:....:....:....:....:....:....:....:....:....:....:....:....:....:....:
-            // : 1 : 3 : 5 : 7 : 9 : 11 : 13 : 15 : 17 : 19 : 21 : 23 : 25 : 27 : 29 : 31 : 33 : 35 : 37 :
-            // :...:...:...:...:...:....:....:....:....:....:....:....:....:....:....:....:....:....:....:
+            // .....................................................................................................
+            // : 0 : 1 : 2 : 3 : 4 : 5  : 6  : 7  : 8  : 9  : 10 : 11 : 12 : 13 : 14 : 15 : 16 : 17 : 18 : 19 : 20 :
+            // :...:...:...:...:...:....:....:....:....:....:....:....:....:....:....:....:....:....:....:....:....:
+            // : 1 : 3 : 5 : 7 : 9 : 11 : 13 : 15 : 17 : 19 : 21 : 23 : 25 : 27 : 29 : 31 : 33 : 35 : 37 : 39 : 41 :
+            // :...:...:...:...:...:....:....:....:....:....:....:....:....:....:....:....:....:....:....:....:....:
+            // .....................................................................................................
+            // : 21 : 22 : 23 : 24 : 25 : 26 : 27 : 28 : 29 : 30 : 31 : 32 : 33 : 34 : 35 : 36 : 37 : 38 : 39 : 40 :
+            // :....:....:....:....:....:....:....:....:....:....:....:....:....:....:....:....:....:....:....:....:
+            // : 43 : 45 : 47 : 49 : 51 : 53 : 55 : 57 : 59 : 61 : 63 : 65 : 67 : 69 : 71 : 73 : 75 : 77 : 79 : 81 :
+            // :....:....:....:....:....:....:....:....:....:....:....:....:....:....:....:....:....:....:....:....:
+            // ..........................................................
+            // : 41 : 42 : 43 : 44 : 45 : 46 : 47 : 48 : 49 : 50  : 51  :
+            // :....:....:....:....:....:....:....:....:....:.....:.....:
+            // : 83 : 85 : 87 : 89 : 91 : 93 : 95 : 97 : 99 : 101 : 103 :
+            // :....:....:....:....:....:....:....:....:....:.....:.....:
 
-            assert_eq!(111, tg.sqrt);
+            assert_eq!(311, tg.sqrt);
 
             // probe starts at 7
             let proof = [
-                18, //  3, 3…37,   9…111
-                10, //  5, 3…21,  15…105
-                7,  //  7, 3…15,  21…105
-                4,  // 11, 3 …9,  33 …99
-                3,  // 13, 3 …7,  39 …91
-                2,  // 17, 3 …5,  51 …85
-                2,  // 19, 3 …5,  57 …95
-                1,  // 23, 3 …3,  69 …69
-                1,  // 29, 3 …3,  87 …87
-                1,  // 31, 3 …3,  93 …93
-                1,  // 37, 3 …3, 111…111
+                51, //  3,  3…103,    9…309
+                30, //  5,  3 …61,   15…305
+                21, //  7,  3 …43,   21…301
+                13, // 11,  3 …27,   33…297
+                11, // 13,  3 …23,   39…299
+                8,  // 17,  3 …17,   51…289
+                7,  // 19,  3 …15,   57…285
+                6,  // 23,  3 …13,   69…299
+                4,  // 29,  3 … 9    87…261
+                4,  // 31,  3 … 9    93…279
+                3,  // 37,  3 … 7,  111…259
+                3,  // 41,  3 … 7,  123…287
+                3,  // 43,  3 … 7,  129…301
+                2,  // 47,  3 … 5,  141…235
+                2,  // 53,  3 … 5,  159…265
+                2,  // 59,  3 … 5,  177…295
+                2,  // 61,  3 … 5,  183…305
+                1,  // 67,  3 … 3,  201…201
+                1,  // 71,  3 … 3,  213…213
+                1,  // 73,  3 … 3,  219…219
+                1,  // 79,  3 … 3,  237…237
+                1,  // 83,  3 … 3,  249…249
+                1,  // 89,  3 … 3,  267…267
+                1,  // 97,  3 … 3,  291…291
+                1,  // 101, 3 … 3,  303…303
+                1,  // 103, 3 … 3,  309…309
             ];
 
             for (ix, c) in tg.cntrs.iter().enumerate() {
-                assert_eq!(proof[ix], *c, "{ix}");
+                assert_eq!(proof[ix], *c, "ix {ix}");
             }
         }
 
