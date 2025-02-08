@@ -1132,7 +1132,6 @@ pub fn prime_ck(
         -48, // 101 +2 ⋅2
         -49, // 103 +2 ⋅1
     ];
-    
 
     let then = Instant::now();
     let (limited, limit) = if let Some(d) = lim {
