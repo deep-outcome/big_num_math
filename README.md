@@ -12,6 +12,7 @@ Library for computations on large numbers.
     - power
     - integer square root
     - primality check
+    - prime number generator (primitive number types only)
 
 ### Usage Samples
 
@@ -86,4 +87,12 @@ assert_eq!(proof, heron_sqrt(&test));
 let num = Row::new_from_str("340282366920938463463374607431768211479").unwrap();
 let limit = Duration::from_secs(3);
 assert_eq!(Some(false), prime_ck(&num, Some(limit)));
+```
+
+##### prime number generation
+
+```rust
+let limit = Duration::from_secs(60);
+let p = || pg!(200_000, PrimeGenStrain::Nth, false, u32, Some(limit));
+assert_eq!(2_750_159, p().uproot_max());
 ```

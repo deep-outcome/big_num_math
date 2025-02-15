@@ -1,5 +1,4 @@
-//! Allows to compute on big numbers. No negative numbers support. Provides only some
-//! basic mathematical functions.
+//! Allows to compute on big integer numbers. No negative numbers support.
 
 type RawRow = Vec<u8>;
 type Row = PlacesRow;
@@ -1604,6 +1603,68 @@ pub fn prime_ck(
             return Some(false);
         }
     }
+}
+/// Prime number generation result enumeration.
+#[derive(Clone, PartialEq, Debug)]
+pub enum PrimeGenRes<T> {
+    /// Invalid input. Either due:
+    /// - Limit invalidation.
+    /// - Order invalidation.
+    /// - Invalidation regarding number type size.
+    InvalidInput(usize),
+    /// All prime numbers generated.
+    All(Vec<T>),
+    /// Only maximal prime number generated.
+    Max(T),
+    /// Time limit exhaustion.
+    TimeframeExhaustion,
+}
+
+impl<T> PrimeGenRes<T> {
+    pub fn failure(&self) -> bool {
+        if let PrimeGenRes::TimeframeExhaustion = self {
+            true
+        } else if let PrimeGenRes::InvalidInput(_) = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn accomplished(&self) -> bool {
+        if let PrimeGenRes::Max(_) = self {
+            true
+        } else if let PrimeGenRes::All(_) = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn uproot_all(self) -> Vec<T> {
+        if let PrimeGenRes::All(all) = self {
+            return all;
+        }
+
+        panic!("Not `PrimeGenRes::All(_)` variant.");
+    }
+
+    pub fn uproot_max(self) -> T {
+        if let PrimeGenRes::Max(max) = self {
+            return max;
+        }
+
+        panic!("Not `PrimeGenRes::Max(_)` variant.");
+    }
+}
+
+/// Prime number generation strain enumeration.
+#[derive(Clone, PartialEq, Debug)]
+pub enum PrimeGenStrain {
+    /// Nth prime number generation.
+    Nth,
+    /// Highest prime number lesser than input or equal to it generation.
+    Lim,
 }
 
 /// Computes integer square root of `num`.
