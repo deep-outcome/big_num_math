@@ -1667,6 +1667,178 @@ pub enum PrimeGenStrain {
     Lim,
 }
 
+/// Flexible prime number generator.
+///
+/// Beware, macro `return`s `PrimeGenRes`. Thus it can be directly unusable within `fn` body.
+///
+/// 2 strains available:
+/// - nth — generation runs upto nth prime number inclusively.
+/// - lim — generation runs upto limit inclusively.
+///
+/// Both strains can return only number required or whole row of prime numbers.
+///
+/// ```
+/// use big_num_math::{pg, PrimeGenStrain, PrimeGenRes};
+/// use std::time::{Instant, Duration};
+///
+/// let all1 = || { pg!(11, PrimeGenStrain::Nth, true, usize, None) };
+/// let all2 = || { pg!(31, PrimeGenStrain::Lim, true, usize, None) };
+///
+/// let proof: [usize; 11] = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31];
+///
+/// let all1 = all1().uproot_all();
+/// let all2 = all2().uproot_all();
+///
+/// assert_eq!(all1, all2);
+/// assert_eq!(proof, all1.as_slice());
+/// ```
+///
+/// In either case generation is limited by `isize::MAX` bytes. Expect memory reservation twice
+/// amount of `$size` type byte size per one prime number. For _lim_ strain even slightly more (given by coefficient).
+///
+/// Reason above implies that generating further large prime numbers can be impossible. Since direct generation of `PlaceRow`s
+/// would be in-depth time demanding, this macro, sensibly, does use simpler numeric output.
+/// Result can be then transformed manually.
+///
+/// Whole prime number row is generated and held, always. Since that, production
+/// can require considerable amount of time and be optionally time-limited.
+///
+/// ```
+/// use big_num_math::{pg, PrimeGenStrain, PrimeGenRes};
+/// use std::time::{Instant, Duration};
+///
+/// let limit = Duration::from_secs(1);
+/// let result = (|| { pg!(5_000, PrimeGenStrain::Nth, false, u128, Some(limit)) })();
+///
+/// assert_eq!(PrimeGenRes::Max(48_611), result);
+/// ```
+///
+/// When confident about outputs, type setting can speed up computation. Use `u128` or `u64` in contrary case.
+/// ```
+/// use big_num_math::{pg, PrimeGenStrain, PrimeGenRes};
+/// use std::time::{Instant, Duration};
+///
+/// let num = || { pg!(20_000, PrimeGenStrain::Nth, false, u64, None) };
+/// assert_eq!(224_737, num().uproot_max());
+///
+/// let num = || { pg!(20_000, PrimeGenStrain::Nth, false, u32, None) };
+/// assert_eq!(224_737, num().uproot_max());
+/// ```
+/// `u32` version of sample above will perform better.
+#[macro_export]
+macro_rules! pg {
+    ($input: expr, $pgs: expr, $all: expr, $size:tt, $lim: expr) => {{
+        if 0 == $input {
+            return PrimeGenRes::InvalidInput(0);
+        }
+
+        #[allow(unused_comparisons)]
+        if $input > ($size::MAX as usize) {
+            return PrimeGenRes::InvalidInput($input);
+        }
+
+        let nth = $pgs == PrimeGenStrain::Nth;
+
+        let cap = if nth {
+            $input
+        } else {
+            if $input == 1 {
+                return PrimeGenRes::InvalidInput(1);
+            }
+
+            let ln = ($input as f64).log(std::f64::consts::E);
+            let divisor = ln.max(1.0).floor();
+            let ratio = $input as f64 / divisor;
+
+            (ratio * 1.15) as usize
+        };
+
+        let mut aperture = Vec::<($size, $size)>::new();
+        aperture.reserve_exact(cap);
+
+        aperture.push((2, 0));
+
+        let then = Instant::now();
+        let (limited, limit) = if let Some(d) = $lim {
+            (true, d)
+        } else {
+            (false, Duration::ZERO)
+        };
+
+        let buff = aperture.as_mut_ptr();
+
+        let mut len = 1;
+        let mut attempt = 1;
+        loop {
+            attempt += 2;
+            if nth {
+                if len == $input {
+                    break;
+                }
+            } else {
+                if attempt > $input {
+                    break;
+                }
+            }
+
+            if limited && then.elapsed() >= limit {
+                return PrimeGenRes::TimeframeExhaustion;
+            }
+
+            let mut prime = true;
+
+            let mut offset = 1;
+            while offset < len {
+                let scene = unsafe { buff.add(offset).as_mut().unwrap_unchecked() };
+
+                offset += 1;
+
+                let mut count = scene.1;
+                count += 1;
+
+                scene.1 = if count == scene.0 {
+                    prime = false;
+                    0
+                } else {
+                    count
+                }
+            }
+
+            if prime {
+                #[allow(irrefutable_let_patterns)]
+                if let Ok(prime) = TryInto::<$size>::try_into(attempt) {
+                    unsafe { buff.add(len).write((prime, 0)) };
+                    len += 1;
+                } else {
+                    return PrimeGenRes::InvalidInput($input);
+                }
+            }
+        }
+
+        unsafe { aperture.set_len(len) }
+
+        if $all {
+            let mut all = Vec::<$size>::new();
+            all.reserve_exact(len);
+
+            let all_buff = all.as_mut_ptr();
+            let mut ix = 0;
+            while ix < len {
+                unsafe {
+                    let scene = buff.add(ix).as_ref().unwrap_unchecked();
+                    all_buff.add(ix).write(scene.0)
+                }
+                ix += 1;
+            }
+
+            unsafe { all.set_len(len) }
+
+            PrimeGenRes::All(all)
+        } else {
+            PrimeGenRes::Max(aperture[len - 1].0)
+        }
+    }};
+}
 /// Computes integer square root of `num`.
 ///
 /// Returns `PlacesRow` with result.
