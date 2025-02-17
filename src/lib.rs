@@ -1677,6 +1677,8 @@ pub enum PrimeGenStrain {
 ///
 /// Beware, macro _returns_ `PrimeGenRes`. Thus it can be directly unusable within `fn` body.
 ///
+/// Unity is not cosidered to be prime number.
+///
 /// 2 strains available:
 /// - nth — generation runs upto nth prime number inclusively.
 /// - lim — generation runs upto limit inclusively.
