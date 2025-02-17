@@ -1621,7 +1621,8 @@ pub enum PrimeGenRes<T> {
 }
 
 impl<T> PrimeGenRes<T> {
-    pub fn failure(&self) -> bool {
+    /// Returns `true` if and only if denoting failed generation.
+    pub const fn failure(&self) -> bool {
         if let PrimeGenRes::TimeframeExhaustion = self {
             true
         } else if let PrimeGenRes::InvalidInput(_) = self {
@@ -1631,7 +1632,8 @@ impl<T> PrimeGenRes<T> {
         }
     }
 
-    pub fn accomplished(&self) -> bool {
+    /// Returns `true` if and only if denoting accomplished generation.
+    pub const fn accomplished(&self) -> bool {
         if let PrimeGenRes::Max(_) = self {
             true
         } else if let PrimeGenRes::All(_) = self {
@@ -1641,6 +1643,8 @@ impl<T> PrimeGenRes<T> {
         }
     }
 
+    /// Returns `Vec<T>` of `PrimeGenRes::All(Vec<T>)` or _panics_
+    /// if not that variant.
     pub fn uproot_all(self) -> Vec<T> {
         if let PrimeGenRes::All(all) = self {
             return all;
@@ -1649,6 +1653,8 @@ impl<T> PrimeGenRes<T> {
         panic!("Not `PrimeGenRes::All(_)` variant.");
     }
 
+    /// Returns `T` of `PrimeGenRes::Max(T)` or _panics_
+    /// if not that variant.
     pub fn uproot_max(self) -> T {
         if let PrimeGenRes::Max(max) = self {
             return max;
