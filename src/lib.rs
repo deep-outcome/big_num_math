@@ -1704,7 +1704,6 @@ pub enum PrimeGenStrain {
 ///
 /// Reason above implies that generating further large prime numbers can be impossible. Since direct generation of `PlaceRow`s
 /// would be in-depth time demanding, this macro, sensibly, does use simpler numeric output.
-/// Result can be then transformed manually.
 ///
 /// Whole prime number row is generated and held, always. Since that, production
 /// can require considerable amount of time and be optionally time-limited.
