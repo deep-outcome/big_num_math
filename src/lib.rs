@@ -659,7 +659,7 @@ pub fn add(addend1: &PlacesRow, addend2: &PlacesRow) -> PlacesRow {
         (r2, r1)
     };
 
-    // avoids repetetive reallocations
+    // avoids repetitive reallocations
     // +1 stands for contigent new place
     let mut sum = Vec::new();
     sum.reserve_exact(addend.len() + 1);
@@ -1686,7 +1686,7 @@ pub enum PrimeGenStrain {
 /// Will _panic_ for large _nth_ numbers on internal increment number type (`usize`) overflow
 /// on add. Check with _Prime number theorem_ for expectations. Similarly, would _panic_ if
 /// _lim_ of `usize::MAX` was reached. This is to hasten computation by reducing
-/// repetetive validations which have small benefit. E.g. for `usize` = `u32` maximum nth prime
+/// repetitive validations which have small benefit. E.g. for `usize` = `u32` maximum nth prime
 /// supported is `203_280_221`th = `4_294_967_291`.
 ///
 /// Both strains can return only number required or whole row of prime numbers.
@@ -1927,10 +1927,10 @@ fn mulmul(row1: &RawRow, row2: &RawRow, times: u16) -> RawRow {
     loop {
         let mcand_len = mcand.len();
 
-        // avoids repetetive reallocations
+        // avoids repetitive reallocations
         // +1 stands for contigent new place
         i_product.reserve(mcand_len + 1);
-        // avoids repetetive reallocations
+        // avoids repetitive reallocations
         // places count of product cannot
         // be greater than sum of places of operands
         i_sum.reserve(mcand_len + mpler_len);
@@ -3165,7 +3165,7 @@ mod tests_of_units {
     }
 
     /// For base ≥ 0 and exponent ≥ 0 power can be viewed as nothing more
-    /// than repetetive multiplication with number in question.
+    /// than repetitive multiplication with number in question.
     /// 0º=1, 0¹=1×0, 0²=1×0×0, 0³=1×0×0×0, …
     /// 1º=1, 1¹=1×1, 1²=1×1×1, 1³=1×1×1×1, …
     /// 2º=1, 2¹=1×2, 2²=1×2×2, 2³=1×2×2×2, …
