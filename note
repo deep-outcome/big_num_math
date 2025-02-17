@@ -1,6 +1,7 @@
 relaxed
-    - nth prime/prime gen    
+    - nth prime/prime gen (space/time wise)    
     - check for general radix method
+    - try_into signed types
 
 noticeable    
     - inspect mulmul without intermediate product: to be better only stack must employed (no Vec writes) => addition method split
