@@ -1675,7 +1675,7 @@ pub enum PrimeGenStrain {
 
 /// Flexible prime number generator.
 ///
-/// Beware, macro `return`s `PrimeGenRes`. Thus it can be directly unusable within `fn` body.
+/// Beware, macro _returns_ `PrimeGenRes`. Thus it can be directly unusable within `fn` body.
 ///
 /// 2 strains available:
 /// - nth — generation runs upto nth prime number inclusively.
