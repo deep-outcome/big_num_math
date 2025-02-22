@@ -1708,7 +1708,8 @@ pub enum PrimeGenStrain {
 /// ```
 ///
 /// In either case generation is limited by `isize::MAX` bytes. Expect memory reservation twice
-/// amount of `$size` type byte size per one prime number. For _lim_ strain 1.15 times more.
+/// amount of `$size` type byte size per one prime number. For _lim_ strain expect more. Given
+/// by formula `(lim ÷⌊max(1, ㏑(lim))⌋) ⋅1.15`.
 ///
 /// Reason above implies that generating further large prime numbers can be impossible. Since direct generation of `PlaceRow`s
 /// would be in-depth time demanding, this macro, sensibly, does use simpler numeric output.
