@@ -1,5 +1,4 @@
-relaxed    
-    - check with option to not use usize as input for prime generation
+relaxed
     - check for general radix method
     - try_into signed types
 
