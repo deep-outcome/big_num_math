@@ -1680,8 +1680,8 @@ pub enum PrimeGenStrain {
 /// Unity is not cosidered to be prime number.
 ///
 /// 2 strains available:
-/// - nth — generation runs upto nth prime number inclusively.
-/// - lim — generation runs upto limit inclusively.
+/// - nth — generation runs up to nth prime number inclusively.
+/// - lim — generation runs up to limit inclusively.
 ///
 /// Both strains can return only number required or whole row of prime numbers.
 ///
@@ -4401,7 +4401,7 @@ mod tests_of_units {
                 let lim = Duration::ZERO;
                 let res = || pg!(1, PrimeGenStrain::Nth, false, u8, Some(lim));
                 assert_eq!(PrimeGenRes::Max(2), res());
-                
+
                 let lim = Duration::ZERO;
                 let res = || pg!(2, PrimeGenStrain::Lim, false, u8, Some(lim));
                 assert_eq!(PrimeGenRes::Max(2), res());
