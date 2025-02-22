@@ -183,6 +183,48 @@ impl PlacesRow {
         try_into_num!(&self.row, usize, &mut 0)
     }
 
+    /// Convertor method.
+    ///
+    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    pub fn try_into_i8(&self) -> Option<i8> {
+        try_into_num!(&self.row, i8, &mut 0)
+    }
+
+    /// Convertor method.
+    ///
+    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    pub fn try_into_i16(&self) -> Option<i16> {
+        try_into_num!(&self.row, i16, &mut 0)
+    }
+
+    /// Convertor method.
+    ///
+    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    pub fn try_into_i32(&self) -> Option<i32> {
+        try_into_num!(&self.row, i32, &mut 0)
+    }
+
+    /// Convertor method.
+    ///
+    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    pub fn try_into_i64(&self) -> Option<i64> {
+        try_into_num!(&self.row, i64, &mut 0)
+    }
+
+    /// Convertor method.
+    ///
+    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    pub fn try_into_i128(&self) -> Option<i128> {
+        try_into_num!(&self.row, i128, &mut 0)
+    }
+
+    /// Convertor method.
+    ///
+    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    pub fn try_into_isize(&self) -> Option<isize> {
+        try_into_num!(&self.row, isize, &mut 0)
+    }
+
     /// Handy ctor for usage with long numbers.
     ///
     /// Only digits are allowed in `s`. Leading zeros are ommitted.
@@ -2459,6 +2501,59 @@ mod tests_of_units {
                 let row = new_from_num!(num);
 
                 let test = row.try_into_usize();
+                assert_eq!(Some(num), test);
+            }
+
+            #[test]
+            fn try_into_i8() {
+                let num = i8::MAX;
+                let row = new_from_num!(num);
+                let test = row.try_into_i8();
+                assert_eq!(Some(num), test);
+            }
+
+            #[test]
+            fn try_into_i16() {
+                let num = i16::MAX;
+                let row = new_from_num!(num);
+
+                let test = row.try_into_i16();
+                assert_eq!(Some(num), test);
+            }
+
+            #[test]
+            fn try_into_i32() {
+                let num = i32::MAX;
+                let row = new_from_num!(num);
+
+                let test = row.try_into_i32();
+                assert_eq!(Some(num), test);
+            }
+
+            #[test]
+            fn try_into_i64() {
+                let num = i64::MAX;
+                let row = new_from_num!(num);
+
+                let test = row.try_into_i64();
+                assert_eq!(Some(num), test);
+            }
+
+            #[test]
+            fn try_into_i128() {
+                let num = i128::MAX;
+                let row = new_from_num!(num);
+
+                let test = row.try_into_i128();
+                assert_eq!(Some(num), test);
+            }
+
+            #[test]
+            fn try_into_isize() {
+                let num = isize::MAX;
+                let row = new_from_num!(num);
+
+                let test = row.try_into_isize();
                 assert_eq!(Some(num), test);
             }
         }
