@@ -1,6 +1,6 @@
 [package]
 name = "big_num_math"
-version = "5.2.0"
+version = "5.2.1"
 edition = "2021"
 authors     = [ "software9119.technology" ]
 license     = "MIT"

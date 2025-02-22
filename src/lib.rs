@@ -1683,12 +1683,6 @@ pub enum PrimeGenStrain {
 /// - nth — generation runs upto nth prime number inclusively.
 /// - lim — generation runs upto limit inclusively.
 ///
-/// Will _panic_ for large _nth_ numbers on internal increment number type (`usize`) overflow
-/// on add. Check with _Prime number theorem_ for expectations. Similarly, would _panic_ if
-/// _lim_ of `usize::MAX` was reached. This is to hasten computation by reducing
-/// repetitive validations which have small benefit. E.g. for `usize` = `u32` maximum nth prime
-/// supported is `203_280_221`th = `4_294_967_291`.
-///
 /// Both strains can return only number required or whole row of prime numbers.
 ///
 /// ```
