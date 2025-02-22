@@ -1,5 +1,5 @@
-relaxed
-    - nth prime/prime gen (space/time wise)    
+relaxed    
+    - check with option to not use usize as input for prime generation
     - check for general radix method
     - try_into signed types
 
