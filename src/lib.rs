@@ -1763,7 +1763,7 @@ pub enum PrimeGenStrain {
 /// assert_eq!(PrimeGenRes::Max(48_611), result);
 /// ```
 ///
-/// When confident about outputs, type setting can speed up computation. Use `u128` or `u64` in contrary case.
+/// When confident about outputs, type setting can speed up computation. Use `usize` or wider type in contrary case.
 /// ```
 /// use big_num_math::{pg, PrimeGenStrain, PrimeGenRes};
 /// use std::time::{Instant, Duration};
@@ -2290,7 +2290,7 @@ mod tests_of_units {
 
     use crate::Row;
     #[test]
-    fn new_from_num() {
+    fn new_from_num_test() {
         let num = u128::MAX;
         let row = new_from_num!(num);
         let test = row.to_number();
@@ -2452,7 +2452,7 @@ mod tests_of_units {
             use crate::Row;
 
             #[test]
-            fn try_into_u8() {
+            fn try_into_u8_test() {
                 let num = u8::MAX;
                 let row = new_from_num!(num);
                 let test = row.try_into_u8();
@@ -2460,7 +2460,7 @@ mod tests_of_units {
             }
 
             #[test]
-            fn try_into_u16() {
+            fn try_into_u16_test() {
                 let num = u16::MAX;
                 let row = new_from_num!(num);
 
@@ -2469,7 +2469,7 @@ mod tests_of_units {
             }
 
             #[test]
-            fn try_into_u32() {
+            fn try_into_u32_test() {
                 let num = u32::MAX;
                 let row = new_from_num!(num);
 
@@ -2478,7 +2478,7 @@ mod tests_of_units {
             }
 
             #[test]
-            fn try_into_u64() {
+            fn try_into_u64_test() {
                 let num = u64::MAX;
                 let row = new_from_num!(num);
 
@@ -2487,7 +2487,7 @@ mod tests_of_units {
             }
 
             #[test]
-            fn try_into_u128() {
+            fn try_into_u128_test() {
                 let num = u128::MAX;
                 let row = new_from_num!(num);
 
@@ -2496,7 +2496,7 @@ mod tests_of_units {
             }
 
             #[test]
-            fn try_into_usize() {
+            fn try_into_usize_test() {
                 let num = usize::MAX;
                 let row = new_from_num!(num);
 
@@ -2505,7 +2505,7 @@ mod tests_of_units {
             }
 
             #[test]
-            fn try_into_i8() {
+            fn try_into_i8_test() {
                 let num = i8::MAX;
                 let row = new_from_num!(num);
                 let test = row.try_into_i8();
@@ -2513,7 +2513,7 @@ mod tests_of_units {
             }
 
             #[test]
-            fn try_into_i16() {
+            fn try_into_i16_test() {
                 let num = i16::MAX;
                 let row = new_from_num!(num);
 
@@ -2522,7 +2522,7 @@ mod tests_of_units {
             }
 
             #[test]
-            fn try_into_i32() {
+            fn try_into_i32_test() {
                 let num = i32::MAX;
                 let row = new_from_num!(num);
 
@@ -2531,7 +2531,7 @@ mod tests_of_units {
             }
 
             #[test]
-            fn try_into_i64() {
+            fn try_into_i64_test() {
                 let num = i64::MAX;
                 let row = new_from_num!(num);
 
@@ -2540,7 +2540,7 @@ mod tests_of_units {
             }
 
             #[test]
-            fn try_into_i128() {
+            fn try_into_i128_test() {
                 let num = i128::MAX;
                 let row = new_from_num!(num);
 
@@ -2549,7 +2549,7 @@ mod tests_of_units {
             }
 
             #[test]
-            fn try_into_isize() {
+            fn try_into_isize_test() {
                 let num = isize::MAX;
                 let row = new_from_num!(num);
 
@@ -2779,23 +2779,23 @@ mod tests_of_units {
         assert_eq!(true, is_nought_raw(&nought()));
     }
 
-    mod is_one_raw_test {
+    mod is_one_raw {
         use crate::is_one_raw;
 
         #[test]
-        fn is() {
+        fn is_test() {
             let test = [3].to_vec();
             assert_eq!(true, is_one_raw(&test, 3));
         }
 
         #[test]
-        fn different() {
+        fn different_test() {
             let test = [3].to_vec();
             assert_eq!(false, is_one_raw(&test, 4));
         }
 
         #[test]
-        fn longer() {
+        fn longer_test() {
             let test = [3, 3].to_vec();
             assert_eq!(false, is_one_raw(&test, 3));
         }
@@ -4364,7 +4364,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn failure() {
+        fn failure_test() {
             let vals = all_vals(false);
 
             for v in vals {
@@ -4373,7 +4373,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn accomplished() {
+        fn accomplished_test() {
             let vals = all_vals(true);
 
             for v in vals {
@@ -4382,26 +4382,26 @@ mod tests_of_units {
         }
 
         #[test]
-        fn uproot_all() {
+        fn uproot_all_test() {
             let test = PrimeGenRes::All(vec![1, 2, 3, 4]);
             assert_eq!(vec![1, 2, 3, 4], test.uproot_all());
         }
 
         #[test]
         #[should_panic(expected = "Not `PrimeGenRes::All(_)` variant.")]
-        fn uproot_all_not_all() {
+        fn uproot_all_not_all_test() {
             _ = PrimeGenRes::Max(0).uproot_all();
         }
 
         #[test]
-        fn max_all() {
+        fn max_all_test() {
             let test = PrimeGenRes::Max(99);
             assert_eq!(99, test.uproot_max());
         }
 
         #[test]
         #[should_panic(expected = "Not `PrimeGenRes::Max(_)` variant.")]
-        fn uproot_max_not_max() {
+        fn uproot_max_not_max_test() {
             _ = PrimeGenRes::All(vec![0; 0]).uproot_max();
         }
     }
@@ -4508,13 +4508,13 @@ mod tests_of_units {
             use std::time::{Duration, Instant};
 
             #[test]
-            fn invalid_nth() {
+            fn invalid_nth_test() {
                 let test = || pg!(0, PrimeGenStrain::Nth, false, u8, None);
                 assert_eq!(PrimeGenRes::InvalidInput(0), test());
             }
 
             #[test]
-            fn invalid_limit() {
+            fn invalid_limit_test() {
                 for lim in [0, 1] {
                     let test = || pg!(lim, PrimeGenStrain::Lim, false, usize, None);
                     assert_eq!(PrimeGenRes::InvalidInput(lim), test());
@@ -4728,13 +4728,13 @@ mod tests_of_units {
             use std::time::{Duration, Instant};
 
             #[test]
-            fn invalid_nth() {
+            fn invalid_nth_test() {
                 let test = || pg_sw!(0, PrimeGenStrain::Nth, false, u8, None);
                 assert_eq!(PrimeGenRes::InvalidInput(0), test());
             }
 
             #[test]
-            fn invalid_limit() {
+            fn invalid_limit_test() {
                 for lim in [0, 1] {
                     let test = || pg_sw!(lim, PrimeGenStrain::Lim, false, usize, None);
                     assert_eq!(PrimeGenRes::InvalidInput(lim), test());
