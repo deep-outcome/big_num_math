@@ -343,15 +343,15 @@ fn nought_raw() -> RawRow {
     vec![0; 1]
 }
 
-fn is_unity_raw(row: &RawRow) -> bool {
+fn is_unity_raw(row: &[u8]) -> bool {
     is_one_raw(row, 1)
 }
 
-fn is_nought_raw(row: &RawRow) -> bool {
+fn is_nought_raw(row: &[u8]) -> bool {
     is_one_raw(row, 0)
 }
 
-fn is_one_raw(row: &RawRow, one: u8) -> bool {
+fn is_one_raw(row: &[u8], one: u8) -> bool {
     row.len() == 1 && row[0] == one
 }
 
@@ -656,7 +656,7 @@ pub fn rel_dec(num: &PlacesRow, comparand: &PlacesRow) -> RelDec {
 // num.len() > comparand.len() ⇒ num > comparand
 // num.len() < comparand.len() ⇒ num < comparand
 // num.len() = comparand.len() ⇒ num ⪒ comparand
-fn rel_dec_raw(r1: &RawRow, r2: &RawRow) -> RelDec {
+fn rel_dec_raw(r1: &[u8], r2: &[u8]) -> RelDec {
     let r1_cnt = dec_pla_cnt_raw(r1);
     let r2_cnt = dec_pla_cnt_raw(r2);
 
@@ -675,7 +675,7 @@ fn rel_dec_raw(r1: &RawRow, r2: &RawRow) -> RelDec {
     };
 }
 
-fn dec_pla_cnt_raw(r: &RawRow) -> usize {
+fn dec_pla_cnt_raw(r: &[u8]) -> usize {
     if is_nought_raw(r) {
         0
     } else {
@@ -889,8 +889,8 @@ use tests_of_units::divrem_accelerated::{DivRemEscCode, TestGauges};
 // in order to avoid highly excessive looping, divrem computation can be speed up
 // by simple substracting divisor 10 products first
 fn divrem_accelerated(
-    dividend: &RawRow,
-    divisor: &RawRow,
+    dividend: &[u8],
+    divisor: &[u8],
     #[cfg(test)] tg: &mut TestGauges,
 ) -> (RawRow, RawRow) {
     let divisor_len = divisor.len();
@@ -903,7 +903,7 @@ fn divrem_accelerated(
         {
             tg.esc = DivRemEscCode::Pli
         }
-        return (dividend.clone(), ratio);
+        return (dividend.to_vec(), ratio);
     }
 
     let mut remainder = None;
@@ -2000,9 +2000,9 @@ pub fn heron_sqrt(num: &PlacesRow) -> PlacesRow {
     PlacesRow { row }
 }
 
-fn heron_sqrt_raw(row: &RawRow) -> RawRow {
+fn heron_sqrt_raw(row: &[u8]) -> RawRow {
     if is_unity_raw(&row) || is_nought_raw(&row) {
-        return row.clone();
+        return row.to_vec();
     }
 
     let two = &vec![2];
@@ -2046,8 +2046,8 @@ fn heron_sqrt_raw(row: &RawRow) -> RawRow {
 ///
 /// Space for effecient power computation?
 ///   🡺 Inspect log₂ power speed up.
-fn mulmul(row1: &RawRow, row2: &RawRow, times: u16) -> RawRow {
-    let (mpler, mut mcand) = (row1, row2.clone());
+fn mulmul(row1: &[u8], row2: &[u8], times: u16) -> RawRow {
+    let (mpler, mut mcand) = (row1, row2.to_vec());
 
     #[cfg(feature = "one-power-mulmul-support")]
     if times == 0 {
@@ -2130,7 +2130,7 @@ fn product(mpler: u8, mcand: &RawRow, product: &mut RawRow) {
 /// Adds `addend_1` to `sum` or adds `addend_1` and `addend_2` sum into `sum`.
 ///
 /// Precise expectations must be upkept when adding 2 addends: sum is assumed to be empty, `addend_1` to be longer or equal of numbers and offset to be `0`.
-fn addition(addend_1: &RawRow, addend_2: Option<&RawRow>, sum: &mut RawRow, offset: usize) {
+fn addition(addend_1: &[u8], addend_2: Option<&[u8]>, sum: &mut RawRow, offset: usize) {
     let addend_1_len = addend_1.len();
 
     let (addend_2_ptr, addend_2_len) = if let Some(addend) = addend_2 {
@@ -2179,8 +2179,8 @@ fn addition(addend_1: &RawRow, addend_2: Option<&RawRow>, sum: &mut RawRow, offs
 // NOTE: Support for longer subtrahend implies extended guard condition on
 // correction `inx < subtrahend_len && inx < minuend_len`. See feature 'shorter-dividend-support'.
 fn subtraction(
-    minuend: &RawRow,
-    subtrahend: &RawRow,
+    minuend: &[u8],
+    subtrahend: &[u8],
     remainder: bool,
     #[cfg(test)] ctr: &mut usize,
 ) -> (RawRow, RawRow) {
