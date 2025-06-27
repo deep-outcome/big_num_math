@@ -709,7 +709,7 @@ pub fn add(addend1: &PlacesRow, addend2: &PlacesRow) -> PlacesRow {
     #[cfg(test)]
     let sum_ptr = sum.as_ptr();
 
-    addition(addend, Some(augend), &mut sum, 0);
+    addition_two(addend, augend, &mut sum);
 
     #[cfg(test)]
     assert!(sum_ptr == sum.as_ptr());
@@ -1011,7 +1011,7 @@ fn divrem_accelerated(
             mpler[mpler_wr_ix] = 1;
 
             let rat = mulmul(&remrat.1, &mpler, 1);
-            addition(&rat, None, &mut ratio, 0);
+            addition_sum(&rat, &mut ratio, 0);
 
             remainder = Some(remrat.0);
 
@@ -1051,7 +1051,7 @@ fn divrem_accelerated(
     );
 
     let rat = if remainder.is_some() {
-        addition(&rat, None, &mut ratio, 0);
+        addition_sum(&rat, &mut ratio, 0);
         ratio
     } else {
         rat
@@ -1113,7 +1113,7 @@ pub fn prime_ck(
 
         let len = row.len();
         while ix < len {
-            addition(&vec![row[ix]], None, &mut sum, 0);
+            addition_sum(&vec![row[ix]], &mut sum, 0);
             ix += 1;
         }
 
@@ -1188,7 +1188,7 @@ pub fn prime_ck(
             return None;
         }
 
-        addition(&increment, None, &mut probe, 0);
+        addition_sum(&increment, &mut probe, 0);
 
         if let Rel::Greater(_) = rel_raw(&probe, &sqrt) {
             #[cfg(test)]
@@ -2023,7 +2023,7 @@ fn heron_sqrt_raw(row: &[u8]) -> RawRow {
         )
         .1;
 
-        addition(&cur, None, &mut rat, 0);
+        addition_sum(&cur, &mut rat, 0);
         let nex = divrem_accelerated(
             &rat,
             &two,
@@ -2081,7 +2081,7 @@ fn mulmul(row1: &[u8], row2: &[u8], times: u16) -> RawRow {
 
         for offset in 0..mpler_len {
             product(mpler[offset], &mcand, &mut i_product);
-            addition(&i_product, None, &mut i_sum, offset);
+            addition_sum(&i_product, &mut i_sum, offset);
             i_product.clear();
         }
 
@@ -2173,6 +2173,64 @@ fn addition(addend_1: &[u8], addend_2: Option<&[u8]>, sum: &mut RawRow, offset: 
     }
 }
 
+pub(crate) fn addition_sum(addend: &[u8], sum: &mut RawRow, offset: usize) {
+    let a_len = addend.len();
+    let s_len = sum.len();
+
+    let mut takeover = 0;
+    let mut a_inx = 0;
+    let mut s_inx = offset;
+
+    loop {
+        let a_available = a_inx < a_len;
+        if !a_available && takeover == 0 {
+            break;
+        }
+
+        let a_num = if a_available { addend[a_inx] } else { 0 };
+
+        let s_available = s_inx < s_len;
+        let s_num = if s_available { sum[s_inx] } else { 0 };
+
+        let add = ones(s_num + a_num, &mut takeover);
+
+        if s_available {
+            sum[s_inx] = add;
+        } else {
+            sum.push(add);
+        }
+
+        a_inx += 1;
+        s_inx += 1;
+    }
+}
+
+pub(crate) fn addition_two(lh_addend: &[u8], rh_addend: &[u8], sum: &mut RawRow) {
+    
+    let lha_len = lh_addend.len();
+    let rha_len = rh_addend.len();
+
+    let mut takeover = 0;
+    let mut a_inx = 0;
+
+    loop {
+        let lha_available = a_inx < lha_len;
+        let rha_available = a_inx < rha_len;
+
+        if !(lha_available || rha_available) && takeover == 0 {
+            break;
+        }
+
+        let lha_num = if lha_available { lh_addend[a_inx] } else { 0 };
+        let rha_num = if rha_available { rh_addend[a_inx] } else { 0 };
+
+        let add = ones(lha_num + rha_num, &mut takeover);
+        sum.push(add);
+
+        a_inx += 1;
+    }
+}
+
 /// For difference computation applies precondition minuend ≥ subtrahend.
 /// Returns difference/remainder and ration in order.
 //
@@ -2244,7 +2302,7 @@ fn subtraction(
             break;
         }
 
-        addition(&one, None, &mut ratio, 0);
+        addition_sum(&one, &mut ratio, 0);
 
         if !remainder {
             break;
@@ -4994,82 +5052,104 @@ mod tests_of_units {
     /// - Since 18+1=19 any value fits into 1=⌊19÷10⌋ ten.
     mod addition {
 
-        mod one_addend {
-            use crate::addition;
+        mod addition_sum {
+            use crate::addition_sum;
 
             #[test]
             fn basic_test() {
-                let ad1 = vec![4, 3, 2, 5];
-                let mut sum = vec![1, 2, 3];
+                let ad = vec![1, 2, 3];
+                let mut sum = vec![4, 3, 2, 5, 5];
 
-                addition(&ad1, None, &mut sum, 0);
+                addition_sum(&ad, &mut sum, 0);
 
-                assert_eq!(vec![5, 5, 5, 5], sum);
+                assert_eq!(vec![5, 5, 5, 5, 5], sum);
             }
 
             #[test]
             fn takover_test() {
-                let ad1 = vec![9];
+                let ad = vec![9];
                 let mut sum = vec![9, 9, 9, 9, 9];
 
-                addition(&ad1, None, &mut sum, 0);
+                addition_sum(&ad, &mut sum, 0);
 
                 assert_eq!(vec![8, 0, 0, 0, 0, 1], sum);
             }
 
             #[test]
             fn longer_addition_test() {
-                let ad1 = vec![8, 9, 9, 9, 9];
+                let ad = vec![8, 8, 9, 9, 9];
                 let mut sum = vec![1, 1];
 
-                addition(&ad1, None, &mut sum, 0);
-
-                assert_eq!(vec![9, 0, 0, 0, 0, 1], sum);
-            }
-
-            #[test]
-            fn offset_test() {
-                let ad1 = vec![9, 9, 9, 9];
-                let mut sum = vec![1, 1, 7, 8];
-
-                addition(&ad1, None, &mut sum, 2);
-
-                assert_eq!(vec![1, 1, 6, 8, 0, 0, 1], sum);
-            }
-        }
-
-        mod two_addends {
-            use crate::addition;
-
-            #[test]
-            fn basic_test() {
-                let ad1 = vec![1, 1, 2, 4, 9];
-                let ad2 = vec![8, 8, 7, 5];
-                let mut sum = Vec::new();
-
-                addition(&ad1, Some(&ad2), &mut sum, 0);
+                addition_sum(&ad, &mut sum, 0);
 
                 assert_eq!(vec![9, 9, 9, 9, 9], sum);
             }
 
             #[test]
-            fn takover_test() {
-                let ad1 = vec![9];
-                let ad2 = vec![9];
+            fn offset_test() {
+                let ad = vec![9, 9, 9, 9];
+                let mut sum = vec![1, 1, 7, 8];
+
+                addition_sum(&ad, &mut sum, 2);
+
+                assert_eq!(vec![1, 1, 6, 8, 0, 0, 1], sum);
+            }
+        }
+
+        mod addition_two {
+            use crate::addition_two;
+
+            #[test]
+            fn basic_test() {
+                let ad1 = vec![8, 8, 7, 5];
+                let ad2 = vec![1, 1, 2, 4, 9, 9];
                 let mut sum = Vec::new();
 
-                addition(&ad1, Some(&ad2), &mut sum, 0);
+                addition_two(&ad1, &ad2, &mut sum);
 
-                assert_eq!(vec![8, 1], sum);
+                assert_eq!(vec![9, 9, 9, 9, 9, 9], sum);
             }
 
             #[test]
-            fn longer_addition_test() {
+            fn takover_1_test() {
+                let ad1 = vec![99];
+                let ad2 = vec![9];
+                let mut sum = Vec::new();
+
+                addition_two(&ad1, &ad2, &mut sum);
+
+                assert_eq!(vec![8, 0, 1], sum);
+            }
+
+            #[test]
+            fn takover_2_test() {
+                let ad1 = vec![9];
+                let ad2 = vec![99];
+                let mut sum = Vec::new();
+
+                addition_two(&ad1, &ad2, &mut sum);
+
+                assert_eq!(vec![8, 0, 1], sum);
+            }
+
+            #[test]
+            fn longer_addition_1_test() {
                 let ad1 = vec![8, 8, 9, 9, 9];
                 let ad2 = vec![1, 1];
                 let mut sum = Vec::new();
 
-                addition(&ad1, Some(&ad2), &mut sum, 0);
+                addition_two(&ad1, &ad2, &mut sum);
+
+                assert_eq!(vec![9, 9, 9, 9, 9], sum);
+            }
+
+            #[test]
+            fn longer_addition_2_test() {
+                let ad1 = vec![1, 1];
+                let ad2 = vec![8, 8, 9, 9, 9];
+                let mut sum = Vec::new();
+
+                addition_two(&ad1, &ad2, &mut sum);
 
                 assert_eq!(vec![9, 9, 9, 9, 9], sum);
             }
