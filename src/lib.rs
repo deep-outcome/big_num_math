@@ -395,6 +395,7 @@ impl std::string::ToString for PlacesRow {
 }
 
 use core::convert::From;
+use std::cmp::max;
 use std::time::{Duration, Instant};
 
 impl From<u8> for PlacesRow {
@@ -695,21 +696,17 @@ pub fn add(addend1: &PlacesRow, addend2: &PlacesRow) -> PlacesRow {
         _ => {}
     }
 
-    let (addend, augend) = if r1.len() > r2.len() {
-        (r1, r2)
-    } else {
-        (r2, r1)
-    };
+    let max_len = max(r1.len(), r2.len());
 
     // avoids repetitive reallocations
     // +1 stands for contigent new place
     let mut sum = Vec::new();
-    sum.reserve_exact(addend.len() + 1);
+    sum.reserve_exact(max_len + 1);
 
     #[cfg(test)]
     let sum_ptr = sum.as_ptr();
 
-    addition_two(addend, augend, &mut sum);
+    addition_two(r1, r2, &mut sum);
 
     #[cfg(test)]
     assert!(sum_ptr == sum.as_ptr());
@@ -2127,52 +2124,6 @@ fn product(mpler: u8, mcand: &RawRow, product: &mut RawRow) {
     }
 }
 
-/// Adds `addend_1` to `sum` or adds `addend_1` and `addend_2` sum into `sum`.
-///
-/// Precise expectations must be upkept when adding 2 addends: sum is assumed to be empty, `addend_1` to be longer or equal of numbers and offset to be `0`.
-fn addition(addend_1: &[u8], addend_2: Option<&[u8]>, sum: &mut RawRow, offset: usize) {
-    let addend_1_len = addend_1.len();
-
-    let (addend_2_ptr, addend_2_len) = if let Some(addend) = addend_2 {
-        (addend.as_ptr(), addend.len())
-    } else {
-        (sum.as_ptr(), sum.len())
-    };
-
-    let mut takeover = 0;
-    let mut addend_1_inx = 0;
-    let mut addend_2_inx = offset;
-
-    loop {
-        let addend_1_available = addend_1_inx < addend_1_len;
-        if !addend_1_available && takeover == 0 {
-            break;
-        }
-
-        let addend_1_num = if addend_1_available {
-            addend_1[addend_1_inx]
-        } else {
-            0
-        };
-
-        let addend_2_num = if addend_2_inx < addend_2_len {
-            unsafe { addend_2_ptr.offset(addend_2_inx as isize).read() }
-        } else {
-            0
-        };
-
-        let add = ones(addend_2_num + addend_1_num, &mut takeover);
-        if let Some(refer) = sum.get_mut(addend_2_inx) {
-            *refer = add;
-        } else {
-            sum.push(add);
-        }
-
-        addend_1_inx += 1;
-        addend_2_inx += 1;
-    }
-}
-
 pub(crate) fn addition_sum(addend: &[u8], sum: &mut RawRow, offset: usize) {
     let a_len = addend.len();
     let s_len = sum.len();
@@ -2206,7 +2157,6 @@ pub(crate) fn addition_sum(addend: &[u8], sum: &mut RawRow, offset: usize) {
 }
 
 pub(crate) fn addition_two(lh_addend: &[u8], rh_addend: &[u8], sum: &mut RawRow) {
-    
     let lha_len = lh_addend.len();
     let rha_len = rh_addend.len();
 
