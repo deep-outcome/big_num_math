@@ -5061,7 +5061,7 @@ mod tests_of_units {
             }
 
             #[test]
-            fn takover_1_test() {
+            fn takover_test1() {
                 let ad1 = vec![99];
                 let ad2 = vec![9];
                 let mut sum = Vec::new();
@@ -5072,7 +5072,7 @@ mod tests_of_units {
             }
 
             #[test]
-            fn takover_2_test() {
+            fn takover_test2() {
                 let ad1 = vec![9];
                 let ad2 = vec![99];
                 let mut sum = Vec::new();
@@ -5083,7 +5083,7 @@ mod tests_of_units {
             }
 
             #[test]
-            fn longer_addition_1_test() {
+            fn longer_addition_test1() {
                 let ad1 = vec![8, 8, 9, 9, 9];
                 let ad2 = vec![1, 1];
                 let mut sum = Vec::new();
@@ -5094,7 +5094,7 @@ mod tests_of_units {
             }
 
             #[test]
-            fn longer_addition_2_test() {
+            fn longer_addition_test2() {
                 let ad1 = vec![1, 1];
                 let ad2 = vec![8, 8, 9, 9, 9];
                 let mut sum = Vec::new();
