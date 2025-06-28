@@ -890,13 +890,13 @@ fn divrem_accelerated(
     divisor: &[u8],
     #[cfg(test)] tg: &mut TestGauges,
 ) -> (RawRow, RawRow) {
-    let divisor_len = divisor.len();
-    let mut remend_len = dividend.len();
+    let sor_len = divisor.len();
+    let mut end_len = dividend.len();
 
     let mut ratio = vec![0];
 
     let mut end = dividend.to_vec();
-    if remend_len < divisor_len {
+    if end_len < sor_len {
         #[cfg(test)]
         {
             tg.esc = DivRemEscCode::Pli
@@ -904,17 +904,17 @@ fn divrem_accelerated(
         return (end, ratio);
     }
 
-    if remend_len > divisor_len {
+    if end_len > sor_len {
         // widen divisor
-        let mut wdsor = vec![0; remend_len];
+        let mut wsor = vec![0; end_len];
         // e.g. 15 000 ÷ 15
         // 5 -2 +1 = 4
         // mpler = [0,0,0,1], one at 4ᵗʰ place
-        let mut mpler = vec![0; remend_len - divisor_len + 1];
+        let mut mpler = vec![0; end_len - sor_len + 1];
 
         // highest index
-        let sor_hg_ix = divisor_len - 1;
-        let mut wr_ix = remend_len - 1;
+        let sor_hg_ix = sor_len - 1;
+        let mut wr_ix = end_len - 1;
 
         'w: loop {
             let mut l_ix = wr_ix;
@@ -928,7 +928,7 @@ fn divrem_accelerated(
                 // end highest place
                 if end_num < sor_num {
                     // same as remend_len == divisor_len +1
-                    if wr_ix == divisor_len {
+                    if wr_ix == sor_len {
                         // rest of loop would run in vain otherwise
                         // also could have reentrancy consequence
 
@@ -961,18 +961,18 @@ fn divrem_accelerated(
                 tg.w_ctr += 1;
 
                 // sor is always widen upto highest or second highestmost place
-                assert!(remend_len == wr_ix + 1 || remend_len == wr_ix + 2)
+                assert!(end_len == wr_ix + 1 || end_len == wr_ix + 2)
             }
 
-            let wdsor_len = wr_ix + 1;
+            let wsor_len = wr_ix + 1;
             // shortening wdsor removes leading numbers
             // which could influence computation in arithmetic
             // (significants) or execution (zeros) means
-            unsafe { wdsor.set_len(wdsor_len) };
+            unsafe { wsor.set_len(wsor_len) };
 
             let mut sor_ix = sor_hg_ix;
             'cp: loop {
-                wdsor[wr_ix] = divisor[sor_ix];
+                wsor[wr_ix] = divisor[sor_ix];
 
                 if sor_ix == 0 {
                     break 'cp;
@@ -984,7 +984,7 @@ fn divrem_accelerated(
 
             let rat = subtraction_decremental(
                 &mut end,
-                &wdsor,
+                &wsor,
                 true,
                 #[cfg(test)]
                 &mut tg.ctr,
@@ -992,7 +992,7 @@ fn divrem_accelerated(
 
             // e.g. 15 000 ÷ 25 ⇒ 2 500
             // 4 -2 = 2 ⇒ [0,0,1], one at index 2
-            let mpler_wr_ix = wdsor_len - divisor_len;
+            let mpler_wr_ix = wsor_len - sor_len;
 
             #[cfg(test)]
             {
@@ -1008,16 +1008,16 @@ fn divrem_accelerated(
             let rat = mulmul(&rat, &mpler, 1);
             addition_sum(&rat, &mut ratio, 0);
 
-            remend_len = end.len();
-            wr_ix = remend_len - 1;
+            end_len = end.len();
+            wr_ix = end_len - 1;
 
-            if remend_len < divisor_len {
+            if end_len < sor_len {
                 #[cfg(test)]
                 {
                     tg.esc = DivRemEscCode::Pll;
                 }
                 return (end, ratio);
-            } else if remend_len == divisor_len {
+            } else if end_len == sor_len {
                 if end[wr_ix] < divisor[wr_ix] {
                     #[cfg(test)]
                     {
