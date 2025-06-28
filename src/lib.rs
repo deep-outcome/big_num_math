@@ -576,7 +576,7 @@ pub fn rel(num: &PlacesRow, comparand: &PlacesRow) -> Rel {
     rel_raw(r1, r2)
 }
 
-fn rel_raw(r1: &RawRow, r2: &RawRow) -> Rel {
+fn rel_raw(r1: &[u8], r2: &[u8]) -> Rel {
     match rel_dec_raw(r1, r2) {
         RelDec::Greater(c) => Rel::Greater(Some(c)),
         RelDec::Lesser(c) => Rel::Lesser(Some(c)),
@@ -895,16 +895,14 @@ fn divrem_accelerated(
 
     let mut ratio = vec![0];
 
+    let mut end = dividend.to_vec();
     if remend_len < divisor_len {
         #[cfg(test)]
         {
             tg.esc = DivRemEscCode::Pli
         }
-        return (dividend.to_vec(), ratio);
+        return (end, ratio);
     }
-
-    let mut remainder = None;
-    let mut end = dividend;
 
     if remend_len > divisor_len {
         // widen divisor
@@ -984,8 +982,8 @@ fn divrem_accelerated(
                 wr_ix -= 1;
             }
 
-            let remrat = subtraction(
-                end,
+            let rat = subtraction_decremental(
+                &mut end,
                 &wdsor,
                 true,
                 #[cfg(test)]
@@ -1007,12 +1005,9 @@ fn divrem_accelerated(
             unsafe { mpler.set_len(mpler_wr_ix + 1) };
             mpler[mpler_wr_ix] = 1;
 
-            let rat = mulmul(&remrat.1, &mpler, 1);
+            let rat = mulmul(&rat, &mpler, 1);
             addition_sum(&rat, &mut ratio, 0);
 
-            remainder = Some(remrat.0);
-
-            end = remainder.as_ref().unwrap();
             remend_len = end.len();
             wr_ix = remend_len - 1;
 
@@ -1021,14 +1016,14 @@ fn divrem_accelerated(
                 {
                     tg.esc = DivRemEscCode::Pll;
                 }
-                return (remainder.unwrap(), ratio);
+                return (end, ratio);
             } else if remend_len == divisor_len {
                 if end[wr_ix] < divisor[wr_ix] {
                     #[cfg(test)]
                     {
                         tg.esc = DivRemEscCode::Lop;
                     }
-                    return (remainder.unwrap(), ratio);
+                    return (end, ratio);
                 }
 
                 break 'w;
@@ -1036,22 +1031,20 @@ fn divrem_accelerated(
         }
     }
 
-    // runs only when remend_len == divisor_len
     // if end is already rem this "runs in vain"
-
-    let (rem, rat) = subtraction(
-        end,
+    let rat = subtraction_decremental(
+        &mut end,
         &divisor,
         true,
         #[cfg(test)]
         &mut tg.ctr,
     );
 
-    let rat = if remainder.is_some() {
+    let rat = if is_nought_raw(&ratio) {
+        rat
+    } else {
         addition_sum(&rat, &mut ratio, 0);
         ratio
-    } else {
-        rat
     };
 
     #[cfg(test)]
@@ -1061,7 +1054,7 @@ fn divrem_accelerated(
         }
     }
 
-    (rem, rat)
+    (end, rat)
 }
 
 #[cfg(test)]
@@ -2181,25 +2174,37 @@ pub(crate) fn addition_two(lh_addend: &[u8], rh_addend: &[u8], sum: &mut RawRow)
     }
 }
 
-/// For difference computation applies precondition minuend ≥ subtrahend.
-/// Returns difference/remainder and ration in order.
-//
-// NOTE: Support for longer subtrahend implies extended guard condition on
-// correction `inx < subtrahend_len && inx < minuend_len`. See feature 'shorter-dividend-support'.
 fn subtraction(
     minuend: &[u8],
     subtrahend: &[u8],
     remainder: bool,
     #[cfg(test)] ctr: &mut usize,
 ) -> (RawRow, RawRow) {
-    let mut diffrem_populated = false;
+    let mut diffrem = minuend.to_vec();
 
+    let ratio = subtraction_decremental(
+        &mut diffrem,
+        subtrahend,
+        remainder,
+        #[cfg(test)]
+        ctr,
+    );
+    (diffrem, ratio)
+}
+
+/// For difference computation applies precondition minuend ≥ subtrahend.
+/// Returns difference/remainder and ration in order.
+//
+// NOTE: Support for longer subtrahend implies extended guard condition on
+// correction `inx < subtrahend_len && inx < minuend_len`. See feature 'shorter-dividend-support'.
+fn subtraction_decremental(
+    minuend: &mut RawRow,
+    subtrahend: &[u8],
+    remainder: bool,
+    #[cfg(test)] ctr: &mut usize,
+) -> RawRow {
     let minuend_len = minuend.len();
     let subtrahend_len = subtrahend.len();
-
-    let mut diffrem = vec![0; minuend_len];
-    let diffrem_ptr = diffrem.as_ptr();
-    let mut minuend_ptr = minuend.as_ptr();
 
     let mut ratio = nought_raw();
     let one = vec![1; 1];
@@ -2217,13 +2222,13 @@ fn subtraction(
         while inx < minuend_len {
             let s_num = if inx < subtrahend_len {
                 subtrahend[inx]
-            } else if takeover == 0 && diffrem_populated {
+            } else if takeover == 0 {
                 break;
             } else {
                 0
             };
 
-            let mut m_num = unsafe { minuend_ptr.offset(inx as isize).read() };
+            let mut m_num = minuend[inx];
 
             let total_s = s_num + takeover;
             takeover = if m_num < total_s {
@@ -2233,7 +2238,7 @@ fn subtraction(
                 0
             };
 
-            diffrem[inx] = m_num - total_s;
+            minuend[inx] = m_num - total_s;
             inx += 1;
         }
 
@@ -2242,13 +2247,14 @@ fn subtraction(
         if takeover == 1 {
             inx = 0;
             takeover = 0;
+
             while inx < subtrahend_len {
-                let correction = diffrem[inx] + subtrahend[inx];
-                diffrem[inx] = ones(correction, &mut takeover);
+                let correction = minuend[inx] + subtrahend[inx];
+                minuend[inx] = ones(correction, &mut takeover);
                 inx += 1;
             }
 
-            truncate_leading_raw(&mut diffrem, 9, inx);
+            truncate_leading_raw(minuend, 9, inx);
             break;
         }
 
@@ -2257,15 +2263,10 @@ fn subtraction(
         if !remainder {
             break;
         }
-
-        if !diffrem_populated {
-            minuend_ptr = diffrem_ptr;
-            diffrem_populated = true;
-        }
     }
 
-    shrink_to_fit_raw(&mut diffrem);
-    (diffrem, ratio)
+    shrink_to_fit_raw(minuend);
+    ratio
 }
 
 /// Supports algorithimical decimal row computations.
