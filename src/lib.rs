@@ -808,27 +808,31 @@ fn mul_shortcut(factor1: &RawRow, factor2: &RawRow) -> Option<RawRow> {
 pub fn pow(base: &PlacesRow, pow: u16) -> PlacesRow {
     let row = &base.row;
 
+    let row = pow_raw(row, pow);
+    Row { row }
+}
+
+pub fn pow_raw(row: &RawRow, pow: u16) -> RawRow {
     if let Some(row) = pow_shortcut(row, pow) {
         return row;
     }
 
-    let row = mulmul(row, row, pow - 1);
-    Row { row }
+    mulmul(row, row, pow - 1)
 }
 
 // x⁰ = 1
 // x¹ = x
 // 0ⁿ = 0 n∊ℕ﹥₀
 // 1ⁿ = 1 n∊ℕ₀
-fn pow_shortcut(row: &RawRow, pow: u16) -> Option<Row> {
+fn pow_shortcut(row: &RawRow, pow: u16) -> Option<RawRow> {
     if pow == 0 {
-        Some(Row::unity())
+        Some(unity_raw())
     } else if pow == 1 {
-        Some(Row { row: row.clone() })
+        Some(row.clone())
     } else if is_nought_raw(row) {
-        Some(Row::nought())
+        Some(nought_raw())
     } else if is_unity_raw(row) {
-        Some(Row::unity())
+        Some(unity_raw())
     } else {
         None
     }
@@ -2038,11 +2042,6 @@ fn heron_sqrt_raw(row: &[u8]) -> RawRow {
 ///   🡺 Inspect log₂ power speed up.
 fn mulmul(row1: &[u8], row2: &[u8], times: u16) -> RawRow {
     let (mpler, mut mcand) = (row1, row2.to_vec());
-
-    #[cfg(feature = "one-power-mulmul-support")]
-    if times == 0 {
-        return mcand;
-    }
 
     let mpler_len = mpler.len();
 
@@ -3451,33 +3450,33 @@ mod tests_of_units {
 
     mod pow_shortcut {
         use super::nought;
-        use crate::{pow_shortcut, Row};
+        use crate::{nought_raw, pow_shortcut, unity_raw, Row};
 
         #[test]
         fn zero_power_test() {
             let row = nought();
             let pow = pow_shortcut(&row, 0);
-            assert_eq!(Some(Row::unity()), pow);
+            assert_eq!(Some(unity_raw()), pow);
         }
 
         #[test]
         fn power_of_nought_test() {
-            let row = Row::nought();
-            let pow = pow_shortcut(&row.row, 1000);
+            let row = nought_raw();
+            let pow = pow_shortcut(&row, 1000);
             assert_eq!(Some(row), pow);
         }
 
         #[test]
         fn one_power_test() {
-            let row = Row::new_from_usize(3030);
-            let pow = pow_shortcut(&row.row, 1);
+            let row = new_from_num!(3030).row;
+            let pow = pow_shortcut(&row, 1);
             assert_eq!(Some(row), pow);
         }
 
         #[test]
         fn power_of_one_test() {
-            let row = Row::unity();
-            let pow = pow_shortcut(&row.row, u16::MAX);
+            let row = unity_raw();
+            let pow = pow_shortcut(&row, u16::MAX);
             assert_eq!(Some(row), pow);
         }
     }
@@ -4945,18 +4944,8 @@ mod tests_of_units {
         #[test]
         fn power_of_nought_test() {
             let row = nought_raw();
-            let pow = mulmul(&row, &row, 1000 - 1);
+            let pow = mulmul(&row, &row, u16::MAX - 1);
             assert_eq!(row, pow);
-        }
-
-        #[test]
-        #[cfg(feature = "one-power-mulmul-support")]
-        fn one_power_test() {
-            use crate::Row;
-
-            let row = Row::new_from_usize(3030);
-            let pow = mulmul(&row.row, &row.row, 1 - 1);
-            assert_eq!(row.row, pow);
         }
 
         #[test]
