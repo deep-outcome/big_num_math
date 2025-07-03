@@ -5350,5 +5350,5 @@ mod tests_of_units {
 // cargo test --features ext-tests --release
 // cargo test --features ext-tests2 --release primes_ext_test
 // cargo test --features ext-tests3 --release primes_ext2_test
-// cargo test --features ext-tests,shorter-dividend-support,one-power-mulmul-support --release
+// cargo test --features ext-tests,shorter-dividend-support --release
 // cargo test --release
