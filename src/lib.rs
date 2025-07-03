@@ -812,7 +812,7 @@ pub fn pow(base: &PlacesRow, pow: u16) -> PlacesRow {
     Row { row }
 }
 
-pub fn pow_raw(row: &RawRow, pow: u16) -> RawRow {
+fn pow_raw(row: &RawRow, pow: u16) -> RawRow {
     if let Some(row) = pow_shortcut(row, pow) {
         return row;
     }
