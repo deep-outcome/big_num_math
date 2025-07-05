@@ -286,15 +286,15 @@ fn nought_raw() -> RawRow {
     vec![0; 1]
 }
 
-fn is_unity_raw(row: &[u8]) -> bool {
+const fn is_unity_raw(row: &[u8]) -> bool {
     is_one_raw(row, 1)
 }
 
-fn is_nought_raw(row: &[u8]) -> bool {
+const fn is_nought_raw(row: &[u8]) -> bool {
     is_one_raw(row, 0)
 }
 
-fn is_one_raw(row: &[u8], one: u8) -> bool {
+const fn is_one_raw(row: &[u8], one: u8) -> bool {
     row.len() == 1 && row[0] == one
 }
 
