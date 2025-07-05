@@ -3,9 +3,9 @@
 type RawRow = Vec<u8>;
 type Row = PlacesRow;
 
-pub mod nth_root;
 #[macro_use]
 mod macroinstruction;
+pub mod nth_root;
 
 /// `PlacesRow` represents row of decimal places starting at ones (`0` index).
 #[derive(Clone, PartialEq, Debug)]
@@ -1985,7 +1985,6 @@ fn heron_sqrt_raw(row: &[u8]) -> RawRow {
 ///   🡺 Inspect log₂ power speed up.
 fn mulmul(row1: &[u8], row2: &[u8], times: u16) -> RawRow {
     let (mpler, mut mcand) = (row1, row2.to_vec());
-
     let mpler_len = mpler.len();
 
     // intermediate product of `mcand` and `mpler`

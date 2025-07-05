@@ -1,4 +1,3 @@
-#[macro_export]
 macro_rules! new_from_num {
     ($n:expr) => {{
         let mut n = $n;
@@ -17,7 +16,6 @@ macro_rules! new_from_num {
     }};
 }
 
-#[macro_export]
 macro_rules! try_into_num {
     ($r:expr,$t:ty,$esc:expr) => {{
         let mut n = <$t>::default();
