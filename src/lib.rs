@@ -50,6 +50,7 @@ impl PlacesRow {
             ix += 1;
         }
 
+        // task: replace truncates with set_len
         row.truncate(row_len);
         Ok(Row { row })
     }
@@ -2034,6 +2035,10 @@ fn mulmul(row1: &[u8], row2: &[u8], times: u16) -> RawRow {
         i_sum = swap;
     }
 
+    
+    // task: check with conditional execeution (i.e. using bool flag)
+    // validated inputs do not need truncations
+    
     // useless when both of factors cannot be nought
     shrink_to_fit_raw(&mut mcand);
     mcand

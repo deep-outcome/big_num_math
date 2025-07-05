@@ -5,7 +5,7 @@ use super::{
     subtraction_decremental, RawRow, Rel,
 };
 
-// think of shortcuts
+// task: think of shortcuts
 // any root of 0 = 0
 // any root of 1 = 1
 // root 1 of any = any
@@ -125,6 +125,8 @@ fn next(
     .0;
 }
 
+// task: test whether guess is really some benefit
+// it is quite complex => misses can be cheaper
 fn guess(
     rax_pow_less: &RawRow,
     dbdlp: &RawRow,
