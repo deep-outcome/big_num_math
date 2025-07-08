@@ -50,7 +50,6 @@ impl PlacesRow {
             ix += 1;
         }
 
-        // task: replace truncates with set_len
         row.truncate(row_len);
         Ok(Row { row })
     }
@@ -1985,8 +1984,13 @@ fn heron_sqrt_raw(row: &[u8]) -> RawRow {
 /// Space for effecient power computation?
 ///   🡺 Inspect log₂ power speed up.
 fn mulmul(row1: &[u8], row2: &[u8], times: u16) -> RawRow {
-    let (mpler, mut mcand) = (row1, row2.to_vec());
+    let mpler = row1;
     let mpler_len = mpler.len();
+
+    let mut mcand_len = row2.len();
+    // see note on i_sum.reserve
+    let mut mcand = Vec::with_capacity(mcand_len + mpler_len);
+    mcand.extend(row2);
 
     // intermediate product of `mcand` and `mpler`
     let mut i_product = Vec::with_capacity(0);
@@ -1995,8 +1999,6 @@ fn mulmul(row1: &[u8], row2: &[u8], times: u16) -> RawRow {
 
     let mut cntr = 0;
     loop {
-        let mcand_len = mcand.len();
-
         // avoids repetitive reallocations
         // +1 stands for contigent new place
         i_product.reserve(mcand_len + 1);
@@ -2033,19 +2035,18 @@ fn mulmul(row1: &[u8], row2: &[u8], times: u16) -> RawRow {
         let swap = mcand;
         mcand = i_sum;
         i_sum = swap;
+
+        mcand_len = mcand.len();
     }
 
-    
-    // task: check with conditional execeution (i.e. using bool flag)
-    // validated inputs do not need truncations
-    
-    // useless when both of factors cannot be nought
-    shrink_to_fit_raw(&mut mcand);
+    if is_nought_raw(row1) || is_nought_raw(row2) {
+        shrink_to_fit_raw(&mut mcand);
+    }
     mcand
 }
 
 /// Computes product of `mpler` and `mcand`.
-fn product(mpler: u8, mcand: &RawRow, product: &mut RawRow) {
+fn product(mpler: u8, mcand: &[u8], product: &mut RawRow) {
     let mut takeover = 0;
 
     // runs in vain for `mpler` = 0
