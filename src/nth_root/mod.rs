@@ -35,35 +35,17 @@ fn next(
     #[cfg(test)] decr_out: &mut bool,
 ) {
     // By, widen rax
-    // extended cloning instead of multiplication
-    let mut wrax = if is_nought_raw(rax) {
-        nought_raw()
-    } else {
-        let wrax_len = rax.len() + 1;
-        let mut wrax = Vec::with_capacity(wrax_len);
-
-        let sc = wrax.spare_capacity_mut();
-        // ⋅B
-        sc[0].write(0);
-
-        let mut ix = 1;
-        while ix < wrax_len {
-            sc[ix].write(rax[ix - 1]);
-            ix += 1;
-        }
-
-        unsafe {
-            wrax.set_len(wrax_len);
-        }
-
-        wrax
-    };
+    // expansion instead of multiplication
+    if is_nought_raw(&rax) == false {
+        // y' =By +β, β =0
+        rax.insert(0, 0);
+    }
 
     // yⁿ⁻¹
-    let rax_pow_less = pow_raw(rax, degree_less);
+    let rax_pow_less = pow_raw(&rax, degree_less);
 
     // Bⁿyⁿ, subtrahend
-    let sub = mulmul(bdp, &mulmul(&rax_pow_less, rax, 1), 1);
+    let sub = mulmul(bdp, &mulmul(&rax_pow_less, &rax, 1), 1);
 
     // Bⁿr +α, limit
     lim.clear();
@@ -84,7 +66,7 @@ fn next(
 
     #[cfg(test)]
     {
-        *wrax_out = wrax.clone();
+        *wrax_out = rax.clone();
         *rax_pow_less_out = rax_pow_less.clone();
         *sub_out = sub.clone();
         *lim_out = lim.clone();
@@ -92,27 +74,26 @@ fn next(
         *guess_out = guess.clone();
     }
 
+    let inc_res = incr(rax, &mut beta, unity, degree, &sub, lim, &guess);
+
     // (By +β)ⁿ -Bⁿyⁿ
-    let max;
-    let inc_res = incr(&wrax, &mut beta, unity, degree, &sub, lim, &guess);
+    let max = match inc_res {
+        IncRes::Attainment((r, m)) => {
+            #[cfg(test)]
+            set_cr_out(incr_out);
 
-    if let Some((r, m)) = inc_res {
-        #[cfg(test)]
-        {
-            *incr_out = true;
+            *rax = r;
+            m
         }
+        IncRes::BetaMiss(m) => m,
+        IncRes::OverGuess(mut rax) => {
+            #[cfg(test)]
+            set_cr_out(decr_out);
 
-        *rax = r;
-        max = m;
-    } else {
-        #[cfg(test)]
-        {
-            *decr_out = true;
+            let m = decr(&mut rax, unity, degree, &sub, &lim);
+            m
         }
-
-        max = decr(&mut wrax, &beta, unity, degree, &sub, &lim);
-        *rax = wrax;
-    }
+    };
 
     // r' =(Bⁿr +α) -((By +β)ⁿ -Bⁿyⁿ)
     *rem = subtraction(
@@ -123,6 +104,11 @@ fn next(
         &mut 0,
     )
     .0;
+
+    #[cfg(test)]
+    fn set_cr_out(cr_out: &mut bool) {
+        *cr_out = true;
+    }
 }
 
 // task: test whether guess is really some benefit
@@ -159,6 +145,12 @@ fn guess(
     None
 }
 
+enum IncRes {
+    OverGuess(RawRow),
+    BetaMiss(RawRow),
+    Attainment((RawRow, RawRow)),
+}
+
 fn incr<'a>(
     wrax: &RawRow,
     beta: &mut RawRow,
@@ -167,34 +159,30 @@ fn incr<'a>(
     sub: &RawRow,
     lim: &RawRow,
     guess: &Option<RawRow>,
-) -> Option<(RawRow, RawRow)> {
+) -> IncRes {
     // seeking largest beta that
     // (By +β)ⁿ -Bⁿyⁿ ≤ Bⁿr +α
 
-    // o stands for operative
     let wrax_len = wrax.len();
     let beta_len = beta.len();
     let max_len = max(wrax_len, beta_len);
 
     let mut orax = Vec::with_capacity(max_len + 1);
 
+    // o stands for operative
+    // y' =By +β
+    addition_two(beta, &wrax, &mut orax);
+    let mut beta_miss = true;
+
     // (By +β)ⁿ -Bⁿyⁿ
     // β =0 =>(By)ⁿ -Bⁿyⁿ =0
     let mut max = nought_raw();
 
-    // y' =By +β, β =0
-    let mut rax = wrax.clone();
-
     loop {
-        // y' =By +β
-        // let orax = wrax + beta;
-        addition_two(wrax, &beta, &mut orax);
-
         // (By +β)ⁿ
         let orax_deg_pow = pow_raw(&orax, degree);
 
         // (By +β)ⁿ -Bⁿyⁿ
-        // let omax = orax_deg_pow - sub;
         let omax = subtraction(
             &orax_deg_pow,
             sub,
@@ -205,54 +193,40 @@ fn incr<'a>(
         .0;
 
         // (By +β)ⁿ -Bⁿyⁿ ≤ Bⁿr +α
-        // if omax > lim {
         if let Rel::Greater(_) = rel_raw(&omax, lim) {
             if let Some(g) = guess {
                 if Rel::Equal == rel_raw(g, &beta) {
-                    return None;
+                    return IncRes::OverGuess(orax);
                 }
+            }
+
+            if beta_miss {
+                return IncRes::BetaMiss(max);
             }
 
             break;
         }
 
-        std::mem::swap(&mut orax, &mut rax);
-        orax.clear();
-
+        beta_miss = false;
         max = omax;
 
         // (By +β)ⁿ -Bⁿyⁿ ≤ Bⁿr +α
-        // if omax == lim {
         if Rel::Equal == rel_raw(&max, lim) {
             break;
         }
 
-        addition_sum(unity, beta, 0);
+        addition_sum(unity, &mut orax, 0);
     }
 
-    return Some((rax, max));
+    return IncRes::Attainment((orax, max));
 }
 
 // do not decrement beta and add to wrax each iteration
 // add first than decrement orax
-fn decr(
-    orax: &mut RawRow,
-    beta: &RawRow,
-    unity: &RawRow,
-    degree: u16,
-    sub: &RawRow,
-    lim: &RawRow,
-) -> RawRow {
-    // y' =By +β
-    //let orax = wrax + beta;
-    addition_sum(&beta, orax, 0);
-
+fn decr(orax: &mut RawRow, unity: &RawRow, degree: u16, sub: &RawRow, lim: &RawRow) -> RawRow {
     // seeking largest beta that
     // (By +β)ⁿ -Bⁿyⁿ ≤ Bⁿr +α
-
     loop {
-        // o stands for operative
-        // beta -= 1;
         _ = subtraction_decremental(
             orax,
             unity,
@@ -262,11 +236,9 @@ fn decr(
         );
 
         // (By +β)ⁿ
-        // let orax_deg_pow = orax.pow(degree);
         let orax_deg_pow = pow_raw(&orax, degree);
 
         // (By +β)ⁿ -Bⁿyⁿ
-        // let omax = orax_deg_pow - sub;
         let omax = subtraction(
             &orax_deg_pow,
             sub,
@@ -277,8 +249,6 @@ fn decr(
         .0;
 
         // (By +β)ⁿ -Bⁿyⁿ ≤ Bⁿr +α
-        // if omax <= lim {
-
         if let Rel::Greater(_) = rel_raw(&omax, lim) {
             continue;
         }
