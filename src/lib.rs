@@ -170,7 +170,7 @@ impl PlacesRow {
 
     /// Handy ctor for usage with long numbers.
     ///
-    /// Only digits are allowed in `s`. Leading zeros are ommitted.
+    /// Only digits are allowed in `s`. Leading zeros are omitted.
     ///
     /// Returns `PlacesRow` or index in `s` where uncovertable `char` was
     /// encountered. `None` for empty string.
