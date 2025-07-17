@@ -34,18 +34,18 @@ fn next(
     #[cfg(test)] incr_out: &mut bool,
     #[cfg(test)] decr_out: &mut bool,
 ) {
+    // yⁿ⁻¹
+    let rax_pow_less = pow_raw(&rax, degree_less);
+
+    // Bⁿyⁿ, subtrahend
+    let sub = mulmul(bdp, &mulmul(&rax_pow_less, &rax, 1), 1);
+
     // By, widen rax
     // expansion instead of multiplication
     if is_nought_raw(&rax) == false {
         // y' =By +β, β =0
         rax.insert(0, 0);
     }
-
-    // yⁿ⁻¹
-    let rax_pow_less = pow_raw(&rax, degree_less);
-
-    // Bⁿyⁿ, subtrahend
-    let sub = mulmul(bdp, &mulmul(&rax_pow_less, &rax, 1), 1);
 
     // Bⁿr +α, limit
     lim.clear();
@@ -85,12 +85,13 @@ fn next(
             *rax = r;
             m
         }
-        IncRes::BetaMiss(m) => m,
-        IncRes::OverGuess(mut rax) => {
+        IncRes::MaxZero(m) => m,
+        IncRes::OverGuess(mut or) => {
             #[cfg(test)]
             set_cr_out(decr_out);
 
-            let m = decr(&mut rax, unity, degree, &sub, &lim);
+            let m = decr(&mut or, unity, degree, &sub, &lim);
+            *rax = or;
             m
         }
     };
@@ -145,9 +146,10 @@ fn guess(
     None
 }
 
+#[cfg_attr(test, derive(PartialEq, Debug))]
 enum IncRes {
     OverGuess(RawRow),
-    BetaMiss(RawRow),
+    MaxZero(RawRow),
     Attainment((RawRow, RawRow)),
 }
 
@@ -172,10 +174,11 @@ fn incr<'a>(
     // o stands for operative
     // y' =By +β
     addition_two(beta, &wrax, &mut orax);
-    let mut beta_miss = true;
+    let mut beta_zero = true;
 
     // (By +β)ⁿ -Bⁿyⁿ
     // β =0 =>(By)ⁿ -Bⁿyⁿ =0
+    // let mut max = nought_raw();
     let mut max = nought_raw();
 
     loop {
@@ -194,20 +197,25 @@ fn incr<'a>(
 
         // (By +β)ⁿ -Bⁿyⁿ ≤ Bⁿr +α
         if let Rel::Greater(_) = rel_raw(&omax, lim) {
-            if let Some(g) = guess {
-                if Rel::Equal == rel_raw(g, &beta) {
-                    return IncRes::OverGuess(orax);
-                }
+            if beta_zero {
+                return if guess.is_some() {
+                    IncRes::OverGuess(orax)
+                } else {
+                    IncRes::MaxZero(max)
+                };
             }
 
-            if beta_miss {
-                return IncRes::BetaMiss(max);
-            }
-
+            subtraction_decremental(
+                &mut orax,
+                unity,
+                false,
+                #[cfg(test)]
+                &mut 0,
+            );
             break;
         }
 
-        beta_miss = false;
+        beta_zero = false;
         max = omax;
 
         // (By +β)ⁿ -Bⁿyⁿ ≤ Bⁿr +α
@@ -747,7 +755,7 @@ mod tests_of_units {
     }
 
     mod incr {
-        use super::super::incr;
+        use crate::nth_root::{incr, IncRes};
         use crate::{nought_raw, unity_raw, Row};
 
         #[test]
@@ -762,7 +770,8 @@ mod tests_of_units {
 
             let res = incr(&wrax, &mut beta, &unity, degree, &sub, &lim, &guess);
 
-            assert_eq!(None, res);
+            let orax = new_from_num!(23).row;
+            assert_eq!(IncRes::OverGuess(orax), res);
         }
 
         #[test]
@@ -781,7 +790,7 @@ mod tests_of_units {
             let rax = new_from_num!(23).row;
             let max = new_from_num!(12100).row;
 
-            assert_eq!(Some((rax, max)), res);
+            assert_eq!(IncRes::Attainment((rax, max)), res);
         }
 
         #[test]
@@ -799,7 +808,7 @@ mod tests_of_units {
             let rax = new_from_num!(23).row;
             let max = new_from_num!(12099).row;
 
-            assert_eq!(Some((rax, max)), res);
+            assert_eq!(IncRes::Attainment((rax, max)), res);
         }
 
         #[test]
@@ -814,10 +823,8 @@ mod tests_of_units {
 
             let res = incr(&wrax, &mut beta, &unity, degree, &sub, &lim, &guess);
 
-            let rax = wrax;
             let max = nought_raw();
-
-            assert_eq!(Some((rax, max)), res);
+            assert_eq!(IncRes::MaxZero(max), res);
         }
 
         #[test]
@@ -836,7 +843,7 @@ mod tests_of_units {
             let rax = new_from_num!(23).row;
             let max = new_from_num!(12100).row;
 
-            assert_eq!(Some((rax, max)), res);
+            assert_eq!(IncRes::Attainment((rax, max)), res);
         }
 
         #[test]
@@ -854,7 +861,7 @@ mod tests_of_units {
             let rax = new_from_num!(23).row;
             let max = new_from_num!(12099).row;
 
-            assert_eq!(Some((rax, max)), res);
+            assert_eq!(IncRes::Attainment((rax, max)), res);
         }
     }
 
@@ -865,14 +872,13 @@ mod tests_of_units {
 
         #[test]
         fn max_equal_lim_test() {
-            let mut orax = new_from_num!(20).row;
-            let beta = new_from_num!(5).row;
+            let mut orax = new_from_num!(25).row;
             let unity = unity_raw();
             let degree = 4;
             let sub = new_from_num!(776).row;
             let lim = new_from_num!(331_000).row;
 
-            let omax = decr(&mut orax, &beta, &unity, degree, &sub, &lim);
+            let omax = decr(&mut orax, &unity, degree, &sub, &lim);
 
             let rax = new_from_num!(24).row;
             let max = new_from_num!(331_000).row;
@@ -883,14 +889,13 @@ mod tests_of_units {
 
         #[test]
         fn max_less_lim_test() {
-            let mut orax = new_from_num!(20).row;
-            let beta = new_from_num!(5).row;
+            let mut orax = new_from_num!(25).row;
             let unity = unity_raw();
             let degree = 4;
             let sub = new_from_num!(777).row;
             let lim = new_from_num!(331_000).row;
 
-            let omax = decr(&mut orax, &beta, &unity, degree, &sub, &lim);
+            let omax = decr(&mut orax, &unity, degree, &sub, &lim);
 
             let rax = new_from_num!(24).row;
             let max = new_from_num!(330_999).row;
@@ -901,14 +906,13 @@ mod tests_of_units {
 
         #[test]
         fn subtracting_test() {
-            let mut orax = new_from_num!(20).row;
-            let beta = new_from_num!(6).row;
+            let mut orax = new_from_num!(26).row;
             let unity = unity_raw();
             let degree = 4;
             let sub = new_from_num!(776).row;
             let lim = new_from_num!(331_000).row;
 
-            let omax = decr(&mut orax, &beta, &unity, degree, &sub, &lim);
+            let omax = decr(&mut orax, &unity, degree, &sub, &lim);
 
             let rax = new_from_num!(24).row;
             let max = new_from_num!(331_000).row;
