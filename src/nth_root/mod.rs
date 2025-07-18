@@ -1,7 +1,7 @@
 use std::cmp::max;
 
 use super::{
-    addition_sum, addition_two, divrem_accelerated, mulmul, pow_raw, rel_raw, subtraction,
+    addition_sum, addition_two, divrem_accelerated, mulmul, pow_raw, rel_raw,
     subtraction_decremental, RawRow, Rel,
 };
 
@@ -22,7 +22,6 @@ fn next(
     degree_less: u16, // n -1
     dbdlp: &RawRow,   // nBⁿ⁻¹
     unity: &RawRow,   // 1
-    lim: &mut RawRow,
 
     #[cfg(test)] wrax_out: &mut RawRow,
     #[cfg(test)] rax_pow_less_out: &mut RawRow,
@@ -48,14 +47,14 @@ fn next(
     }
 
     // Bⁿr +α, limit
-    lim.clear();
-    addition_two(&mulmul(bdp, rem, 1), alpha, lim);
+    let mut lim = mulmul(bdp, rem, 1);    
+    addition_sum(alpha, &mut lim, 0);
 
     // let make initial guess, if possible
     let (guess, mut beta) = if let Some(g) = guess(
         &rax_pow_less,
         dbdlp,
-        lim,
+        &lim,
         #[cfg(test)]
         div_out,
     ) {
@@ -74,7 +73,7 @@ fn next(
         *guess_out = guess.clone();
     }
 
-    let inc_res = incr(rax, &mut beta, unity, degree, &sub, lim, &guess);
+    let inc_res = incr(rax, &mut beta, unity, degree, &sub, &lim, &guess);
 
     // (By +β)ⁿ -Bⁿyⁿ
     let max = match inc_res {
@@ -85,7 +84,11 @@ fn next(
             *rax = r;
             m
         }
-        IncRes::MaxZero(m) => m,
+        IncRes::MaxZero => {
+            // (By +β)ⁿ -Bⁿyⁿ
+            // β =0 =>(By)ⁿ -Bⁿyⁿ =0
+            nought_raw()
+        }
         IncRes::OverGuess(mut or) => {
             #[cfg(test)]
             set_cr_out(decr_out);
@@ -97,14 +100,14 @@ fn next(
     };
 
     // r' =(Bⁿr +α) -((By +β)ⁿ -Bⁿyⁿ)
-    *rem = subtraction(
-        &lim,
+    subtraction_decremental(
+        &mut lim,
         &max,
         false,
         #[cfg(test)]
         &mut 0,
-    )
-    .0;
+    );
+    *rem = lim;
 
     #[cfg(test)]
     fn set_cr_out(cr_out: &mut bool) {
@@ -149,7 +152,7 @@ fn guess(
 #[cfg_attr(test, derive(PartialEq, Debug))]
 enum IncRes {
     OverGuess(RawRow),
-    MaxZero(RawRow),
+    MaxZero,
     Attainment((RawRow, RawRow)),
 }
 
@@ -174,34 +177,30 @@ fn incr<'a>(
     // o stands for operative
     // y' =By +β
     addition_two(beta, &wrax, &mut orax);
-    let mut beta_zero = true;
+    let mut init_fail = true;
 
-    // (By +β)ⁿ -Bⁿyⁿ
-    // β =0 =>(By)ⁿ -Bⁿyⁿ =0
-    // let mut max = nought_raw();
-    let mut max = nought_raw();
+    let mut max = Vec::new();
 
     loop {
         // (By +β)ⁿ
-        let orax_deg_pow = pow_raw(&orax, degree);
+        let mut omax = pow_raw(&orax, degree);
 
         // (By +β)ⁿ -Bⁿyⁿ
-        let omax = subtraction(
-            &orax_deg_pow,
+        subtraction_decremental(
+            &mut omax,
             sub,
             false,
             #[cfg(test)]
             &mut 0,
-        )
-        .0;
+        );
 
         // (By +β)ⁿ -Bⁿyⁿ ≤ Bⁿr +α
         if let Rel::Greater(_) = rel_raw(&omax, lim) {
-            if beta_zero {
+            if init_fail {
                 return if guess.is_some() {
                     IncRes::OverGuess(orax)
                 } else {
-                    IncRes::MaxZero(max)
+                    IncRes::MaxZero
                 };
             }
 
@@ -212,21 +211,20 @@ fn incr<'a>(
                 #[cfg(test)]
                 &mut 0,
             );
-            break;
-        }
 
-        beta_zero = false;
-        max = omax;
+            return IncRes::Attainment((orax, max));
+        }
 
         // (By +β)ⁿ -Bⁿyⁿ ≤ Bⁿr +α
-        if Rel::Equal == rel_raw(&max, lim) {
-            break;
+        if Rel::Equal == rel_raw(&omax, lim) {
+            return IncRes::Attainment((orax, omax));
         }
+
+        init_fail = false;
+        max = omax;
 
         addition_sum(unity, &mut orax, 0);
     }
-
-    return IncRes::Attainment((orax, max));
 }
 
 // do not decrement beta and add to wrax each iteration
@@ -244,17 +242,16 @@ fn decr(orax: &mut RawRow, unity: &RawRow, degree: u16, sub: &RawRow, lim: &RawR
         );
 
         // (By +β)ⁿ
-        let orax_deg_pow = pow_raw(&orax, degree);
+        let mut omax = pow_raw(&orax, degree);
 
         // (By +β)ⁿ -Bⁿyⁿ
-        let omax = subtraction(
-            &orax_deg_pow,
+        subtraction_decremental(
+            &mut omax,
             sub,
             false,
             #[cfg(test)]
             &mut 0,
-        )
-        .0;
+        );
 
         // (By +β)ⁿ -Bⁿyⁿ ≤ Bⁿr +α
         if let Rel::Greater(_) = rel_raw(&omax, lim) {
@@ -343,7 +340,6 @@ mod tests_of_units {
             let degree_less = 2;
             let dbdlp = new_from_num!(300).row;
             let unity = unity_raw();
-            let mut lim = vec![];
 
             let empty_out = new_from_num!(u32::MAX).row;
             let mut wrax_out = empty_out.clone();
@@ -363,7 +359,6 @@ mod tests_of_units {
                 degree_less,
                 &dbdlp,
                 &unity,
-                &mut lim,
                 &mut wrax_out,
                 &mut rax_pow_less_out,
                 &mut sub_out,
@@ -412,7 +407,6 @@ mod tests_of_units {
             let degree_less = 2;
             let dbdlp = new_from_num!(300).row;
             let unity = unity_raw();
-            let mut lim = vec![];
 
             let empty_out = new_from_num!(u32::MAX).row;
             let mut wrax_out = empty_out.clone();
@@ -432,7 +426,6 @@ mod tests_of_units {
                 degree_less,
                 &dbdlp,
                 &unity,
-                &mut lim,
                 &mut wrax_out,
                 &mut rax_pow_less_out,
                 &mut sub_out,
@@ -463,7 +456,6 @@ mod tests_of_units {
             let degree_less = 0;
             let dbdlp = new_from_num!(1).row;
             let unity = unity_raw();
-            let mut lim = vec![];
 
             let empty_out = new_from_num!(u32::MAX).row;
             let mut wrax_out = empty_out.clone();
@@ -483,7 +475,6 @@ mod tests_of_units {
                 degree_less,
                 &dbdlp,
                 &unity,
-                &mut lim,
                 &mut wrax_out,
                 &mut rax_pow_less_out,
                 &mut sub_out,
@@ -514,7 +505,6 @@ mod tests_of_units {
             let degree_less = 2;
             let dbdlp = new_from_num!(300).row;
             let unity = unity_raw();
-            let mut lim = vec![];
 
             let empty_out = new_from_num!(u32::MAX).row;
             let mut wrax_out = empty_out.clone();
@@ -534,7 +524,6 @@ mod tests_of_units {
                 degree_less,
                 &dbdlp,
                 &unity,
-                &mut lim,
                 &mut wrax_out,
                 &mut rax_pow_less_out,
                 &mut sub_out,
@@ -565,7 +554,6 @@ mod tests_of_units {
             let degree_less = 2;
             let dbdlp = new_from_num!(300).row;
             let unity = unity_raw();
-            let mut lim = vec![];
 
             let empty_out = new_from_num!(u32::MAX).row;
             let mut wrax_out = empty_out.clone();
@@ -585,7 +573,6 @@ mod tests_of_units {
                 degree_less,
                 &dbdlp,
                 &unity,
-                &mut lim,
                 &mut wrax_out,
                 &mut rax_pow_less_out,
                 &mut sub_out,
@@ -616,7 +603,6 @@ mod tests_of_units {
             let degree_less = 2;
             let dbdlp = new_from_num!(300).row;
             let unity = unity_raw();
-            let mut lim = vec![];
 
             let empty_out = new_from_num!(u32::MAX).row;
             let mut wrax_out = empty_out.clone();
@@ -636,7 +622,6 @@ mod tests_of_units {
                 degree_less,
                 &dbdlp,
                 &unity,
-                &mut lim,
                 &mut wrax_out,
                 &mut rax_pow_less_out,
                 &mut sub_out,
@@ -667,7 +652,6 @@ mod tests_of_units {
             let degree_less = 2;
             let dbdlp = new_from_num!(300).row;
             let unity = unity_raw();
-            let mut lim = vec![];
 
             let empty_out = new_from_num!(u32::MAX).row;
             let mut wrax_out = empty_out.clone();
@@ -689,7 +673,6 @@ mod tests_of_units {
                 degree_less,
                 &dbdlp,
                 &unity,
-                &mut lim,
                 &mut wrax_out,
                 &mut rax_pow_less_out,
                 &mut sub_out,
@@ -715,7 +698,6 @@ mod tests_of_units {
             let degree_less = 2;
             let dbdlp = new_from_num!(300).row;
             let unity = unity_raw();
-            let mut lim = vec![];
 
             let empty_out = new_from_num!(u32::MAX).row;
             let mut wrax_out = empty_out.clone();
@@ -737,7 +719,6 @@ mod tests_of_units {
                 degree_less,
                 &dbdlp,
                 &unity,
-                &mut lim,
                 &mut wrax_out,
                 &mut rax_pow_less_out,
                 &mut sub_out,
@@ -756,7 +737,7 @@ mod tests_of_units {
 
     mod incr {
         use crate::nth_root::{incr, IncRes};
-        use crate::{nought_raw, unity_raw, Row};
+        use crate::{unity_raw, Row};
 
         #[test]
         fn guess_too_much_test() {
@@ -823,8 +804,7 @@ mod tests_of_units {
 
             let res = incr(&wrax, &mut beta, &unity, degree, &sub, &lim, &guess);
 
-            let max = nought_raw();
-            assert_eq!(IncRes::MaxZero(max), res);
+            assert_eq!(IncRes::MaxZero, res);
         }
 
         #[test]
