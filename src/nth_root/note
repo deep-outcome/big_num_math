@@ -1,7 +1,7 @@
 next:
-  - compare fns logic to originals
-  - check for further more optimizations: does lib fns fit needs, is all allocations needed, can be some allocation reused, can be some operation worked around
+  - compare fns logic to originals  
   - check tests
+  - check for further more optimizations: does lib fns fit needs, is all allocations needed, can be some allocation reused, can be some operation worked around
 
 general:
  - check task: locations
