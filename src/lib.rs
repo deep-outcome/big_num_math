@@ -929,7 +929,7 @@ fn divrem_accelerated(
                 wr_ix -= 1;
             }
 
-            let rat = subtraction_decremental(
+            let mut rat = subtraction_decremental(
                 &mut end,
                 &wsor,
                 true,
@@ -952,7 +952,7 @@ fn divrem_accelerated(
             unsafe { mpler.set_len(mpler_wr_ix + 1) };
             mpler[mpler_wr_ix] = 1;
 
-            let rat = mulmul(&rat, &mpler, 1);
+            rat = mulmul_incremental(&mpler, rat, 1);
             addition_sum(&rat, &mut ratio, 0);
 
             end_len = end.len();
@@ -1979,18 +1979,28 @@ fn heron_sqrt_raw(row: &[u8]) -> RawRow {
     cur
 }
 
+fn mulmul(row1: &[u8], row2: &[u8], times: u16) -> RawRow {
+    let row1_len = row1.len();
+    let row2_len = row2.len();
+
+    // see note on i_sum.reserve
+    let mut mcand = Vec::with_capacity(row1_len + row2_len);
+    mcand.extend(row2);
+
+    mulmul_incremental(row1, mcand, times)
+}
+
 /// Combined method allows to compute multiplication and power using shared code.
 ///
 /// Space for effecient power computation?
 ///   🡺 Inspect log₂ power speed up.
-fn mulmul(row1: &[u8], row2: &[u8], times: u16) -> RawRow {
-    let mpler = row1;
-    let mpler_len = mpler.len();
+fn mulmul_incremental(mpler: &[u8], mut mcand: RawRow, times: u16) -> RawRow {
+    if is_nought_raw(mpler) || is_nought_raw(mcand.as_slice()) {
+        return nought_raw();
+    }
 
-    let mut mcand_len = row2.len();
-    // see note on i_sum.reserve
-    let mut mcand = Vec::with_capacity(mcand_len + mpler_len);
-    mcand.extend(row2);
+    let mpler_len = mpler.len();
+    let mut mcand_len = mcand.len();
 
     // intermediate product of `mcand` and `mpler`
     let mut i_product = Vec::with_capacity(0);
@@ -2039,9 +2049,6 @@ fn mulmul(row1: &[u8], row2: &[u8], times: u16) -> RawRow {
         mcand_len = mcand.len();
     }
 
-    if is_nought_raw(row1) || is_nought_raw(row2) {
-        shrink_to_fit_raw(&mut mcand);
-    }
     mcand
 }
 

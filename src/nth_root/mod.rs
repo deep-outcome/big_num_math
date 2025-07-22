@@ -15,7 +15,7 @@ use crate::tests_of_units::divrem_accelerated::TestGauges;
 
 fn next(
     rax: &mut RawRow, // y
-    rem: &mut RawRow, // r
+    rem: RawRow,      // r
     bdp: &RawRow,     // Bⁿ
     alpha: &RawRow,   // α
     degree: u16,      // n
@@ -32,12 +32,12 @@ fn next(
     #[cfg(test)] guess_out: &mut Option<RawRow>,
     #[cfg(test)] incr_out: &mut bool,
     #[cfg(test)] decr_out: &mut bool,
-) {
+) -> RawRow {
     // yⁿ⁻¹
     let rax_pow_less = pow_raw(&rax, degree_less);
 
     // Bⁿyⁿ, subtrahend
-    let sub = mulmul(bdp, &mulmul(&rax_pow_less, &rax, 1), 1);
+    let sub = mulmul_incremental(bdp, mulmul(&rax_pow_less, &rax, 1), 1);
 
     // By, widen rax
     // expansion instead of multiplication
@@ -47,12 +47,17 @@ fn next(
     }
 
     // Bⁿr +α, limit
-    let mut lim = mulmul(bdp, rem, 1);    
+    let mut lim = mulmul_incremental(bdp, rem, 1);
     addition_sum(alpha, &mut lim, 0);
+
+    #[cfg(test)]
+    {
+        *rax_pow_less_out = rax_pow_less.clone();
+    }
 
     // let make initial guess, if possible
     let (guess, mut beta) = if let Some(g) = guess(
-        &rax_pow_less,
+        rax_pow_less,
         dbdlp,
         &lim,
         #[cfg(test)]
@@ -66,7 +71,6 @@ fn next(
     #[cfg(test)]
     {
         *wrax_out = rax.clone();
-        *rax_pow_less_out = rax_pow_less.clone();
         *sub_out = sub.clone();
         *lim_out = lim.clone();
         *beta_out = beta.clone();
@@ -107,7 +111,8 @@ fn next(
         #[cfg(test)]
         &mut 0,
     );
-    *rem = lim;
+
+    return lim;
 
     #[cfg(test)]
     fn set_cr_out(cr_out: &mut bool) {
@@ -118,14 +123,14 @@ fn next(
 // task: test whether guess is really some benefit
 // it is quite complex => misses can be cheaper
 fn guess(
-    rax_pow_less: &RawRow,
+    rax_pow_less: RawRow,
     dbdlp: &RawRow,
     lim: &RawRow,
     #[cfg(test)] div_out: &mut RawRow,
 ) -> Option<RawRow> {
-    if !is_nought_raw(rax_pow_less) {
+    if !is_nought_raw(rax_pow_less.as_slice()) {
         // nBⁿ⁻¹ ·yⁿ⁻¹
-        let div = mulmul(dbdlp, &rax_pow_less, 1);
+        let div = mulmul_incremental(dbdlp, rax_pow_less, 1);
 
         #[cfg(test)]
         {
@@ -274,7 +279,7 @@ pub struct AlphaGenerator<'a> {
     ngh: RawRow,
 }
 
-use crate::{is_nought_raw, nought_raw};
+use crate::{is_nought_raw, mulmul_incremental, nought_raw};
 impl<'a> AlphaGenerator<'a> {
     pub fn new(num: &'a [u8], ras: usize) -> Self {
         if ras == 0 {
@@ -350,9 +355,9 @@ mod tests_of_units {
             let mut beta_out = empty_out.clone();
             let mut guess_out = Some(empty_out.clone());
 
-            next(
+            rem_ref = next(
                 &mut rax_ref,
-                &mut rem_ref,
+                rem_ref,
                 &bdp,
                 &alpha,
                 degree,
@@ -400,7 +405,7 @@ mod tests_of_units {
         #[test]
         fn rax_zero_test() {
             let mut rax_ref = new_from_num!(0).row;
-            let mut rem_ref = new_from_num!(0).row;
+            let rem_ref = new_from_num!(0).row;
             let bdp = new_from_num!(1000).row;
             let alpha = new_from_num!(133).row;
             let degree = 3;
@@ -417,9 +422,9 @@ mod tests_of_units {
             let mut beta_out = empty_out.clone();
             let mut guess_out = Some(empty_out.clone());
 
-            next(
+            _ = next(
                 &mut rax_ref,
-                &mut rem_ref,
+                rem_ref,
                 &bdp,
                 &alpha,
                 degree,
@@ -449,7 +454,7 @@ mod tests_of_units {
         #[test]
         fn degree_one_test() {
             let mut rax_ref = new_from_num!(2).row;
-            let mut rem_ref = new_from_num!(3).row;
+            let rem_ref = new_from_num!(3).row;
             let bdp = new_from_num!(10).row;
             let alpha = new_from_num!(222).row;
             let degree = 1;
@@ -466,9 +471,9 @@ mod tests_of_units {
             let mut beta_out = empty_out.clone();
             let mut guess_out = Some(empty_out.clone());
 
-            next(
+            _ = next(
                 &mut rax_ref,
-                &mut rem_ref,
+                rem_ref,
                 &bdp,
                 &alpha,
                 degree,
@@ -498,7 +503,7 @@ mod tests_of_units {
         #[test]
         fn g_zero_test() {
             let mut rax_ref = new_from_num!(2).row;
-            let mut rem_ref = new_from_num!(1).row;
+            let rem_ref = new_from_num!(1).row;
             let bdp = new_from_num!(1000).row;
             let alpha = new_from_num!(199).row;
             let degree = 3;
@@ -515,9 +520,9 @@ mod tests_of_units {
             let mut beta_out = empty_out.clone();
             let mut guess_out = Some(empty_out.clone());
 
-            next(
+            _ = next(
                 &mut rax_ref,
-                &mut rem_ref,
+                rem_ref,
                 &bdp,
                 &alpha,
                 degree,
@@ -547,7 +552,7 @@ mod tests_of_units {
         #[test]
         fn g_one_test() {
             let mut rax_ref = new_from_num!(2).row;
-            let mut rem_ref = new_from_num!(2).row;
+            let rem_ref = new_from_num!(2).row;
             let bdp = new_from_num!(1000).row;
             let alpha = new_from_num!(399).row;
             let degree = 3;
@@ -564,9 +569,9 @@ mod tests_of_units {
             let mut beta_out = empty_out.clone();
             let mut guess_out = Some(empty_out.clone());
 
-            next(
+            _ = next(
                 &mut rax_ref,
-                &mut rem_ref,
+                rem_ref,
                 &bdp,
                 &alpha,
                 degree,
@@ -596,7 +601,7 @@ mod tests_of_units {
         #[test]
         fn g_two_test() {
             let mut rax_ref = new_from_num!(2).row;
-            let mut rem_ref = new_from_num!(2).row;
+            let rem_ref = new_from_num!(2).row;
             let bdp = new_from_num!(1000).row;
             let alpha = new_from_num!(400).row;
             let degree = 3;
@@ -613,9 +618,9 @@ mod tests_of_units {
             let mut beta_out = empty_out.clone();
             let mut guess_out = Some(empty_out.clone());
 
-            next(
+            _ = next(
                 &mut rax_ref,
-                &mut rem_ref,
+                rem_ref,
                 &bdp,
                 &alpha,
                 degree,
@@ -645,7 +650,7 @@ mod tests_of_units {
         #[test]
         fn incr_test() {
             let mut rax_ref = new_from_num!(3).row;
-            let mut rem_ref = new_from_num!(4).row;
+            let rem_ref = new_from_num!(4).row;
             let bdp = new_from_num!(1000).row;
             let alpha = new_from_num!(133).row;
             let degree = 3;
@@ -664,9 +669,9 @@ mod tests_of_units {
             let mut incr_out = false;
             let mut decr_out = false;
 
-            next(
+            _ = next(
                 &mut rax_ref,
-                &mut rem_ref,
+                rem_ref,
                 &bdp,
                 &alpha,
                 degree,
@@ -691,7 +696,7 @@ mod tests_of_units {
         #[test]
         fn decr_test() {
             let mut rax_ref = new_from_num!(3).row;
-            let mut rem_ref = new_from_num!(15).row;
+            let rem_ref = new_from_num!(15).row;
             let bdp = new_from_num!(1000).row;
             let alpha = new_from_num!(133).row;
             let degree = 3;
@@ -710,9 +715,9 @@ mod tests_of_units {
             let mut incr_out = false;
             let mut decr_out = false;
 
-            next(
+            _ = next(
                 &mut rax_ref,
-                &mut rem_ref,
+                rem_ref,
                 &bdp,
                 &alpha,
                 degree,
