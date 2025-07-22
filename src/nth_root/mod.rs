@@ -29,7 +29,7 @@ fn next(
     #[cfg(test)] lim_out: &mut RawRow,
     #[cfg(test)] div_out: &mut RawRow,
     #[cfg(test)] beta_out: &mut RawRow,
-    #[cfg(test)] guess_out: &mut Option<RawRow>,
+    #[cfg(test)] guess_out: &mut Option<bool>,
     #[cfg(test)] incr_out: &mut bool,
     #[cfg(test)] decr_out: &mut bool,
 ) -> RawRow {
@@ -63,9 +63,9 @@ fn next(
         #[cfg(test)]
         div_out,
     ) {
-        (Some(g.clone()), g)
+        (true, g)
     } else {
-        (None, unity.clone())
+        (false, unity.clone())
     };
 
     #[cfg(test)]
@@ -74,10 +74,10 @@ fn next(
         *sub_out = sub.clone();
         *lim_out = lim.clone();
         *beta_out = beta.clone();
-        *guess_out = guess.clone();
+        *guess_out = Some(guess);
     }
 
-    let inc_res = incr(rax, &mut beta, unity, degree, &sub, &lim, &guess);
+    let inc_res = incr(rax, &mut beta, unity, degree, &sub, &lim, guess);
 
     // (By +β)ⁿ -Bⁿyⁿ
     let max = match inc_res {
@@ -168,7 +168,7 @@ fn incr<'a>(
     degree: u16,
     sub: &RawRow,
     lim: &RawRow,
-    guess: &Option<RawRow>,
+    betag: bool,
 ) -> IncRes {
     // seeking largest beta that
     // (By +β)ⁿ -Bⁿyⁿ ≤ Bⁿr +α
@@ -202,7 +202,7 @@ fn incr<'a>(
         // (By +β)ⁿ -Bⁿyⁿ ≤ Bⁿr +α
         if let Rel::Greater(_) = rel_raw(&omax, lim) {
             if init_fail {
-                return if guess.is_some() {
+                return if betag {
                     IncRes::OverGuess(orax)
                 } else {
                     IncRes::MaxZero
@@ -353,7 +353,7 @@ mod tests_of_units {
             let mut lim_out = empty_out.clone();
             let mut div_out = empty_out.clone();
             let mut beta_out = empty_out.clone();
-            let mut guess_out = Some(empty_out.clone());
+            let mut guess_out = None;
 
             rem_ref = next(
                 &mut rax_ref,
@@ -396,7 +396,7 @@ mod tests_of_units {
             assert_eq!(div, div_out);
 
             assert_eq!(beta, beta_out);
-            assert_eq!(Some(beta), guess_out);
+            assert_eq!(Some(true), guess_out);
 
             assert_eq!(vec![4, 3], rax_ref);
             assert_eq!(rem, rem_ref);
@@ -420,7 +420,7 @@ mod tests_of_units {
             let mut lim_out = empty_out.clone();
             let mut div_out = empty_out.clone();
             let mut beta_out = empty_out.clone();
-            let mut guess_out = Some(empty_out.clone());
+            let mut guess_out = None;
 
             _ = next(
                 &mut rax_ref,
@@ -448,7 +448,7 @@ mod tests_of_units {
             assert_eq!(vec![3, 3, 1], lim_out);
             assert_eq!(empty_out, div_out);
             assert_eq!(vec![1], beta_out);
-            assert_eq!(None, guess_out);
+            assert_eq!(Some(false), guess_out);
         }
 
         #[test]
@@ -469,7 +469,7 @@ mod tests_of_units {
             let mut lim_out = empty_out.clone();
             let mut div_out = empty_out.clone();
             let mut beta_out = empty_out.clone();
-            let mut guess_out = Some(empty_out.clone());
+            let mut guess_out = None;
 
             _ = next(
                 &mut rax_ref,
@@ -497,7 +497,7 @@ mod tests_of_units {
             assert_eq!(vec![2, 5, 2], lim_out);
             assert_eq!(vec![1], div_out);
             assert_eq!(vec![2, 5, 2], beta_out);
-            assert_eq!(Some(vec![2, 5, 2]), guess_out);
+            assert_eq!(Some(true), guess_out);
         }
 
         #[test]
@@ -518,7 +518,7 @@ mod tests_of_units {
             let mut lim_out = empty_out.clone();
             let mut div_out = empty_out.clone();
             let mut beta_out = empty_out.clone();
-            let mut guess_out = Some(empty_out.clone());
+            let mut guess_out = None;
 
             _ = next(
                 &mut rax_ref,
@@ -546,7 +546,7 @@ mod tests_of_units {
             assert_eq!(vec![9, 9, 1, 1], lim_out);
             assert_eq!(vec![0, 0, 2, 1], div_out);
             assert_eq!(vec![1], beta_out);
-            assert_eq!(None, guess_out);
+            assert_eq!(Some(false), guess_out);
         }
 
         #[test]
@@ -567,7 +567,7 @@ mod tests_of_units {
             let mut lim_out = empty_out.clone();
             let mut div_out = empty_out.clone();
             let mut beta_out = empty_out.clone();
-            let mut guess_out = Some(empty_out.clone());
+            let mut guess_out = None;
 
             _ = next(
                 &mut rax_ref,
@@ -595,7 +595,7 @@ mod tests_of_units {
             assert_eq!(vec![9, 9, 3, 2], lim_out);
             assert_eq!(vec![0, 0, 2, 1], div_out);
             assert_eq!(vec![1], beta_out);
-            assert_eq!(None, guess_out);
+            assert_eq!(Some(false), guess_out);
         }
 
         #[test]
@@ -616,7 +616,7 @@ mod tests_of_units {
             let mut lim_out = empty_out.clone();
             let mut div_out = empty_out.clone();
             let mut beta_out = empty_out.clone();
-            let mut guess_out = Some(empty_out.clone());
+            let mut guess_out = None;
 
             _ = next(
                 &mut rax_ref,
@@ -644,7 +644,7 @@ mod tests_of_units {
             assert_eq!(vec![0, 0, 4, 2], lim_out);
             assert_eq!(vec![0, 0, 2, 1], div_out);
             assert_eq!(vec![2], beta_out);
-            assert_eq!(Some(vec![2]), guess_out);
+            assert_eq!(Some(true), guess_out);
         }
 
         #[test]
@@ -665,7 +665,7 @@ mod tests_of_units {
             let mut lim_out = empty_out.clone();
             let mut div_out = empty_out.clone();
             let mut beta_out = empty_out.clone();
-            let mut guess_out = Some(empty_out.clone());
+            let mut guess_out = None;
             let mut incr_out = false;
             let mut decr_out = false;
 
@@ -711,7 +711,7 @@ mod tests_of_units {
             let mut lim_out = empty_out.clone();
             let mut div_out = empty_out.clone();
             let mut beta_out = empty_out.clone();
-            let mut guess_out = Some(empty_out.clone());
+            let mut guess_out = None;
             let mut incr_out = false;
             let mut decr_out = false;
 
@@ -752,9 +752,9 @@ mod tests_of_units {
             let degree = 3;
             let sub = new_from_num!(66).row;
             let lim = new_from_num!(12100).row;
-            let guess = Some(new_from_num!(3).row);
+            let guess = true;
 
-            let res = incr(&wrax, &mut beta, &unity, degree, &sub, &lim, &guess);
+            let res = incr(&wrax, &mut beta, &unity, degree, &sub, &lim, guess);
 
             let orax = new_from_num!(23).row;
             assert_eq!(IncRes::OverGuess(orax), res);
@@ -769,9 +769,9 @@ mod tests_of_units {
             let degree = 3;
             let sub = new_from_num!(67).row;
             let lim = new_from_num!(12100).row;
-            let guess = Some(new_from_num!(3).row);
+            let guess = true;
 
-            let res = incr(&wrax, &mut beta, &unity, degree, &sub, &lim, &guess);
+            let res = incr(&wrax, &mut beta, &unity, degree, &sub, &lim, guess);
 
             let rax = new_from_num!(23).row;
             let max = new_from_num!(12100).row;
@@ -787,9 +787,9 @@ mod tests_of_units {
             let degree = 3;
             let sub = new_from_num!(68).row;
             let lim = new_from_num!(12100).row;
-            let guess = Some(new_from_num!(3).row);
+            let guess = true;
 
-            let res = incr(&wrax, &mut beta, &unity, degree, &sub, &lim, &guess);
+            let res = incr(&wrax, &mut beta, &unity, degree, &sub, &lim, guess);
 
             let rax = new_from_num!(23).row;
             let max = new_from_num!(12099).row;
@@ -805,9 +805,9 @@ mod tests_of_units {
             let degree = 3;
             let sub = new_from_num!(60).row;
             let lim = new_from_num!(9200).row;
-            let guess = None;
+            let guess = false;
 
-            let res = incr(&wrax, &mut beta, &unity, degree, &sub, &lim, &guess);
+            let res = incr(&wrax, &mut beta, &unity, degree, &sub, &lim, guess);
 
             assert_eq!(IncRes::MaxZero, res);
         }
@@ -821,9 +821,9 @@ mod tests_of_units {
             let degree = 3;
             let sub = new_from_num!(67).row;
             let lim = new_from_num!(12100).row;
-            let guess = None;
+            let guess = false;
 
-            let res = incr(&wrax, &mut beta, &unity, degree, &sub, &lim, &guess);
+            let res = incr(&wrax, &mut beta, &unity, degree, &sub, &lim, guess);
 
             let rax = new_from_num!(23).row;
             let max = new_from_num!(12100).row;
@@ -839,9 +839,9 @@ mod tests_of_units {
             let degree = 3;
             let sub = new_from_num!(68).row;
             let lim = new_from_num!(12100).row;
-            let guess = None;
+            let guess = false;
 
-            let res = incr(&wrax, &mut beta, &unity, degree, &sub, &lim, &guess);
+            let res = incr(&wrax, &mut beta, &unity, degree, &sub, &lim, guess);
 
             let rax = new_from_num!(23).row;
             let max = new_from_num!(12099).row;
