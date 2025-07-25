@@ -1,5 +1,5 @@
 next:  
-  - check tests  
+  - check tests (compare to originals also)  
 
 general:
  - check task: locations
