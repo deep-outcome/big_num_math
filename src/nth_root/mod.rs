@@ -13,6 +13,9 @@ use super::{
 #[cfg(test)]
 use crate::tests_of_units::divrem_accelerated::TestGauges;
 
+#[cfg(test)]
+use tests_of_units::next::test_aides::TestOuts;
+
 fn next(
     rax: &mut RawRow, // y
     rem: RawRow,      // r
@@ -22,16 +25,8 @@ fn next(
     degree_less: u16, // n -1
     dbdlp: &RawRow,   // nBⁿ⁻¹
     unity: &RawRow,   // 1
-
-    #[cfg(test)] wrax_out: &mut RawRow,
-    #[cfg(test)] rax_pow_less_out: &mut RawRow,
-    #[cfg(test)] sub_out: &mut RawRow,
-    #[cfg(test)] lim_out: &mut RawRow,
-    #[cfg(test)] div_out: &mut RawRow,
-    #[cfg(test)] beta_out: &mut RawRow,
-    #[cfg(test)] guess_out: &mut Option<bool>,
-    #[cfg(test)] incr_out: &mut bool,
-    #[cfg(test)] decr_out: &mut bool,
+    
+    #[cfg(test)] outs: &mut TestOuts,
 ) -> RawRow {
     // yⁿ⁻¹
     let rax_pow_less = pow_raw(&rax, degree_less);
@@ -52,7 +47,7 @@ fn next(
 
     #[cfg(test)]
     {
-        *rax_pow_less_out = rax_pow_less.clone();
+        outs.rax_pow_less = rax_pow_less.clone();
     }
 
     // let make initial guess, if possible
@@ -61,7 +56,7 @@ fn next(
         dbdlp,
         &lim,
         #[cfg(test)]
-        div_out,
+        &mut outs.div,
     ) {
         (true, g)
     } else {
@@ -70,11 +65,11 @@ fn next(
 
     #[cfg(test)]
     {
-        *wrax_out = rax.clone();
-        *sub_out = sub.clone();
-        *lim_out = lim.clone();
-        *beta_out = beta.clone();
-        *guess_out = Some(betag);
+        outs.wrax = rax.clone();
+        outs.sub = sub.clone();
+        outs.lim = lim.clone();
+        outs.beta = beta.clone();
+        outs.betag = Some(betag);
     }
 
     let inc_res = incr(rax, &beta, unity, degree, &sub, &lim, betag);
@@ -83,7 +78,7 @@ fn next(
     let max = match inc_res {
         IncRes::Attainment((r, m)) => {
             #[cfg(test)]
-            set_cr_out(incr_out);
+            set_cr(&mut outs.incr);
 
             *rax = r;
             m
@@ -95,7 +90,7 @@ fn next(
         }
         IncRes::OverGuess(mut or) => {
             #[cfg(test)]
-            set_cr_out(decr_out);
+            set_cr(&mut outs.decr);
 
             let m = decr(&mut or, unity, degree, &sub, &lim);
             *rax = or;
@@ -115,8 +110,8 @@ fn next(
     return lim;
 
     #[cfg(test)]
-    fn set_cr_out(cr_out: &mut bool) {
-        *cr_out = true;
+    fn set_cr(cr: &mut bool) {
+        *cr = true;
     }
 }
 
@@ -331,49 +326,149 @@ impl<'a> AlphaGenerator<'a> {
 #[cfg(test)]
 mod tests_of_units {
 
-    mod next {
-        use crate::{unity_raw, Row};
+    pub mod next {
+
+        pub mod test_aides {
+            use crate::{RawRow, Row};
+
+            pub struct TestSet {
+                pub rax: usize,
+                pub rem: usize,
+                pub alp: usize,
+                pub deg: u16,
+            }
+
+            impl TestSet {
+                pub fn rax(&self) -> RawRow {
+                    new_from_num!(self.rax).row
+                }
+
+                pub fn rem(&self) -> RawRow {
+                    new_from_num!(self.rem).row
+                }
+
+                pub fn bdp(&self) -> RawRow {
+                    let bdp = 10usize.pow(self.deg as u32);
+                    new_from_num!(bdp).row
+                }
+
+                pub fn alp(&self) -> RawRow {
+                    new_from_num!(self.alp).row
+                }
+
+                pub fn deg(&self) -> u16 {
+                    self.deg
+                }
+
+                pub fn dgl(&self) -> u16 {
+                    self.deg - 1
+                }
+
+                pub fn dbdlp(&self) -> RawRow {
+                    let deg = self.deg;
+                    let dbdlp = deg * 10u16.pow((deg - 1) as u32);
+                    new_from_num!(dbdlp).row
+                }
+            }
+
+            pub struct TestOuts {
+                pub wrax: RawRow,
+                pub rax_pow_less: RawRow,
+                pub sub: RawRow,
+                pub lim: RawRow,
+                pub div: RawRow,
+                pub beta: RawRow,
+                pub betag: Option<bool>,
+                pub incr: bool,
+                pub decr: bool,
+            }
+
+            impl TestOuts {
+                pub fn new() -> Self {
+                    let empty = vec![];
+
+                    TestOuts {
+                        wrax: empty.clone(),
+                        rax_pow_less: empty.clone(),
+                        sub: empty.clone(),
+                        lim: empty.clone(),
+                        div: empty.clone(),
+                        beta: empty.clone(),
+                        betag: None,
+                        incr: false,
+                        decr: false,
+                    }
+                }
+            }
+
+            #[cfg(test)]
+            mod tests_of_units {
+
+                use super::{TestOuts, TestSet};
+
+                #[test]
+                fn test_set_test() {
+                    let test = TestSet {
+                        rax: 3,
+                        rem: 15,
+                        alp: 133,
+                        deg: 3,
+                    };
+
+                    assert_eq!(vec![3], test.rax());
+                    assert_eq!(vec![5, 1], test.rem());
+                    assert_eq!(vec![0, 0, 0, 1], test.bdp());
+                    assert_eq!(vec![3, 3, 1], test.alp());
+                    assert_eq!(3, test.deg());
+                    assert_eq!(2, test.dgl());
+                    assert_eq!(vec![0, 0, 3], test.dbdlp());
+                }
+
+                #[test]
+                fn test_outs_test() {
+                    let outs = TestOuts::new();
+
+                    assert_eq!(0, outs.wrax.len());
+                    assert_eq!(0, outs.rax_pow_less.len());
+                    assert_eq!(0, outs.sub.len());
+                    assert_eq!(0, outs.lim.len());
+                    assert_eq!(0, outs.div.len());
+                    assert_eq!(0, outs.beta.len());
+                    assert_eq!(None, outs.betag);
+                    assert_eq!(false, outs.incr);
+                    assert_eq!(false, outs.decr);
+                }
+            }
+        }
 
         use super::super::next;
+        use crate::{unity_raw, Row};
+        use test_aides::{TestOuts, TestSet};
 
         #[test]
         fn basic_test() {
-            let mut rax_ref = new_from_num!(3).row;
-            let mut rem_ref = new_from_num!(15).row;
-            let bdp = new_from_num!(1000).row;
-            let alpha = new_from_num!(133).row;
-            let degree = 3;
-            let degree_less = 2;
-            let dbdlp = new_from_num!(300).row;
+            let tset = TestSet {
+                rax: 3,
+                rem: 15,
+                alp: 133,
+                deg: 3,
+            };
+
+            let mut rax_ref = tset.rax();
             let unity = unity_raw();
 
-            let empty_out = new_from_num!(u32::MAX).row;
-            let mut wrax_out = empty_out.clone();
-            let mut rax_pow_less_out = empty_out.clone();
-            let mut sub_out = empty_out.clone();
-            let mut lim_out = empty_out.clone();
-            let mut div_out = empty_out.clone();
-            let mut beta_out = empty_out.clone();
-            let mut guess_out = None;
+            let mut outs = TestOuts::new();
 
-            rem_ref = next(
+            let rem_ref = next(
                 &mut rax_ref,
-                rem_ref,
-                &bdp,
-                &alpha,
-                degree,
-                degree_less,
-                &dbdlp,
+                tset.rem(),
+                &tset.bdp(),
+                &tset.alp(),
+                tset.deg(),
+                tset.dgl(),
+                &tset.dbdlp(),
                 &unity,
-                &mut wrax_out,
-                &mut rax_pow_less_out,
-                &mut sub_out,
-                &mut lim_out,
-                &mut div_out,
-                &mut beta_out,
-                &mut guess_out,
-                &mut false,
-                &mut false,
+                &mut outs,
             );
 
             let sub = 27_000;
@@ -381,7 +476,7 @@ mod tests_of_units {
             let div = 2700;
 
             let beta = lim / div;
-            let rem = lim - (34u32.pow(degree as u32) - sub);
+            let rem = lim - (34u32.pow(tset.deg() as u32) - sub);
 
             let sub = new_from_num!(sub).row;
             let lim = new_from_num!(lim).row;
@@ -390,14 +485,14 @@ mod tests_of_units {
             let beta = new_from_num!(beta).row;
             let rem = new_from_num!(rem).row;
 
-            assert_eq!(vec![0, 3], wrax_out);
-            assert_eq!(vec![9], rax_pow_less_out);
-            assert_eq!(sub, sub_out);
-            assert_eq!(lim, lim_out);
-            assert_eq!(div, div_out);
+            assert_eq!(vec![0, 3], outs.wrax);
+            assert_eq!(vec![9], outs.rax_pow_less);
+            assert_eq!(sub, outs.sub);
+            assert_eq!(lim, outs.lim);
+            assert_eq!(div, outs.div);
 
-            assert_eq!(beta, beta_out);
-            assert_eq!(Some(true), guess_out);
+            assert_eq!(beta, outs.beta);
+            assert_eq!(Some(true), outs.betag);
 
             assert_eq!(vec![4, 3], rax_ref);
             assert_eq!(rem, rem_ref);
@@ -414,14 +509,7 @@ mod tests_of_units {
             let dbdlp = new_from_num!(300).row;
             let unity = unity_raw();
 
-            let empty_out = new_from_num!(u32::MAX).row;
-            let mut wrax_out = empty_out.clone();
-            let mut rax_pow_less_out = empty_out.clone();
-            let mut sub_out = empty_out.clone();
-            let mut lim_out = empty_out.clone();
-            let mut div_out = empty_out.clone();
-            let mut beta_out = empty_out.clone();
-            let mut guess_out = None;
+            let mut outs = TestOuts::new();
 
             _ = next(
                 &mut rax_ref,
@@ -432,24 +520,16 @@ mod tests_of_units {
                 degree_less,
                 &dbdlp,
                 &unity,
-                &mut wrax_out,
-                &mut rax_pow_less_out,
-                &mut sub_out,
-                &mut lim_out,
-                &mut div_out,
-                &mut beta_out,
-                &mut guess_out,
-                &mut false,
-                &mut false,
+                &mut outs,
             );
 
-            assert_eq!(vec![0], wrax_out);
-            assert_eq!(vec![0], rax_pow_less_out);
-            assert_eq!(vec![0], sub_out);
-            assert_eq!(vec![3, 3, 1], lim_out);
-            assert_eq!(empty_out, div_out);
-            assert_eq!(vec![1], beta_out);
-            assert_eq!(Some(false), guess_out);
+            assert_eq!(vec![0], outs.wrax);
+            assert_eq!(vec![0], outs.rax_pow_less);
+            assert_eq!(vec![0], outs.sub);
+            assert_eq!(vec![3, 3, 1], outs.lim);
+            assert_eq!(Vec::<u8>::new(), outs.div);
+            assert_eq!(vec![1], outs.beta);
+            assert_eq!(Some(false), outs.betag);
         }
 
         #[test]
@@ -463,14 +543,7 @@ mod tests_of_units {
             let dbdlp = new_from_num!(1).row;
             let unity = unity_raw();
 
-            let empty_out = new_from_num!(u32::MAX).row;
-            let mut wrax_out = empty_out.clone();
-            let mut rax_pow_less_out = empty_out.clone();
-            let mut sub_out = empty_out.clone();
-            let mut lim_out = empty_out.clone();
-            let mut div_out = empty_out.clone();
-            let mut beta_out = empty_out.clone();
-            let mut guess_out = None;
+            let mut outs = TestOuts::new();
 
             _ = next(
                 &mut rax_ref,
@@ -481,24 +554,16 @@ mod tests_of_units {
                 degree_less,
                 &dbdlp,
                 &unity,
-                &mut wrax_out,
-                &mut rax_pow_less_out,
-                &mut sub_out,
-                &mut lim_out,
-                &mut div_out,
-                &mut beta_out,
-                &mut guess_out,
-                &mut false,
-                &mut false,
+                &mut outs,
             );
 
-            assert_eq!(vec![0, 2], wrax_out);
-            assert_eq!(vec![1], rax_pow_less_out);
-            assert_eq!(vec![0, 2], sub_out);
-            assert_eq!(vec![2, 5, 2], lim_out);
-            assert_eq!(vec![1], div_out);
-            assert_eq!(vec![2, 5, 2], beta_out);
-            assert_eq!(Some(true), guess_out);
+            assert_eq!(vec![0, 2], outs.wrax);
+            assert_eq!(vec![1], outs.rax_pow_less);
+            assert_eq!(vec![0, 2], outs.sub);
+            assert_eq!(vec![2, 5, 2], outs.lim);
+            assert_eq!(vec![1], outs.div);
+            assert_eq!(vec![2, 5, 2], outs.beta);
+            assert_eq!(Some(true), outs.betag);
         }
 
         #[test]
@@ -512,14 +577,7 @@ mod tests_of_units {
             let dbdlp = new_from_num!(300).row;
             let unity = unity_raw();
 
-            let empty_out = new_from_num!(u32::MAX).row;
-            let mut wrax_out = empty_out.clone();
-            let mut rax_pow_less_out = empty_out.clone();
-            let mut sub_out = empty_out.clone();
-            let mut lim_out = empty_out.clone();
-            let mut div_out = empty_out.clone();
-            let mut beta_out = empty_out.clone();
-            let mut guess_out = None;
+            let mut outs = TestOuts::new();
 
             _ = next(
                 &mut rax_ref,
@@ -530,24 +588,16 @@ mod tests_of_units {
                 degree_less,
                 &dbdlp,
                 &unity,
-                &mut wrax_out,
-                &mut rax_pow_less_out,
-                &mut sub_out,
-                &mut lim_out,
-                &mut div_out,
-                &mut beta_out,
-                &mut guess_out,
-                &mut false,
-                &mut false,
+                &mut outs,
             );
 
-            assert_eq!(vec![0, 2], wrax_out);
-            assert_eq!(vec![4], rax_pow_less_out);
-            assert_eq!(vec![0, 0, 0, 8], sub_out);
-            assert_eq!(vec![9, 9, 1, 1], lim_out);
-            assert_eq!(vec![0, 0, 2, 1], div_out);
-            assert_eq!(vec![1], beta_out);
-            assert_eq!(Some(false), guess_out);
+            assert_eq!(vec![0, 2], outs.wrax);
+            assert_eq!(vec![4], outs.rax_pow_less);
+            assert_eq!(vec![0, 0, 0, 8], outs.sub);
+            assert_eq!(vec![9, 9, 1, 1], outs.lim);
+            assert_eq!(vec![0, 0, 2, 1], outs.div);
+            assert_eq!(vec![1], outs.beta);
+            assert_eq!(Some(false), outs.betag);
         }
 
         #[test]
@@ -561,14 +611,7 @@ mod tests_of_units {
             let dbdlp = new_from_num!(300).row;
             let unity = unity_raw();
 
-            let empty_out = new_from_num!(u32::MAX).row;
-            let mut wrax_out = empty_out.clone();
-            let mut rax_pow_less_out = empty_out.clone();
-            let mut sub_out = empty_out.clone();
-            let mut lim_out = empty_out.clone();
-            let mut div_out = empty_out.clone();
-            let mut beta_out = empty_out.clone();
-            let mut guess_out = None;
+            let mut outs = TestOuts::new();
 
             _ = next(
                 &mut rax_ref,
@@ -579,24 +622,16 @@ mod tests_of_units {
                 degree_less,
                 &dbdlp,
                 &unity,
-                &mut wrax_out,
-                &mut rax_pow_less_out,
-                &mut sub_out,
-                &mut lim_out,
-                &mut div_out,
-                &mut beta_out,
-                &mut guess_out,
-                &mut false,
-                &mut false,
+                &mut outs,
             );
 
-            assert_eq!(vec![0, 2], wrax_out);
-            assert_eq!(vec![4], rax_pow_less_out);
-            assert_eq!(vec![0, 0, 0, 8], sub_out);
-            assert_eq!(vec![9, 9, 3, 2], lim_out);
-            assert_eq!(vec![0, 0, 2, 1], div_out);
-            assert_eq!(vec![1], beta_out);
-            assert_eq!(Some(false), guess_out);
+            assert_eq!(vec![0, 2], outs.wrax);
+            assert_eq!(vec![4], outs.rax_pow_less);
+            assert_eq!(vec![0, 0, 0, 8], outs.sub);
+            assert_eq!(vec![9, 9, 3, 2], outs.lim);
+            assert_eq!(vec![0, 0, 2, 1], outs.div);
+            assert_eq!(vec![1], outs.beta);
+            assert_eq!(Some(false), outs.betag);
         }
 
         #[test]
@@ -610,14 +645,7 @@ mod tests_of_units {
             let dbdlp = new_from_num!(300).row;
             let unity = unity_raw();
 
-            let empty_out = new_from_num!(u32::MAX).row;
-            let mut wrax_out = empty_out.clone();
-            let mut rax_pow_less_out = empty_out.clone();
-            let mut sub_out = empty_out.clone();
-            let mut lim_out = empty_out.clone();
-            let mut div_out = empty_out.clone();
-            let mut beta_out = empty_out.clone();
-            let mut guess_out = None;
+            let mut outs = TestOuts::new();
 
             _ = next(
                 &mut rax_ref,
@@ -628,24 +656,16 @@ mod tests_of_units {
                 degree_less,
                 &dbdlp,
                 &unity,
-                &mut wrax_out,
-                &mut rax_pow_less_out,
-                &mut sub_out,
-                &mut lim_out,
-                &mut div_out,
-                &mut beta_out,
-                &mut guess_out,
-                &mut false,
-                &mut false,
+                &mut outs,
             );
 
-            assert_eq!(vec![0, 2], wrax_out);
-            assert_eq!(vec![4], rax_pow_less_out);
-            assert_eq!(vec![0, 0, 0, 8], sub_out);
-            assert_eq!(vec![0, 0, 4, 2], lim_out);
-            assert_eq!(vec![0, 0, 2, 1], div_out);
-            assert_eq!(vec![2], beta_out);
-            assert_eq!(Some(true), guess_out);
+            assert_eq!(vec![0, 2], outs.wrax);
+            assert_eq!(vec![4], outs.rax_pow_less);
+            assert_eq!(vec![0, 0, 0, 8], outs.sub);
+            assert_eq!(vec![0, 0, 4, 2], outs.lim);
+            assert_eq!(vec![0, 0, 2, 1], outs.div);
+            assert_eq!(vec![2], outs.beta);
+            assert_eq!(Some(true), outs.betag);
         }
 
         #[test]
@@ -659,16 +679,7 @@ mod tests_of_units {
             let dbdlp = new_from_num!(300).row;
             let unity = unity_raw();
 
-            let empty_out = new_from_num!(u32::MAX).row;
-            let mut wrax_out = empty_out.clone();
-            let mut rax_pow_less_out = empty_out.clone();
-            let mut sub_out = empty_out.clone();
-            let mut lim_out = empty_out.clone();
-            let mut div_out = empty_out.clone();
-            let mut beta_out = empty_out.clone();
-            let mut guess_out = None;
-            let mut incr_out = false;
-            let mut decr_out = false;
+            let mut outs = TestOuts::new();
 
             _ = next(
                 &mut rax_ref,
@@ -679,19 +690,11 @@ mod tests_of_units {
                 degree_less,
                 &dbdlp,
                 &unity,
-                &mut wrax_out,
-                &mut rax_pow_less_out,
-                &mut sub_out,
-                &mut lim_out,
-                &mut div_out,
-                &mut beta_out,
-                &mut guess_out,
-                &mut incr_out,
-                &mut decr_out,
+                &mut outs,
             );
 
-            assert_eq!(true, incr_out);
-            assert_eq!(false, decr_out);
+            assert_eq!(true, outs.incr);
+            assert_eq!(false, outs.decr);
         }
 
         #[test]
@@ -705,16 +708,7 @@ mod tests_of_units {
             let dbdlp = new_from_num!(300).row;
             let unity = unity_raw();
 
-            let empty_out = new_from_num!(u32::MAX).row;
-            let mut wrax_out = empty_out.clone();
-            let mut rax_pow_less_out = empty_out.clone();
-            let mut sub_out = empty_out.clone();
-            let mut lim_out = empty_out.clone();
-            let mut div_out = empty_out.clone();
-            let mut beta_out = empty_out.clone();
-            let mut guess_out = None;
-            let mut incr_out = false;
-            let mut decr_out = false;
+            let mut outs = TestOuts::new();
 
             _ = next(
                 &mut rax_ref,
@@ -725,19 +719,11 @@ mod tests_of_units {
                 degree_less,
                 &dbdlp,
                 &unity,
-                &mut wrax_out,
-                &mut rax_pow_less_out,
-                &mut sub_out,
-                &mut lim_out,
-                &mut div_out,
-                &mut beta_out,
-                &mut guess_out,
-                &mut incr_out,
-                &mut decr_out,
+                &mut outs,
             );
 
-            assert_eq!(false, incr_out);
-            assert_eq!(true, decr_out);
+            assert_eq!(false, outs.incr);
+            assert_eq!(true, outs.decr);
         }
     }
 
