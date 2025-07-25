@@ -25,7 +25,7 @@ fn next(
     degree_less: u16, // n -1
     dbdlp: &RawRow,   // nBⁿ⁻¹
     unity: &RawRow,   // 1
-    
+
     #[cfg(test)] outs: &mut TestOuts,
 ) -> RawRow {
     // yⁿ⁻¹
@@ -500,25 +500,24 @@ mod tests_of_units {
 
         #[test]
         fn rax_zero_test() {
-            let mut rax_ref = new_from_num!(0).row;
-            let rem_ref = new_from_num!(0).row;
-            let bdp = new_from_num!(1000).row;
-            let alpha = new_from_num!(133).row;
-            let degree = 3;
-            let degree_less = 2;
-            let dbdlp = new_from_num!(300).row;
-            let unity = unity_raw();
+            let tset = TestSet {
+                rax: 0,
+                rem: 0,
+                alp: 133,
+                deg: 3,
+            };
 
+            let unity = unity_raw();
             let mut outs = TestOuts::new();
 
             _ = next(
-                &mut rax_ref,
-                rem_ref,
-                &bdp,
-                &alpha,
-                degree,
-                degree_less,
-                &dbdlp,
+                &mut tset.rax(),
+                tset.rem(),
+                &tset.bdp(),
+                &tset.alp(),
+                tset.deg(),
+                tset.dgl(),
+                &tset.dbdlp(),
                 &unity,
                 &mut outs,
             );
@@ -534,25 +533,25 @@ mod tests_of_units {
 
         #[test]
         fn degree_one_test() {
-            let mut rax_ref = new_from_num!(2).row;
-            let rem_ref = new_from_num!(3).row;
-            let bdp = new_from_num!(10).row;
-            let alpha = new_from_num!(222).row;
-            let degree = 1;
-            let degree_less = 0;
-            let dbdlp = new_from_num!(1).row;
+            let tset = TestSet {
+                rax: 2,
+                rem: 3,
+                alp: 222,
+                deg: 1,
+            };
+
             let unity = unity_raw();
 
             let mut outs = TestOuts::new();
 
             _ = next(
-                &mut rax_ref,
-                rem_ref,
-                &bdp,
-                &alpha,
-                degree,
-                degree_less,
-                &dbdlp,
+                &mut tset.rax(),
+                tset.rem(),
+                &tset.bdp(),
+                &tset.alp(),
+                tset.deg(),
+                tset.dgl(),
+                &tset.dbdlp(),
                 &unity,
                 &mut outs,
             );
@@ -568,25 +567,25 @@ mod tests_of_units {
 
         #[test]
         fn g_zero_test() {
-            let mut rax_ref = new_from_num!(2).row;
-            let rem_ref = new_from_num!(1).row;
-            let bdp = new_from_num!(1000).row;
-            let alpha = new_from_num!(199).row;
-            let degree = 3;
-            let degree_less = 2;
-            let dbdlp = new_from_num!(300).row;
+            let tset = TestSet {
+                rax: 2,
+                rem: 1,
+                alp: 199,
+                deg: 3,
+            };
+
             let unity = unity_raw();
 
             let mut outs = TestOuts::new();
 
             _ = next(
-                &mut rax_ref,
-                rem_ref,
-                &bdp,
-                &alpha,
-                degree,
-                degree_less,
-                &dbdlp,
+                &mut tset.rax(),
+                tset.rem(),
+                &tset.bdp(),
+                &tset.alp(),
+                tset.deg(),
+                tset.dgl(),
+                &tset.dbdlp(),
                 &unity,
                 &mut outs,
             );
@@ -602,25 +601,25 @@ mod tests_of_units {
 
         #[test]
         fn g_one_test() {
-            let mut rax_ref = new_from_num!(2).row;
-            let rem_ref = new_from_num!(2).row;
-            let bdp = new_from_num!(1000).row;
-            let alpha = new_from_num!(399).row;
-            let degree = 3;
-            let degree_less = 2;
-            let dbdlp = new_from_num!(300).row;
+            let tset = TestSet {
+                rax: 2,
+                rem: 2,
+                alp: 399,
+                deg: 3,
+            };
+
             let unity = unity_raw();
 
             let mut outs = TestOuts::new();
 
             _ = next(
-                &mut rax_ref,
-                rem_ref,
-                &bdp,
-                &alpha,
-                degree,
-                degree_less,
-                &dbdlp,
+                &mut tset.rax(),
+                tset.rem(),
+                &tset.bdp(),
+                &tset.alp(),
+                tset.deg(),
+                tset.dgl(),
+                &tset.dbdlp(),
                 &unity,
                 &mut outs,
             );
@@ -636,25 +635,25 @@ mod tests_of_units {
 
         #[test]
         fn g_two_test() {
-            let mut rax_ref = new_from_num!(2).row;
-            let rem_ref = new_from_num!(2).row;
-            let bdp = new_from_num!(1000).row;
-            let alpha = new_from_num!(400).row;
-            let degree = 3;
-            let degree_less = 2;
-            let dbdlp = new_from_num!(300).row;
+            let tset = TestSet {
+                rax: 2,
+                rem: 2,
+                alp: 400,
+                deg: 3,
+            };
+
             let unity = unity_raw();
 
             let mut outs = TestOuts::new();
 
             _ = next(
-                &mut rax_ref,
-                rem_ref,
-                &bdp,
-                &alpha,
-                degree,
-                degree_less,
-                &dbdlp,
+                &mut tset.rax(),
+                tset.rem(),
+                &tset.bdp(),
+                &tset.alp(),
+                tset.deg(),
+                tset.dgl(),
+                &tset.dbdlp(),
                 &unity,
                 &mut outs,
             );
@@ -670,25 +669,25 @@ mod tests_of_units {
 
         #[test]
         fn incr_test() {
-            let mut rax_ref = new_from_num!(3).row;
-            let rem_ref = new_from_num!(4).row;
-            let bdp = new_from_num!(1000).row;
-            let alpha = new_from_num!(133).row;
-            let degree = 3;
-            let degree_less = 2;
-            let dbdlp = new_from_num!(300).row;
+            let tset = TestSet {
+                rax: 3,
+                rem: 4,
+                alp: 133,
+                deg: 3,
+            };
+
             let unity = unity_raw();
 
             let mut outs = TestOuts::new();
 
             _ = next(
-                &mut rax_ref,
-                rem_ref,
-                &bdp,
-                &alpha,
-                degree,
-                degree_less,
-                &dbdlp,
+                &mut tset.rax(),
+                tset.rem(),
+                &tset.bdp(),
+                &tset.alp(),
+                tset.deg(),
+                tset.dgl(),
+                &tset.dbdlp(),
                 &unity,
                 &mut outs,
             );
@@ -699,25 +698,25 @@ mod tests_of_units {
 
         #[test]
         fn decr_test() {
-            let mut rax_ref = new_from_num!(3).row;
-            let rem_ref = new_from_num!(15).row;
-            let bdp = new_from_num!(1000).row;
-            let alpha = new_from_num!(133).row;
-            let degree = 3;
-            let degree_less = 2;
-            let dbdlp = new_from_num!(300).row;
+            let tset = TestSet {
+                rax: 3,
+                rem: 15,
+                alp: 133,
+                deg: 3,
+            };
+
             let unity = unity_raw();
 
             let mut outs = TestOuts::new();
 
             _ = next(
-                &mut rax_ref,
-                rem_ref,
-                &bdp,
-                &alpha,
-                degree,
-                degree_less,
-                &dbdlp,
+                &mut tset.rax(),
+                tset.rem(),
+                &tset.bdp(),
+                &tset.alp(),
+                tset.deg(),
+                tset.dgl(),
+                &tset.dbdlp(),
                 &unity,
                 &mut outs,
             );
