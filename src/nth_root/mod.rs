@@ -56,7 +56,7 @@ fn next(
     }
 
     // let make initial guess, if possible
-    let (guess, mut beta) = if let Some(g) = guess(
+    let (betag, beta) = if let Some(g) = guess(
         rax_pow_less,
         dbdlp,
         &lim,
@@ -74,10 +74,10 @@ fn next(
         *sub_out = sub.clone();
         *lim_out = lim.clone();
         *beta_out = beta.clone();
-        *guess_out = Some(guess);
+        *guess_out = Some(betag);
     }
 
-    let inc_res = incr(rax, &mut beta, unity, degree, &sub, &lim, guess);
+    let inc_res = incr(rax, &beta, unity, degree, &sub, &lim, betag);
 
     // (By +β)ⁿ -Bⁿyⁿ
     let max = match inc_res {
@@ -163,7 +163,7 @@ enum IncRes {
 
 fn incr<'a>(
     wrax: &RawRow,
-    beta: &mut RawRow,
+    beta: &RawRow,
     unity: &RawRow,
     degree: u16,
     sub: &RawRow,
@@ -184,7 +184,7 @@ fn incr<'a>(
     addition_two(beta, &wrax, &mut orax);
     let mut init_fail = true;
 
-    let mut max = Vec::new();
+    let mut max = Vec::with_capacity(0);
 
     loop {
         // (By +β)ⁿ
@@ -200,7 +200,8 @@ fn incr<'a>(
         );
 
         // (By +β)ⁿ -Bⁿyⁿ ≤ Bⁿr +α
-        if let Rel::Greater(_) = rel_raw(&omax, lim) {
+        let rel = rel_raw(&omax, lim);
+        if let Rel::Greater(_) = rel {
             if init_fail {
                 return if betag {
                     IncRes::OverGuess(orax)
@@ -221,7 +222,7 @@ fn incr<'a>(
         }
 
         // (By +β)ⁿ -Bⁿyⁿ ≤ Bⁿr +α
-        if Rel::Equal == rel_raw(&omax, lim) {
+        if Rel::Equal == rel {
             return IncRes::Attainment((orax, omax));
         }
 

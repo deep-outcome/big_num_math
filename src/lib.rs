@@ -830,19 +830,32 @@ fn divrem_shortcut(dividend: &RawRow, divisor: &RawRow) -> Option<Option<(Row, R
 #[cfg(test)]
 use tests_of_units::divrem_accelerated::{DivRemEscCode, TestGauges};
 
-// in order to avoid highly excessive looping, divrem computation can be speed up
-// by simple substracting divisor 10 products first
 fn divrem_accelerated(
     dividend: &[u8],
     divisor: &[u8],
     #[cfg(test)] tg: &mut TestGauges,
 ) -> (RawRow, RawRow) {
-    let sor_len = divisor.len();
-    let mut end_len = dividend.len();
+    let dividend = dividend.to_vec();
+    divrem_accelerated_decremental(
+        dividend,
+        divisor,
+        #[cfg(test)]
+        tg,
+    )
+}
+
+// in order to avoid highly excessive looping, divrem computation can be speed up
+// by simple substracting divisor 10 products first
+fn divrem_accelerated_decremental(
+    mut end: Vec<u8>,
+    sor: &[u8],
+    #[cfg(test)] tg: &mut TestGauges,
+) -> (RawRow, RawRow) {
+    let sor_len = sor.len();
+    let mut end_len = end.len();
 
     let mut ratio = vec![0];
 
-    let mut end = dividend.to_vec();
     if end_len < sor_len {
         #[cfg(test)]
         {
@@ -869,7 +882,7 @@ fn divrem_accelerated(
 
             'ck: loop {
                 let end_num = end[l_ix];
-                let sor_num = divisor[r_ix];
+                let sor_num = sor[r_ix];
 
                 // check whether divisor can be broaded up to
                 // end highest place
@@ -919,7 +932,7 @@ fn divrem_accelerated(
 
             let mut sor_ix = sor_hg_ix;
             'cp: loop {
-                wsor[wr_ix] = divisor[sor_ix];
+                wsor[wr_ix] = sor[sor_ix];
 
                 if sor_ix == 0 {
                     break 'cp;
@@ -965,7 +978,7 @@ fn divrem_accelerated(
                 }
                 return (end, ratio);
             } else if end_len == sor_len {
-                if end[wr_ix] < divisor[wr_ix] {
+                if end[wr_ix] < sor[wr_ix] {
                     #[cfg(test)]
                     {
                         tg.esc = DivRemEscCode::Lop;
@@ -981,7 +994,7 @@ fn divrem_accelerated(
     // if end is already rem this "runs in vain"
     let rat = subtraction_decremental(
         &mut end,
-        &divisor,
+        &sor,
         true,
         #[cfg(test)]
         &mut tg.ctr,
