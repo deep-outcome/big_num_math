@@ -730,17 +730,42 @@ mod tests_of_units {
         use crate::nth_root::{incr, IncRes};
         use crate::{unity_raw, Row};
 
+        struct Incr {
+            wrax: usize,
+            beta: usize,
+            degree: u16,
+            sub: usize,
+            limit: usize,
+            betag: bool,
+        }
+
+        impl Incr {
+            pub fn incr(&self) -> IncRes {
+                let wrax = new_from_num!(self.wrax).row;
+                let beta = new_from_num!(self.beta).row;
+                let sub = new_from_num!(self.sub).row;
+                let lim = new_from_num!(self.limit).row;
+
+                let betag = self.betag;
+                let degree = self.degree;
+                let unity = unity_raw();
+
+                incr(&wrax, &beta, &unity, degree, &sub, &lim, betag)
+            }
+        }
+
         #[test]
         fn guess_too_much_test() {
-            let wrax = new_from_num!(20).row;
-            let mut beta = new_from_num!(3).row;
-            let unity = unity_raw();
-            let degree = 3;
-            let sub = new_from_num!(66).row;
-            let lim = new_from_num!(12100).row;
-            let guess = true;
+            let test = Incr {
+                wrax: 20,
+                beta: 3,
+                degree: 3,
+                sub: 66,
+                limit: 12_100,
+                betag: true,
+            };
 
-            let res = incr(&wrax, &mut beta, &unity, degree, &sub, &lim, guess);
+            let res = test.incr();
 
             let orax = new_from_num!(23).row;
             assert_eq!(IncRes::OverGuess(orax), res);
@@ -749,15 +774,16 @@ mod tests_of_units {
         #[test]
         // essentially, same as beta_is_beta_test
         fn guess_is_beta_test1() {
-            let wrax = new_from_num!(20).row;
-            let mut beta = new_from_num!(3).row;
-            let unity = unity_raw();
-            let degree = 3;
-            let sub = new_from_num!(67).row;
-            let lim = new_from_num!(12100).row;
-            let guess = true;
+            let test = Incr {
+                wrax: 20,
+                beta: 3,
+                degree: 3,
+                sub: 67,
+                limit: 12_100,
+                betag: true,
+            };
 
-            let res = incr(&wrax, &mut beta, &unity, degree, &sub, &lim, guess);
+            let res = test.incr();
 
             let rax = new_from_num!(23).row;
             let max = new_from_num!(12100).row;
@@ -767,15 +793,16 @@ mod tests_of_units {
 
         #[test]
         fn guess_is_beta_test2() {
-            let wrax = new_from_num!(20).row;
-            let mut beta = new_from_num!(3).row;
-            let unity = unity_raw();
-            let degree = 3;
-            let sub = new_from_num!(68).row;
-            let lim = new_from_num!(12100).row;
-            let guess = true;
+            let test = Incr {
+                wrax: 20,
+                beta: 3,
+                degree: 3,
+                sub: 68,
+                limit: 12_100,
+                betag: true,
+            };
 
-            let res = incr(&wrax, &mut beta, &unity, degree, &sub, &lim, guess);
+            let res = test.incr();
 
             let rax = new_from_num!(23).row;
             let max = new_from_num!(12099).row;
@@ -785,15 +812,16 @@ mod tests_of_units {
 
         #[test]
         fn beta_too_much_test() {
-            let wrax = new_from_num!(20).row;
-            let mut beta = new_from_num!(1).row;
-            let unity = unity_raw();
-            let degree = 3;
-            let sub = new_from_num!(60).row;
-            let lim = new_from_num!(9200).row;
-            let guess = false;
+            let test = Incr {
+                wrax: 20,
+                beta: 1,
+                degree: 3,
+                sub: 60,
+                limit: 9_200,
+                betag: false,
+            };
 
-            let res = incr(&wrax, &mut beta, &unity, degree, &sub, &lim, guess);
+            let res = test.incr();
 
             assert_eq!(IncRes::MaxZero, res);
         }
@@ -801,15 +829,16 @@ mod tests_of_units {
         #[test]
         // essentially, same as guess_is_beta_test
         fn beta_is_beta_test1() {
-            let wrax = new_from_num!(20).row;
-            let mut beta = new_from_num!(3).row;
-            let unity = unity_raw();
-            let degree = 3;
-            let sub = new_from_num!(67).row;
-            let lim = new_from_num!(12100).row;
-            let guess = false;
+            let test = Incr {
+                wrax: 20,
+                beta: 3,
+                degree: 3,
+                sub: 67,
+                limit: 12_100,
+                betag: false,
+            };
 
-            let res = incr(&wrax, &mut beta, &unity, degree, &sub, &lim, guess);
+            let res = test.incr();
 
             let rax = new_from_num!(23).row;
             let max = new_from_num!(12100).row;
@@ -819,15 +848,16 @@ mod tests_of_units {
 
         #[test]
         fn beta_is_beta_test2() {
-            let wrax = new_from_num!(20).row;
-            let mut beta = new_from_num!(3).row;
-            let unity = unity_raw();
-            let degree = 3;
-            let sub = new_from_num!(68).row;
-            let lim = new_from_num!(12100).row;
-            let guess = false;
+            let test = Incr {
+                wrax: 20,
+                beta: 3,
+                degree: 3,
+                sub: 68,
+                limit: 12_100,
+                betag: false,
+            };
 
-            let res = incr(&wrax, &mut beta, &unity, degree, &sub, &lim, guess);
+            let res = test.incr();
 
             let rax = new_from_num!(23).row;
             let max = new_from_num!(12099).row;
@@ -837,19 +867,41 @@ mod tests_of_units {
     }
 
     mod decr {
-        use crate::{unity_raw, Row};
+        use crate::{unity_raw, RawRow, Row};
 
         use super::super::decr;
 
+        struct Decr {
+            orax: usize,
+            deg: u16,
+            sub: usize,
+            lim: usize,
+        }
+
+        impl Decr {
+            pub fn decr(&self) -> (RawRow, RawRow) {
+                let mut orax = new_from_num!(self.orax).row;
+                let sub = new_from_num!(self.sub).row;
+                let lim = new_from_num!(self.lim).row;
+
+                let unity = unity_raw();
+                let degree = self.deg;
+
+                let omax = decr(&mut orax, &unity, degree, &sub, &lim);
+                (orax, omax)
+            }
+        }
+
         #[test]
         fn max_equal_lim_test() {
-            let mut orax = new_from_num!(25).row;
-            let unity = unity_raw();
-            let degree = 4;
-            let sub = new_from_num!(776).row;
-            let lim = new_from_num!(331_000).row;
+            let test = Decr {
+                orax: 25,
+                deg: 4,
+                sub: 776,
+                lim: 331_000,
+            };
 
-            let omax = decr(&mut orax, &unity, degree, &sub, &lim);
+            let (orax, omax) = test.decr();
 
             let rax = new_from_num!(24).row;
             let max = new_from_num!(331_000).row;
@@ -860,13 +912,14 @@ mod tests_of_units {
 
         #[test]
         fn max_less_lim_test() {
-            let mut orax = new_from_num!(25).row;
-            let unity = unity_raw();
-            let degree = 4;
-            let sub = new_from_num!(777).row;
-            let lim = new_from_num!(331_000).row;
+            let test = Decr {
+                orax: 25,
+                deg: 4,
+                sub: 777,
+                lim: 331_000,
+            };
 
-            let omax = decr(&mut orax, &unity, degree, &sub, &lim);
+            let (orax, omax) = test.decr();
 
             let rax = new_from_num!(24).row;
             let max = new_from_num!(330_999).row;
@@ -877,13 +930,14 @@ mod tests_of_units {
 
         #[test]
         fn subtracting_test() {
-            let mut orax = new_from_num!(26).row;
-            let unity = unity_raw();
-            let degree = 4;
-            let sub = new_from_num!(776).row;
-            let lim = new_from_num!(331_000).row;
+            let test = Decr {
+                orax: 26,
+                deg: 4,
+                sub: 776,
+                lim: 331_000,
+            };
 
-            let omax = decr(&mut orax, &unity, degree, &sub, &lim);
+            let (orax, omax) = test.decr();
 
             let rax = new_from_num!(24).row;
             let max = new_from_num!(331_000).row;
