@@ -57,6 +57,8 @@ fn next(
         &lim,
         #[cfg(test)]
         &mut outs.div,
+        #[cfg(test)]
+        &mut vec![],
     ) {
         (true, g)
     } else {
@@ -122,6 +124,7 @@ fn guess(
     dbdlp: &RawRow,
     lim: &RawRow,
     #[cfg(test)] div_out: &mut RawRow,
+    #[cfg(test)] g_out: &mut RawRow,
 ) -> Option<RawRow> {
     if !is_nought_raw(rax_pow_less.as_slice()) {
         // nBⁿ⁻¹ ·yⁿ⁻¹
@@ -140,6 +143,11 @@ fn guess(
             &mut TestGauges::blank(),
         )
         .1;
+
+        #[cfg(test)]
+        {
+            *g_out = g.clone();
+        }
 
         if g.len() > 1 || g[0] > 1 {
             return Some(g);
@@ -173,7 +181,6 @@ fn incr<'a>(
     let max_len = max(wrax_len, beta_len);
 
     let mut orax = Vec::with_capacity(max_len + 1);
-
     // o stands for operative
     // y' =By +β
     addition_two(beta, &wrax, &mut orax);
@@ -669,10 +676,19 @@ mod tests_of_units {
 
         #[test]
         fn incr_test() {
+            // rax_pow_less =3² =9
+            // dbdlp = 3 ⋅10² =300
+            // div = dbdlp ⋅rax_pow_less =2700
+            // lim = 10³ ⋅2 +791 =2791
+            // g = ⌊lim ÷div⌋ =1
+
+            // omax₁ =31³ =29791
+            // omax₂ =31³ -10³ ⋅3³ =2791
+
             let tset = TestSet {
                 rax: 3,
-                rem: 4,
-                alp: 133,
+                rem: 2,
+                alp: 791,
                 deg: 3,
             };
 
@@ -692,16 +708,31 @@ mod tests_of_units {
                 &mut outs,
             );
 
+            assert_eq!(vec![9], outs.rax_pow_less);
+            assert_eq!(vec![1, 9, 7, 2], outs.lim);
+            assert_eq!(vec![0, 0, 0, 7, 2], outs.sub);
+            assert_eq!(vec![1], outs.beta);
+            assert_eq!(vec![0, 0, 7, 2], outs.div);
+            assert_eq!(Some(false), outs.betag);
             assert_eq!(true, outs.incr);
             assert_eq!(false, outs.decr);
         }
 
         #[test]
         fn decr_test() {
+            // rax_pow_less =3² =9
+            // dbdlp = 3 ⋅10² =300
+            // div = dbdlp ⋅rax_pow_less =2700
+            // lim = 10³ ⋅15 +874 =15874
+            // g = ⌊lim ÷div⌋ =5
+
+            // omax₁ =35³ =42875
+            // omax₂ =35³ -10³ ⋅3³ =15875
+
             let tset = TestSet {
                 rax: 3,
                 rem: 15,
-                alp: 133,
+                alp: 874,
                 deg: 3,
             };
 
@@ -721,8 +752,116 @@ mod tests_of_units {
                 &mut outs,
             );
 
+            assert_eq!(vec![9], outs.rax_pow_less);
+            assert_eq!(vec![4, 7, 8, 5, 1], outs.lim);
+            assert_eq!(vec![0, 0, 0, 7, 2], outs.sub);
+            assert_eq!(vec![5], outs.beta);
+            assert_eq!(vec![0, 0, 7, 2], outs.div);
+            assert_eq!(Some(true), outs.betag);
             assert_eq!(false, outs.incr);
             assert_eq!(true, outs.decr);
+        }
+
+        #[test]
+        fn max_zero_test() {
+            // rax_pow_less =2² =4
+            // dbdlp = 3 ⋅10² =300
+            // div = dbdlp ⋅rax_pow_less =1200
+            // lim = 10³ ⋅1 +260 =1260
+            // g = ⌊lim ÷div⌋ =1
+
+            // omax₁ =21³ =9261
+            // omax₂ =21³ -10³ ⋅2³ =1261
+
+            let tset = TestSet {
+                rax: 2,
+                rem: 1,
+                alp: 260,
+                deg: 3,
+            };
+
+            let unity = unity_raw();
+            let mut outs = TestOuts::new();
+
+            _ = next(
+                &mut tset.rax(),
+                tset.rem(),
+                &tset.bdp(),
+                &tset.alp(),
+                tset.deg(),
+                tset.dgl(),
+                &tset.dbdlp(),
+                &unity,
+                &mut outs,
+            );
+
+            assert_eq!(vec![4], outs.rax_pow_less);
+            assert_eq!(vec![0, 6, 2, 1], outs.lim);
+            assert_eq!(vec![0, 0, 0, 8], outs.sub);
+            assert_eq!(vec![1], outs.beta);
+            assert_eq!(vec![0, 0, 2, 1], outs.div);
+            assert_eq!(Some(false), outs.betag);
+            assert_eq!(false, outs.incr);
+            assert_eq!(false, outs.decr);
+        }
+    }
+
+    mod guess {
+        use crate::Row;
+        use crate::{nought_raw, nth_root::guess};
+
+        #[test]
+        fn rax_pow_less_zero_test() {
+            let rax_pow_less = nought_raw();
+            let empty = vec![];
+            let mut div_out = vec![];
+            let mut g_out = vec![];
+
+            let g = guess(rax_pow_less, &empty, &empty, &mut div_out, &mut g_out);
+            assert_eq!(None, g);
+            assert_eq!(0, div_out.len());
+            assert_eq!(0, g_out.len());
+        }
+
+        #[test]
+        fn g_zero_test() {
+            let rax_pow_less = new_from_num!(25).row;
+            let dbdlp = new_from_num!(200).row;
+            let lim = new_from_num!(4_999).row;
+            let mut div_out = vec![];
+            let mut g_out = vec![];
+
+            let g = guess(rax_pow_less, &dbdlp, &lim, &mut div_out, &mut g_out);
+            assert_eq!(None, g);
+            assert_eq!(vec![0], g_out);
+            assert_eq!(vec![0, 0, 0, 5], div_out);
+        }
+
+        #[test]
+        fn g_one_test() {
+            let rax_pow_less = new_from_num!(25).row;
+            let dbdlp = new_from_num!(200).row;
+            let lim = new_from_num!(5_000).row;
+            let mut div_out = vec![];
+            let mut g_out = vec![];
+
+            let g = guess(rax_pow_less, &dbdlp, &lim, &mut div_out, &mut g_out);
+            assert_eq!(None, g);
+            assert_eq!(vec![1], g_out);
+            assert_eq!(lim, div_out);
+        }
+
+        #[test]
+        fn g_two_test() {
+            let rax_pow_less = new_from_num!(25).row;
+            let dbdlp = new_from_num!(200).row;
+            let lim = new_from_num!(10_000).row;
+            let mut div_out = vec![];
+            let mut g_out = vec![];
+
+            let g = guess(rax_pow_less, &dbdlp, &lim, &mut div_out, &mut g_out);
+            assert_eq!(Some(vec![2]), g);
+            assert_eq!(vec![0, 0, 0, 5], div_out);
         }
     }
 

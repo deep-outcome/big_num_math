@@ -1,5 +1,6 @@
 next:  
-  - check tests (compare to originals also)  
+  - check tests:    
+    - validate coverage once again
 
 general:
  - check task: locations
