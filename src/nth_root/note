@@ -1,6 +1,4 @@
-next:  
-  - check tests:    
-    - validate coverage once again
+
 
 general:
  - check task: locations
