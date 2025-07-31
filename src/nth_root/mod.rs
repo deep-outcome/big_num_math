@@ -88,7 +88,7 @@ fn next(
         IncRes::MaxZero => {
             // (By +β)ⁿ -Bⁿyⁿ
             // β =0 =>(By)ⁿ -Bⁿyⁿ =0
-            nought_raw()
+            return lim;
         }
         IncRes::OverGuess(mut or) => {
             #[cfg(test)]
@@ -863,6 +863,19 @@ mod tests_of_units {
             assert_eq!(Some(vec![2]), g);
             assert_eq!(vec![0, 0, 0, 5], div_out);
         }
+
+        #[test]
+        fn g_ten_test() {
+            let rax_pow_less = new_from_num!(25).row;
+            let dbdlp = new_from_num!(200).row;
+            let lim = new_from_num!(50_000).row;
+            let mut div_out = vec![];
+            let mut g_out = vec![];
+
+            let g = guess(rax_pow_less, &dbdlp, &lim, &mut div_out, &mut g_out);
+            assert_eq!(Some(vec![0, 1]), g);
+            assert_eq!(vec![0, 0, 0, 5], div_out);
+        }
     }
 
     mod incr {
@@ -907,7 +920,14 @@ mod tests_of_units {
             let res = test.incr();
 
             let orax = new_from_num!(23).row;
-            assert_eq!(IncRes::OverGuess(orax), res);
+
+            match res {
+                IncRes::OverGuess(r) => {
+                    assert_eq!(orax, r);
+                    assert_eq!(3, r.capacity());
+                }
+                _ => assert!(false),
+            }
         }
 
         #[test]
