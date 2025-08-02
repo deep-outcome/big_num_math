@@ -3313,6 +3313,28 @@ mod tests_of_units {
                 "115792089237316195423570985008687907852589419931798687112530834793049593217025";
             assert_eq!(proof, prod.to_number());
         }
+
+        #[test]
+        fn decadic_test() {
+            let row1 = Row::new_from_u128(100);
+            let row2 = Row::new_from_u128(10_000);
+
+            let proof = new_from_num!(1_000_000);
+            let prod = mul(&row1, &row2);
+
+            assert_eq!(proof, prod);
+        }
+
+        #[test]
+        fn decadic_test2() {
+            let row1 = Row::new_from_u128(100_000);
+            let row2 = Row::new_from_u128(100_000);
+
+            let proof = new_from_num!(10_000_000_000usize);
+            let prod = mul(&row1, &row2);
+
+            assert_eq!(proof, prod);
+        }
     }
 
     mod mul_shortcut {
@@ -3417,6 +3439,25 @@ mod tests_of_units {
 
             assert!(number.starts_with("8312324609993336522"));
             assert_eq!(19266, number.len());
+        }
+
+        #[test]
+        fn decadic_test() {
+            let row = Row::new_from_u128(100);
+            let pow = pow(&row, 4);
+            let proof = new_from_num!(1_00_00_00_00);
+
+            assert_eq!(proof, pow);
+        }
+
+        #[test]
+        fn decadic_test2() {
+            let row = Row::new_from_u128(100);
+            let pow = pow(&row, 10);
+            let proof = "1_00_00_00_00_00_00_00_00_00_00";
+            let proof = Row::new_from_str(proof.replace("_", "").as_str()).unwrap();
+
+            assert_eq!(proof, pow);
         }
 
         #[test]
