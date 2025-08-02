@@ -26,7 +26,7 @@ fn next(
     dbdlp: &RawRow,   // nBⁿ⁻¹
     unity: &RawRow,   // 1
 
-    #[cfg(test)] outs: &mut TestOuts,
+    #[cfg(test)] outs: &mut NextTestOuts,
 ) -> RawRow {
     // yⁿ⁻¹
     let rax_pow_less = pow_raw(&rax, degree_less);

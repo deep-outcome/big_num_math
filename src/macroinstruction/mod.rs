@@ -1,4 +1,4 @@
-macro_rules! new_from_num {
+macro_rules! new_from_num_raw {
     ($n:expr) => {{
         let mut n = $n;
         let mut row = Vec::new();
@@ -12,6 +12,13 @@ macro_rules! new_from_num {
             }
         }
 
+        row
+    }};
+}
+
+macro_rules! new_from_num {
+    ($n:expr) => {{
+        let row = new_from_num_raw!($n);
         Row { row }
     }};
 }

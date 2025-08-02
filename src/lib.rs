@@ -3405,7 +3405,7 @@ mod tests_of_units {
 
     mod pow_shortcut {
         use super::nought;
-        use crate::{nought_raw, pow_shortcut, unity_raw, Row};
+        use crate::{nought_raw, pow_shortcut, unity_raw};
 
         #[test]
         fn zero_power_test() {
@@ -3423,7 +3423,7 @@ mod tests_of_units {
 
         #[test]
         fn one_power_test() {
-            let row = new_from_num!(3030).row;
+            let row = new_from_num_raw!(3030);
             let pow = pow_shortcut(&row, 1);
             assert_eq!(Some(row), pow);
         }
@@ -5302,7 +5302,7 @@ mod tests_of_units {
     }
 }
 
-// cargo test --features ext-tests --release
+// cargo fmt & cargo test --features ext-tests --release
 // cargo test --features ext-tests2 --release primes_ext_test
 // cargo test --features ext-tests3 --release primes_ext2_test
 // cargo test --features ext-tests,shorter-dividend-support --release
