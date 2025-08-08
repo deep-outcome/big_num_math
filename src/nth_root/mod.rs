@@ -1,44 +1,155 @@
+/// Variables and their meaning
+/// --------------------------------------------------
+/// B  — base of number system, e.g. binary or ternary
+/// n  — root/radix degree
+/// x  — radicand
+/// y  — root/radix
+/// r  — remainder
+/// α  — next n places of radicand
+/// β  — root next increment
+/// y' — new y for next iteration
+/// r' — new r for next iteration
 use std::cmp::max;
 
-use super::{
-    addition_sum, addition_two, divrem_accelerated, mulmul, pow_raw, rel_raw,
-    subtraction_decremental, RawRow, Rel,
+use crate::{
+    addition_sum, addition_two, divrem_accelerated, is_nought_raw, mulmul, mulmul_incremental,
+    nought_raw, pow_raw, rel_raw, subtraction_decremental, unity_raw, PlacesRow, RawRow, Rel, Row,
 };
-
-// task: think of shortcuts
-// any root of 0 = 0
-// any root of 1 = 1
-// root 1 of any = any
 
 #[cfg(test)]
 use crate::tests_of_units::divrem_accelerated::TestGauges;
 
 #[cfg(test)]
-use tests_of_units::next::test_aides::TestOuts;
+use tests_of_units::next::test_aides::NextTestOuts;
+
+#[cfg(test)]
+use tests_of_units::root::test_aides::RootTestOuts;
+
+/// Computes `nth` integer root of `radicand`.
+///
+/// Returns nᵗʰ integer root of radicand or `None` for `0`ᵗʰ root.
+pub fn root(
+    radicand: &PlacesRow,
+    nth: u16,
+    #[cfg(test)] outs: &mut RootTestOuts,
+) -> Option<PlacesRow> {
+    if nth == 0 {
+        return None;
+    }
+
+    let base = &vec![0, 1];
+    let unity = unity_raw();
+
+    // n -1
+    let nth_less = nth - 1;
+
+    // Bⁿ⁻¹
+    let bdpl = &pow_raw(base, nth_less);
+
+    // decadic base powered by degree
+    // base degree power
+    // Bⁿ
+    let bdp = mulmul(base, bdpl, 1);
+
+    // degree base degree less power
+    // nBⁿ⁻¹
+    let dbdlp = mulmul(&new_from_num_raw!(nth), bdpl, 1);
+
+    #[cfg(test)]
+    {
+        outs.bdp = bdp.clone();
+        outs.nth_less = nth_less;
+        outs.dbdlp = dbdlp.clone();
+    }
+
+    // root/radix
+    // y
+    let mut rax = nought_raw();
+    // remainder
+    // r
+    let mut rem = nought_raw();
+
+    let mut agen = AlphaGenerator::new(radicand, nth as usize);
+
+    loop {
+        // α
+        let alpha = agen.next();
+        // operatives
+        // y', r'
+        let (orax, orem) = next(
+            &rax,
+            rem,
+            &bdp,
+            &alpha,
+            nth,
+            nth_less,
+            &dbdlp,
+            &unity,
+            #[cfg(test)]
+            &mut NextTestOuts::new(),
+        );
+
+        let orax_pow = pow_raw(&orax, nth);
+
+        let rel = rel_raw(&orax_pow, &radicand);
+        if let Rel::Greater(_) = rel {
+            #[cfg(test)]
+            {
+                outs.bcode = 1;
+            }
+
+            break;
+        }
+
+        rax = orax;
+
+        if Rel::Equal == rel {
+            #[cfg(test)]
+            {
+                outs.bcode = 2;
+            }
+
+            break;
+        }
+
+        rem = orem;
+    }
+
+    Some(Row { row: rax })
+}
 
 fn next(
-    rax: &mut RawRow, // y
+    rax: &RawRow,     // y
     rem: RawRow,      // r
     bdp: &RawRow,     // Bⁿ
-    alpha: &RawRow,   // α
+    alpha: &[u8],     // α
     degree: u16,      // n
     degree_less: u16, // n -1
     dbdlp: &RawRow,   // nBⁿ⁻¹
     unity: &RawRow,   // 1
 
     #[cfg(test)] outs: &mut NextTestOuts,
-) -> RawRow {
+) -> (RawRow, RawRow) {
     // yⁿ⁻¹
     let rax_pow_less = pow_raw(&rax, degree_less);
 
     // Bⁿyⁿ, subtrahend
     let sub = mulmul_incremental(bdp, mulmul(&rax_pow_less, &rax, 1), 1);
 
+    let wrax_cap = rax.len() + 1;
+    let mut wrax = Vec::new();
+    wrax.reserve_exact(wrax_cap);
+    wrax.push(0);
+
     // By, widen rax
-    // expansion instead of multiplication
     if is_nought_raw(&rax) == false {
         // y' =By +β, β =0
-        rax.insert(0, 0);
+
+        unsafe {
+            wrax.set_len(wrax_cap);
+        };
+
+        wrax[1..].copy_from_slice(&rax);
     }
 
     // Bⁿr +α, limit
@@ -67,36 +178,35 @@ fn next(
 
     #[cfg(test)]
     {
-        outs.wrax = rax.clone();
+        outs.wrax = wrax.clone();
         outs.sub = sub.clone();
         outs.lim = lim.clone();
         outs.beta = beta.clone();
         outs.betag = Some(betag);
     }
 
-    let inc_res = incr(rax, &beta, unity, degree, &sub, &lim, betag);
+    let inc_res = incr(&wrax, &beta, unity, degree, &sub, &lim, betag);
 
     // (By +β)ⁿ -Bⁿyⁿ
-    let max = match inc_res {
+    let (rax, max) = match inc_res {
         IncRes::Attainment((r, m)) => {
             #[cfg(test)]
             set_cr(&mut outs.incr);
 
-            *rax = r;
-            m
+            (r, m)
         }
         IncRes::MaxZero => {
             // (By +β)ⁿ -Bⁿyⁿ
             // β =0 =>(By)ⁿ -Bⁿyⁿ =0
-            return lim;
+            return (wrax, lim);
         }
         IncRes::OverGuess(mut or) => {
             #[cfg(test)]
             set_cr(&mut outs.decr);
 
             let m = decr(&mut or, unity, degree, &sub, &lim);
-            *rax = or;
-            m
+
+            (or, m)
         }
     };
 
@@ -109,7 +219,7 @@ fn next(
         &mut 0,
     );
 
-    return lim;
+    return (rax, lim);
 
     #[cfg(test)]
     fn set_cr(cr: &mut bool) {
@@ -117,8 +227,6 @@ fn next(
     }
 }
 
-// task: test whether guess is really some benefit
-// it is quite complex => misses can be cheaper
 fn guess(
     rax_pow_less: RawRow,
     dbdlp: &RawRow,
@@ -282,7 +390,6 @@ pub struct AlphaGenerator<'a> {
     ngh: RawRow,
 }
 
-use crate::{is_nought_raw, mulmul_incremental, nought_raw};
 impl<'a> AlphaGenerator<'a> {
     pub fn new(num: &'a [u8], ras: usize) -> Self {
         if ras == 0 {
@@ -318,7 +425,7 @@ impl<'a> AlphaGenerator<'a> {
             return &self.ngh;
         }
 
-        let ix = self.ix;
+        let mut ix = self.ix;
         let alpha = &onum[ix..];
         self.onum = &onum[..ix];
 
@@ -326,41 +433,309 @@ impl<'a> AlphaGenerator<'a> {
             self.ix = ix - self.ras;
         }
 
-        return alpha;
+        ix = alpha.len();
+
+        while ix > 0 {
+            ix -= 1;
+
+            let num = alpha[ix];
+            if num > 0 {
+                break;
+            }
+        }
+
+        &alpha[..=ix]
     }
 }
 
 #[cfg(test)]
 mod tests_of_units {
 
+    pub mod root {
+
+        pub mod test_aides {
+            use crate::RawRow;
+
+            pub struct RootTestOuts {
+                pub bcode: u32,
+                pub bdp: RawRow,
+                pub nth_less: u16,
+                pub dbdlp: RawRow,
+            }
+
+            impl RootTestOuts {
+                pub fn new() -> Self {
+                    Self {
+                        bcode: 0,
+                        bdp: vec![],
+                        nth_less: u16::MAX,
+                        dbdlp: vec![],
+                    }
+                }
+            }
+
+            mod tests_of_units {
+                use super::RootTestOuts;
+
+                #[test]
+                fn new_test() {
+                    let outs = RootTestOuts::new();
+                    assert_eq!(0, outs.bcode);
+                    assert_eq!(0, outs.bdp.len());
+                    assert_eq!(u16::MAX, outs.nth_less);
+                    assert_eq!(0, outs.dbdlp.len());
+                }
+            }
+        }
+
+        use crate::{PlacesRow, Row};
+
+        use super::super::root;
+        use test_aides::RootTestOuts;
+
+        #[test]
+        fn basic_test() {
+            let rad = new_from_num!(8);
+            let proof = new_from_num!(2);
+            let mut outs = RootTestOuts::new();
+
+            assert_eq!(Some(proof), root(&rad, 3, &mut outs));
+        }
+
+        #[test]
+        fn zero_root_test() {
+            let rad = new_from_num!(u32::MAX);
+            let mut outs = RootTestOuts::new();
+
+            assert_eq!(None, root(&rad, 0, &mut outs));
+        }
+
+        #[test]
+        fn first_root_test() {
+            let vals = [0, 1, 2, 3, 10, 100, 999, 1_000_000, 9_999_999];
+            let mut outs = RootTestOuts::new();
+
+            for &v in vals.iter() {
+                let rad = new_from_num!(v);
+                assert_eq!(root(&rad, 1, &mut outs), Some(rad));
+            }
+        }
+
+        #[test]
+        fn sqrt_basic_test() {
+            #[rustfmt::skip]
+            let vals = [
+                (0, [0].as_slice()),
+                (1, [1,3].as_slice()),
+                (2, [4,8].as_slice()),
+                (3, [9,15].as_slice()),
+                (4, [16,24].as_slice()),
+                (5, [25,35].as_slice()),
+                (6, [36,48].as_slice()),];
+
+            let mut outs = RootTestOuts::new();
+
+            for v in vals.iter() {
+                for &n in v.1 {
+                    let proof = new_from_num!(v.0);
+                    let rad = new_from_num!(n);
+
+                    assert_eq!(Some(proof), root(&rad, 2, &mut outs));
+                }
+            }
+        }
+
+        #[test]
+        fn cbrt_basic_test() {
+            #[rustfmt::skip]
+            let vals = [
+                (0,[0].as_slice()),
+                (1,[1,7].as_slice()), 
+                (2,[8,26].as_slice()),
+                (3,[27,63].as_slice()),
+                (4,[64,124].as_slice()),
+                (5,[125,215].as_slice())];
+
+            let mut outs = RootTestOuts::new();
+
+            for v in vals.iter() {
+                for &n in v.1 {
+                    let proof = new_from_num!(v.0);
+                    let rad = new_from_num!(n);
+
+                    assert_eq!(Some(proof), root(&rad, 3, &mut outs));
+                }
+            }
+        }
+
+        #[test]
+        fn integer_root_test() {
+            #[rustfmt::skip]
+            let vals = [
+                (4, 4, 256),
+                (7, 5, 16_807),
+                (100, 4, 1_00_00_00_00),
+                (217, 3, 10_218_313),
+                (5560, 2, 30_913_600),
+                (1222, 3, 1_824_793_048), 
+                (177, 4, 981_506_241),
+                (793, 3, 498_677_257),
+                (313, 3, 30_664_297),                    
+                (4, 14, 268_435_456),            
+                (2, 30, 1_073_741_824),                    
+                (2, 31, 2147483648), 
+                (4, 15, 1073741824),
+            ];
+
+            let mut outs = RootTestOuts::new();
+            for v in vals {
+                let proof = new_from_num!(v.0);
+                let rad = PlacesRow::new_from_usize(v.2);
+
+                assert_eq!(Some(proof), root(&rad, v.1, &mut outs),);
+            }
+        }
+
+        #[test]
+        fn rounded_root_test() {
+            #[rustfmt::skip]
+            let vals = [
+                (17, 2, 312),               // ≈ 17.7
+                (9, 4, 9999),               // ≈ 9.9998
+                (9, 3, 999),                // ≈ 9.997
+                (9, 2, 99),                 // ≈ 9.95
+                (99, 2, 9999),              // ≈ 99.995
+                (21, 3, 9999),              // ≈ 21.5            
+                (20, 4, 173_479),           // ≈ 20.41
+                (2, 17, 16_777_215),        // ≈ 2.661            
+                (3, 13, 33_554_431),        // ≈ 3.79            
+                (31629, 2, 1_000_400_400),  // ≈ 31629.11
+                (45, 5, 200_300_010),       // ≈ 45.7                                
+                (5, 12, 900_900_009),       // ≈ 5.575
+                (2, 26, 90_900_009),        // ≈ 2.02                                     
+            ];
+
+            let mut outs = RootTestOuts::new();
+
+            for v in vals {
+                let proof = new_from_num!(v.0);
+                let rad = new_from_num!(v.2);
+
+                assert_eq!(Some(proof), root(&rad, v.1, &mut outs),);
+            }
+        }
+
+        #[test]
+        fn readme_test() {
+            let mut outs = RootTestOuts::new();
+
+            let proof = PlacesRow::new_from_usize(3);
+            let rad = PlacesRow::new_from_usize(33_554_431);
+            assert_eq!(Some(proof), root(&rad, 13, &mut outs));
+
+            let proof = PlacesRow::new_from_usize(5560);
+            let rad = PlacesRow::new_from_usize(30_913_600);
+            assert_eq!(Some(proof), root(&rad, 2, &mut outs));
+        }
+
+        #[test]
+        fn expected_escape_test() {
+            let mut outs = RootTestOuts::new();
+
+            let rad = new_from_num!(256);
+            _ = root(&rad, 4, &mut outs);
+            assert_eq!(2, outs.bcode);
+
+            let rad = new_from_num!(257);
+            _ = root(&rad, 4, &mut outs);
+            assert_eq!(1, outs.bcode);
+        }
+
+        #[test]
+        fn degree_one_test() {
+            let mut outs = RootTestOuts::new();
+            let rad = new_from_num!(0);
+
+            _ = root(&rad, 1, &mut outs);
+
+            assert_eq!(vec![0, 1], outs.bdp);
+            assert_eq!(0, outs.nth_less);
+            assert_eq!(vec![1], outs.dbdlp);
+        }
+
+        #[test]
+        fn computational_test() {
+            let mut outs = RootTestOuts::new();
+            let rad = new_from_num!(0);
+
+            _ = root(&rad, 9, &mut outs);
+
+            assert_eq!(new_from_num_raw!(1_000_000_000), outs.bdp);
+            assert_eq!(8, outs.nth_less);
+            assert_eq!(new_from_num_raw!(900_000_000), outs.dbdlp);
+        }
+
+        #[test]
+        #[cfg(feature = "ext-tests")]
+        fn load_test() {
+            let vals = [
+                ("99999999999999999999999999999999999999", 9, "16681"),
+                (
+                    "1111111111111111111111111111111111111111",
+                    1,
+                    "1111111111111111111111111111111111111111",
+                ),
+                (
+                    "25252525252525252525252525252525252525252525252525252525",
+                    25,
+                    "164",
+                ),
+                (
+                    "7777777777777777777777777777777777777117777777777777777777777777777777777777",
+                    11,
+                    "7928092",
+                ),
+            ];
+
+            let mut outs = RootTestOuts::new();
+
+            for v in vals {
+                let proof = Row::new_from_str(v.2).unwrap();
+                let rad = Row::new_from_str(v.0).unwrap();
+
+                assert_eq!(Some(proof), root(&rad, v.1, &mut outs),);
+            }
+        }
+    }
+
     pub mod next {
 
         pub mod test_aides {
-            use crate::{RawRow, Row};
+            use crate::RawRow;
 
-            pub struct TestSet {
+            pub struct NextTestSet {
                 pub rax: usize,
                 pub rem: usize,
                 pub alp: usize,
                 pub deg: u16,
             }
 
-            impl TestSet {
+            impl NextTestSet {
                 pub fn rax(&self) -> RawRow {
-                    new_from_num!(self.rax).row
+                    new_from_num_raw!(self.rax)
                 }
 
                 pub fn rem(&self) -> RawRow {
-                    new_from_num!(self.rem).row
+                    new_from_num_raw!(self.rem)
                 }
 
                 pub fn bdp(&self) -> RawRow {
                     let bdp = 10usize.pow(self.deg as u32);
-                    new_from_num!(bdp).row
+                    new_from_num_raw!(bdp)
                 }
 
                 pub fn alp(&self) -> RawRow {
-                    new_from_num!(self.alp).row
+                    new_from_num_raw!(self.alp)
                 }
 
                 pub fn deg(&self) -> u16 {
@@ -374,11 +749,11 @@ mod tests_of_units {
                 pub fn dbdlp(&self) -> RawRow {
                     let deg = self.deg;
                     let dbdlp = deg * 10u16.pow((deg - 1) as u32);
-                    new_from_num!(dbdlp).row
+                    new_from_num_raw!(dbdlp)
                 }
             }
 
-            pub struct TestOuts {
+            pub struct NextTestOuts {
                 pub wrax: RawRow,
                 pub rax_pow_less: RawRow,
                 pub sub: RawRow,
@@ -390,11 +765,11 @@ mod tests_of_units {
                 pub decr: bool,
             }
 
-            impl TestOuts {
+            impl NextTestOuts {
                 pub fn new() -> Self {
                     let empty = vec![];
 
-                    TestOuts {
+                    NextTestOuts {
                         wrax: empty.clone(),
                         rax_pow_less: empty.clone(),
                         sub: empty.clone(),
@@ -411,11 +786,11 @@ mod tests_of_units {
             #[cfg(test)]
             mod tests_of_units {
 
-                use super::{TestOuts, TestSet};
+                use super::{NextTestOuts, NextTestSet};
 
                 #[test]
                 fn test_set_test() {
-                    let test = TestSet {
+                    let test = NextTestSet {
                         rax: 3,
                         rem: 15,
                         alp: 133,
@@ -433,7 +808,7 @@ mod tests_of_units {
 
                 #[test]
                 fn test_outs_test() {
-                    let outs = TestOuts::new();
+                    let outs = NextTestOuts::new();
 
                     assert_eq!(0, outs.wrax.len());
                     assert_eq!(0, outs.rax_pow_less.len());
@@ -449,25 +824,24 @@ mod tests_of_units {
         }
 
         use super::super::next;
-        use crate::{unity_raw, Row};
-        use test_aides::{TestOuts, TestSet};
+        use crate::unity_raw;
+        use test_aides::{NextTestOuts, NextTestSet};
 
         #[test]
         fn basic_test() {
-            let tset = TestSet {
+            let tset = NextTestSet {
                 rax: 3,
                 rem: 15,
                 alp: 133,
                 deg: 3,
             };
 
-            let mut rax_ref = tset.rax();
             let unity = unity_raw();
 
-            let mut outs = TestOuts::new();
+            let mut outs = NextTestOuts::new();
 
-            let rem_ref = next(
-                &mut rax_ref,
+            let (rax, rem) = next(
+                &tset.rax(),
                 tset.rem(),
                 &tset.bdp(),
                 &tset.alp(),
@@ -483,14 +857,14 @@ mod tests_of_units {
             let div = 2700;
 
             let beta = lim / div;
-            let rem = lim - (34u32.pow(tset.deg() as u32) - sub);
+            let rem_proof = lim - (34u32.pow(tset.deg() as u32) - sub);
 
-            let sub = new_from_num!(sub).row;
-            let lim = new_from_num!(lim).row;
-            let div = new_from_num!(div).row;
+            let sub = new_from_num_raw!(sub);
+            let lim = new_from_num_raw!(lim);
+            let div = new_from_num_raw!(div);
 
-            let beta = new_from_num!(beta).row;
-            let rem = new_from_num!(rem).row;
+            let beta = new_from_num_raw!(beta);
+            let rem_proof = new_from_num_raw!(rem_proof);
 
             assert_eq!(vec![0, 3], outs.wrax);
             assert_eq!(vec![9], outs.rax_pow_less);
@@ -501,13 +875,13 @@ mod tests_of_units {
             assert_eq!(beta, outs.beta);
             assert_eq!(Some(true), outs.betag);
 
-            assert_eq!(vec![4, 3], rax_ref);
-            assert_eq!(rem, rem_ref);
+            assert_eq!(vec![4, 3], rax);
+            assert_eq!(rem_proof, rem);
         }
 
         #[test]
         fn rax_zero_test() {
-            let tset = TestSet {
+            let tset = NextTestSet {
                 rax: 0,
                 rem: 0,
                 alp: 133,
@@ -515,7 +889,7 @@ mod tests_of_units {
             };
 
             let unity = unity_raw();
-            let mut outs = TestOuts::new();
+            let mut outs = NextTestOuts::new();
 
             _ = next(
                 &mut tset.rax(),
@@ -540,7 +914,7 @@ mod tests_of_units {
 
         #[test]
         fn degree_one_test() {
-            let tset = TestSet {
+            let tset = NextTestSet {
                 rax: 2,
                 rem: 3,
                 alp: 222,
@@ -549,7 +923,7 @@ mod tests_of_units {
 
             let unity = unity_raw();
 
-            let mut outs = TestOuts::new();
+            let mut outs = NextTestOuts::new();
 
             _ = next(
                 &mut tset.rax(),
@@ -574,7 +948,7 @@ mod tests_of_units {
 
         #[test]
         fn g_zero_test() {
-            let tset = TestSet {
+            let tset = NextTestSet {
                 rax: 2,
                 rem: 1,
                 alp: 199,
@@ -583,7 +957,7 @@ mod tests_of_units {
 
             let unity = unity_raw();
 
-            let mut outs = TestOuts::new();
+            let mut outs = NextTestOuts::new();
 
             _ = next(
                 &mut tset.rax(),
@@ -608,7 +982,7 @@ mod tests_of_units {
 
         #[test]
         fn g_one_test() {
-            let tset = TestSet {
+            let tset = NextTestSet {
                 rax: 2,
                 rem: 2,
                 alp: 399,
@@ -617,7 +991,7 @@ mod tests_of_units {
 
             let unity = unity_raw();
 
-            let mut outs = TestOuts::new();
+            let mut outs = NextTestOuts::new();
 
             _ = next(
                 &mut tset.rax(),
@@ -642,7 +1016,7 @@ mod tests_of_units {
 
         #[test]
         fn g_two_test() {
-            let tset = TestSet {
+            let tset = NextTestSet {
                 rax: 2,
                 rem: 2,
                 alp: 400,
@@ -651,7 +1025,7 @@ mod tests_of_units {
 
             let unity = unity_raw();
 
-            let mut outs = TestOuts::new();
+            let mut outs = NextTestOuts::new();
 
             _ = next(
                 &mut tset.rax(),
@@ -685,7 +1059,7 @@ mod tests_of_units {
             // omax₁ =31³ =29791
             // omax₂ =31³ -10³ ⋅3³ =2791
 
-            let tset = TestSet {
+            let tset = NextTestSet {
                 rax: 3,
                 rem: 2,
                 alp: 791,
@@ -694,7 +1068,7 @@ mod tests_of_units {
 
             let unity = unity_raw();
 
-            let mut outs = TestOuts::new();
+            let mut outs = NextTestOuts::new();
 
             _ = next(
                 &mut tset.rax(),
@@ -729,7 +1103,7 @@ mod tests_of_units {
             // omax₁ =35³ =42875
             // omax₂ =35³ -10³ ⋅3³ =15875
 
-            let tset = TestSet {
+            let tset = NextTestSet {
                 rax: 3,
                 rem: 15,
                 alp: 874,
@@ -738,7 +1112,7 @@ mod tests_of_units {
 
             let unity = unity_raw();
 
-            let mut outs = TestOuts::new();
+            let mut outs = NextTestOuts::new();
 
             _ = next(
                 &mut tset.rax(),
@@ -773,7 +1147,7 @@ mod tests_of_units {
             // omax₁ =21³ =9261
             // omax₂ =21³ -10³ ⋅2³ =1261
 
-            let tset = TestSet {
+            let tset = NextTestSet {
                 rax: 2,
                 rem: 1,
                 alp: 260,
@@ -781,7 +1155,7 @@ mod tests_of_units {
             };
 
             let unity = unity_raw();
-            let mut outs = TestOuts::new();
+            let mut outs = NextTestOuts::new();
 
             _ = next(
                 &mut tset.rax(),
@@ -807,7 +1181,7 @@ mod tests_of_units {
     }
 
     mod guess {
-        use crate::Row;
+
         use crate::{nought_raw, nth_root::guess};
 
         #[test]
@@ -825,9 +1199,9 @@ mod tests_of_units {
 
         #[test]
         fn g_zero_test() {
-            let rax_pow_less = new_from_num!(25).row;
-            let dbdlp = new_from_num!(200).row;
-            let lim = new_from_num!(4_999).row;
+            let rax_pow_less = new_from_num_raw!(25);
+            let dbdlp = new_from_num_raw!(200);
+            let lim = new_from_num_raw!(4_999);
             let mut div_out = vec![];
             let mut g_out = vec![];
 
@@ -839,9 +1213,9 @@ mod tests_of_units {
 
         #[test]
         fn g_one_test() {
-            let rax_pow_less = new_from_num!(25).row;
-            let dbdlp = new_from_num!(200).row;
-            let lim = new_from_num!(5_000).row;
+            let rax_pow_less = new_from_num_raw!(25);
+            let dbdlp = new_from_num_raw!(200);
+            let lim = new_from_num_raw!(5_000);
             let mut div_out = vec![];
             let mut g_out = vec![];
 
@@ -853,9 +1227,9 @@ mod tests_of_units {
 
         #[test]
         fn g_two_test() {
-            let rax_pow_less = new_from_num!(25).row;
-            let dbdlp = new_from_num!(200).row;
-            let lim = new_from_num!(10_000).row;
+            let rax_pow_less = new_from_num_raw!(25);
+            let dbdlp = new_from_num_raw!(200);
+            let lim = new_from_num_raw!(10_000);
             let mut div_out = vec![];
             let mut g_out = vec![];
 
@@ -866,9 +1240,9 @@ mod tests_of_units {
 
         #[test]
         fn g_ten_test() {
-            let rax_pow_less = new_from_num!(25).row;
-            let dbdlp = new_from_num!(200).row;
-            let lim = new_from_num!(50_000).row;
+            let rax_pow_less = new_from_num_raw!(25);
+            let dbdlp = new_from_num_raw!(200);
+            let lim = new_from_num_raw!(50_000);
             let mut div_out = vec![];
             let mut g_out = vec![];
 
@@ -880,7 +1254,7 @@ mod tests_of_units {
 
     mod incr {
         use crate::nth_root::{incr, IncRes};
-        use crate::{unity_raw, Row};
+        use crate::unity_raw;
 
         struct Incr {
             wrax: usize,
@@ -893,10 +1267,10 @@ mod tests_of_units {
 
         impl Incr {
             pub fn incr(&self) -> IncRes {
-                let wrax = new_from_num!(self.wrax).row;
-                let beta = new_from_num!(self.beta).row;
-                let sub = new_from_num!(self.sub).row;
-                let lim = new_from_num!(self.limit).row;
+                let wrax = new_from_num_raw!(self.wrax);
+                let beta = new_from_num_raw!(self.beta);
+                let sub = new_from_num_raw!(self.sub);
+                let lim = new_from_num_raw!(self.limit);
 
                 let betag = self.betag;
                 let degree = self.degree;
@@ -919,7 +1293,7 @@ mod tests_of_units {
 
             let res = test.incr();
 
-            let orax = new_from_num!(23).row;
+            let orax = new_from_num_raw!(23);
 
             match res {
                 IncRes::OverGuess(r) => {
@@ -944,8 +1318,8 @@ mod tests_of_units {
 
             let res = test.incr();
 
-            let rax = new_from_num!(23).row;
-            let max = new_from_num!(12100).row;
+            let rax = new_from_num_raw!(23);
+            let max = new_from_num_raw!(12100);
 
             assert_eq!(IncRes::Attainment((rax, max)), res);
         }
@@ -963,8 +1337,8 @@ mod tests_of_units {
 
             let res = test.incr();
 
-            let rax = new_from_num!(23).row;
-            let max = new_from_num!(12099).row;
+            let rax = new_from_num_raw!(23);
+            let max = new_from_num_raw!(12099);
 
             assert_eq!(IncRes::Attainment((rax, max)), res);
         }
@@ -999,8 +1373,8 @@ mod tests_of_units {
 
             let res = test.incr();
 
-            let rax = new_from_num!(23).row;
-            let max = new_from_num!(12100).row;
+            let rax = new_from_num_raw!(23);
+            let max = new_from_num_raw!(12100);
 
             assert_eq!(IncRes::Attainment((rax, max)), res);
         }
@@ -1018,15 +1392,15 @@ mod tests_of_units {
 
             let res = test.incr();
 
-            let rax = new_from_num!(23).row;
-            let max = new_from_num!(12099).row;
+            let rax = new_from_num_raw!(23);
+            let max = new_from_num_raw!(12099);
 
             assert_eq!(IncRes::Attainment((rax, max)), res);
         }
     }
 
     mod decr {
-        use crate::{unity_raw, RawRow, Row};
+        use crate::{unity_raw, RawRow};
 
         use super::super::decr;
 
@@ -1039,9 +1413,9 @@ mod tests_of_units {
 
         impl Decr {
             pub fn decr(&self) -> (RawRow, RawRow) {
-                let mut orax = new_from_num!(self.orax).row;
-                let sub = new_from_num!(self.sub).row;
-                let lim = new_from_num!(self.lim).row;
+                let mut orax = new_from_num_raw!(self.orax);
+                let sub = new_from_num_raw!(self.sub);
+                let lim = new_from_num_raw!(self.lim);
 
                 let unity = unity_raw();
                 let degree = self.deg;
@@ -1062,8 +1436,8 @@ mod tests_of_units {
 
             let (orax, omax) = test.decr();
 
-            let rax = new_from_num!(24).row;
-            let max = new_from_num!(331_000).row;
+            let rax = new_from_num_raw!(24);
+            let max = new_from_num_raw!(331_000);
 
             assert_eq!(rax, orax);
             assert_eq!(max, omax);
@@ -1080,8 +1454,8 @@ mod tests_of_units {
 
             let (orax, omax) = test.decr();
 
-            let rax = new_from_num!(24).row;
-            let max = new_from_num!(330_999).row;
+            let rax = new_from_num_raw!(24);
+            let max = new_from_num_raw!(330_999);
 
             assert_eq!(rax, orax);
             assert_eq!(max, omax);
@@ -1098,8 +1472,8 @@ mod tests_of_units {
 
             let (orax, omax) = test.decr();
 
-            let rax = new_from_num!(24).row;
-            let max = new_from_num!(331_000).row;
+            let rax = new_from_num_raw!(24);
+            let max = new_from_num_raw!(331_000);
 
             assert_eq!(rax, orax);
             assert_eq!(max, omax);
@@ -1109,8 +1483,7 @@ mod tests_of_units {
     mod alpha_generator {
         use super::super::AlphaGenerator;
 
-        use crate::{nought_raw, Row};
-        use std::ops::Deref;
+        use crate::nought_raw;
 
         #[test]
         fn lesser_root_test() {
@@ -1120,11 +1493,11 @@ mod tests_of_units {
             ];
 
             for v in vals {
-                let num = new_from_num!(v.0);
-                let mut generator = AlphaGenerator::new(num.deref(), v.1);
+                let num = new_from_num_raw!(v.0);
+                let mut generator = AlphaGenerator::new(&num, v.1);
 
                 for p in v.2 {
-                    let proof = new_from_num!(p).row;
+                    let proof = new_from_num_raw!(p);
 
                     let next = generator.next();
                     assert_eq!(proof, next);
@@ -1141,11 +1514,11 @@ mod tests_of_units {
             ];
 
             for v in vals {
-                let num = new_from_num!(v.0);
-                let mut generator = AlphaGenerator::new(num.deref(), v.1);
+                let num = new_from_num_raw!(v.0);
+                let mut generator = AlphaGenerator::new(&num, v.1);
 
                 for p in v.2 {
-                    let proof = new_from_num!(p).row;
+                    let proof = new_from_num_raw!(p);
 
                     let next = generator.next();
                     assert_eq!(proof, next);
@@ -1162,11 +1535,11 @@ mod tests_of_units {
             ];
 
             for v in vals {
-                let num = new_from_num!(v.0);
-                let mut generator = AlphaGenerator::new(num.deref(), v.1);
+                let num = new_from_num_raw!(v.0);
+                let mut generator = AlphaGenerator::new(&num, v.1);
 
                 for p in v.2 {
-                    let proof = new_from_num!(p).row;
+                    let proof = new_from_num_raw!(p);
 
                     let next = generator.next();
                     assert_eq!(proof, next);
@@ -1189,14 +1562,37 @@ mod tests_of_units {
         }
 
         #[test]
+        fn zero_place_omission_test() {
+            let vals = [
+                (1_000_000, 3, [1, 0, 0]),
+                (1_100_100, 3, [1, 100, 100]),
+                (1_010_010, 3, [1, 10, 10]),
+                (1_001_001, 3, [1, 1, 1]),
+            ];
+
+            for v in vals {
+                let num = new_from_num_raw!(v.0);
+                let mut generator = AlphaGenerator::new(&num, v.1);
+
+                for p in v.2 {
+                    let proof = new_from_num_raw!(p);
+
+                    let next = generator.next();
+                    assert_eq!(proof, next);
+                }
+            }
+        }
+
+        #[test]
         #[should_panic(expected = "0ᵗʰ root is strictly unsupported computation.")]
         fn zero_root_test() {
-            let number = new_from_num!(u32::MAX);
+            let number = new_from_num_raw!(u32::MAX);
             let root = 0;
 
-            _ = AlphaGenerator::new(number.deref(), root);
+            _ = AlphaGenerator::new(&number, root);
         }
     }
 }
 
 // cargo fmt & cargo test --release nth_root
+// cargo fmt & cargo test --release --features ext-tests nth_root

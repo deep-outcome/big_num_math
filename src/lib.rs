@@ -5,7 +5,9 @@ type Row = PlacesRow;
 
 #[macro_use]
 mod macroinstruction;
-pub mod nth_root;
+mod nth_root;
+
+pub use nth_root::root;
 
 /// `PlacesRow` represents row of decimal places starting at ones (`0` index).
 #[derive(Clone, PartialEq, Debug)]
@@ -743,15 +745,15 @@ fn mul_shortcut(factor1: &RawRow, factor2: &RawRow) -> Option<RawRow> {
     }
 }
 
-/// Computes power `pow` of `base`.
+/// Computes `power` of `base`.
 ///
 /// Potentially CPU, memory intesive.
 ///
 /// Returns `PlacesRow` with result.
-pub fn pow(base: &PlacesRow, pow: u16) -> PlacesRow {
+pub fn pow(base: &PlacesRow, power: u16) -> PlacesRow {
     let row = &base.row;
 
-    let row = pow_raw(row, pow);
+    let row = pow_raw(row, power);
     Row { row }
 }
 
