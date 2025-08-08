@@ -1,6 +1,3 @@
-relaxed
-    - check for general radix method    
-
 noticeable    
     - inspect mulmul without intermediate product: to be better only stack must employed (no Vec writes) => addition method split
     - make pow log effecient

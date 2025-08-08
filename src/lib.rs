@@ -747,7 +747,7 @@ fn mul_shortcut(factor1: &RawRow, factor2: &RawRow) -> Option<RawRow> {
 
 /// Computes `power` of `base`.
 ///
-/// Potentially CPU, memory intesive.
+/// Potentially CPU, memory intensive.
 ///
 /// Returns `PlacesRow` with result.
 pub fn pow(base: &PlacesRow, power: u16) -> PlacesRow {
