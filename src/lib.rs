@@ -3,66 +3,11 @@
 type RawRow = Vec<u8>;
 type Row = PlacesRow;
 
-macro_rules! new_from_num {
-    ($n:expr) => {{
-        let mut n = $n;
-        let mut row = Vec::new();
-        loop {
-            let d = n % 10;
-            row.push(d as u8);
-            n = n / 10;
+#[macro_use]
+mod macroinstruction;
+mod nth_root;
 
-            if n == 0 {
-                break;
-            }
-        }
-
-        Row { row }
-    }};
-}
-
-macro_rules! try_into_num {
-    ($r:expr,$t:ty,$esc:expr) => {{
-        let mut n = <$t>::default();
-        let mut ix = 0usize;
-        let len = $r.len();
-
-        let mut overflow = false;
-        while ix < len {
-            let place = $r[ix];
-            if place == 0 {
-                ix += 1;
-                continue;
-            }
-
-            if let Some(p) = <$t>::checked_pow(10, ix as u32) {
-                if let Some(m) = <$t>::checked_mul(p, place as $t) {
-                    if let Some(a) = <$t>::checked_add(m, n) {
-                        n = a;
-
-                        ix += 1;
-                        continue;
-                    } else {
-                        *$esc = 3;
-                    }
-                } else {
-                    *$esc = 2;
-                }
-            } else {
-                *$esc = 1;
-            }
-
-            overflow = true;
-            break;
-        }
-
-        if overflow == true {
-            None
-        } else {
-            Some(n)
-        }
-    }};
-}
+pub use nth_root::root;
 
 /// `PlacesRow` represents row of decimal places starting at ones (`0` index).
 #[derive(Clone, PartialEq, Debug)]
@@ -227,7 +172,7 @@ impl PlacesRow {
 
     /// Handy ctor for usage with long numbers.
     ///
-    /// Only digits are allowed in `s`. Leading zeros are ommitted.
+    /// Only digits are allowed in `s`. Leading zeros are omitted.
     ///
     /// Returns `PlacesRow` or index in `s` where uncovertable `char` was
     /// encountered. `None` for empty string.
@@ -343,15 +288,15 @@ fn nought_raw() -> RawRow {
     vec![0; 1]
 }
 
-fn is_unity_raw(row: &[u8]) -> bool {
+const fn is_unity_raw(row: &[u8]) -> bool {
     is_one_raw(row, 1)
 }
 
-fn is_nought_raw(row: &[u8]) -> bool {
+const fn is_nought_raw(row: &[u8]) -> bool {
     is_one_raw(row, 0)
 }
 
-fn is_one_raw(row: &[u8], one: u8) -> bool {
+const fn is_one_raw(row: &[u8], one: u8) -> bool {
     row.len() == 1 && row[0] == one
 }
 
@@ -800,15 +745,15 @@ fn mul_shortcut(factor1: &RawRow, factor2: &RawRow) -> Option<RawRow> {
     }
 }
 
-/// Computes power `pow` of `base`.
+/// Computes `power` of `base`.
 ///
 /// Potentially CPU, memory intesive.
 ///
 /// Returns `PlacesRow` with result.
-pub fn pow(base: &PlacesRow, pow: u16) -> PlacesRow {
+pub fn pow(base: &PlacesRow, power: u16) -> PlacesRow {
     let row = &base.row;
 
-    let row = pow_raw(row, pow);
+    let row = pow_raw(row, power);
     Row { row }
 }
 
@@ -887,19 +832,32 @@ fn divrem_shortcut(dividend: &RawRow, divisor: &RawRow) -> Option<Option<(Row, R
 #[cfg(test)]
 use tests_of_units::divrem_accelerated::{DivRemEscCode, TestGauges};
 
-// in order to avoid highly excessive looping, divrem computation can be speed up
-// by simple substracting divisor 10 products first
 fn divrem_accelerated(
     dividend: &[u8],
     divisor: &[u8],
     #[cfg(test)] tg: &mut TestGauges,
 ) -> (RawRow, RawRow) {
-    let sor_len = divisor.len();
-    let mut end_len = dividend.len();
+    let dividend = dividend.to_vec();
+    divrem_accelerated_decremental(
+        dividend,
+        divisor,
+        #[cfg(test)]
+        tg,
+    )
+}
+
+// in order to avoid highly excessive looping, divrem computation can be speed up
+// by simple substracting divisor 10 products first
+fn divrem_accelerated_decremental(
+    mut end: Vec<u8>,
+    sor: &[u8],
+    #[cfg(test)] tg: &mut TestGauges,
+) -> (RawRow, RawRow) {
+    let sor_len = sor.len();
+    let mut end_len = end.len();
 
     let mut ratio = vec![0];
 
-    let mut end = dividend.to_vec();
     if end_len < sor_len {
         #[cfg(test)]
         {
@@ -926,7 +884,7 @@ fn divrem_accelerated(
 
             'ck: loop {
                 let end_num = end[l_ix];
-                let sor_num = divisor[r_ix];
+                let sor_num = sor[r_ix];
 
                 // check whether divisor can be broaded up to
                 // end highest place
@@ -976,7 +934,7 @@ fn divrem_accelerated(
 
             let mut sor_ix = sor_hg_ix;
             'cp: loop {
-                wsor[wr_ix] = divisor[sor_ix];
+                wsor[wr_ix] = sor[sor_ix];
 
                 if sor_ix == 0 {
                     break 'cp;
@@ -986,7 +944,7 @@ fn divrem_accelerated(
                 wr_ix -= 1;
             }
 
-            let rat = subtraction_decremental(
+            let mut rat = subtraction_decremental(
                 &mut end,
                 &wsor,
                 true,
@@ -1009,7 +967,7 @@ fn divrem_accelerated(
             unsafe { mpler.set_len(mpler_wr_ix + 1) };
             mpler[mpler_wr_ix] = 1;
 
-            let rat = mulmul(&rat, &mpler, 1);
+            rat = mulmul_incremental(&mpler, rat, 1);
             addition_sum(&rat, &mut ratio, 0);
 
             end_len = end.len();
@@ -1022,7 +980,7 @@ fn divrem_accelerated(
                 }
                 return (end, ratio);
             } else if end_len == sor_len {
-                if end[wr_ix] < divisor[wr_ix] {
+                if end[wr_ix] < sor[wr_ix] {
                     #[cfg(test)]
                     {
                         tg.esc = DivRemEscCode::Lop;
@@ -1038,7 +996,7 @@ fn divrem_accelerated(
     // if end is already rem this "runs in vain"
     let rat = subtraction_decremental(
         &mut end,
-        &divisor,
+        &sor,
         true,
         #[cfg(test)]
         &mut tg.ctr,
@@ -2036,14 +1994,28 @@ fn heron_sqrt_raw(row: &[u8]) -> RawRow {
     cur
 }
 
+fn mulmul(row1: &[u8], row2: &[u8], times: u16) -> RawRow {
+    let row1_len = row1.len();
+    let row2_len = row2.len();
+
+    // see note on i_sum.reserve
+    let mut mcand = Vec::with_capacity(row1_len + row2_len);
+    mcand.extend(row2);
+
+    mulmul_incremental(row1, mcand, times)
+}
+
 /// Combined method allows to compute multiplication and power using shared code.
 ///
 /// Space for effecient power computation?
 ///   🡺 Inspect log₂ power speed up.
-fn mulmul(row1: &[u8], row2: &[u8], times: u16) -> RawRow {
-    let (mpler, mut mcand) = (row1, row2.to_vec());
+fn mulmul_incremental(mpler: &[u8], mut mcand: RawRow, times: u16) -> RawRow {
+    if is_nought_raw(mpler) || is_nought_raw(mcand.as_slice()) {
+        return nought_raw();
+    }
 
     let mpler_len = mpler.len();
+    let mut mcand_len = mcand.len();
 
     // intermediate product of `mcand` and `mpler`
     let mut i_product = Vec::with_capacity(0);
@@ -2052,8 +2024,6 @@ fn mulmul(row1: &[u8], row2: &[u8], times: u16) -> RawRow {
 
     let mut cntr = 0;
     loop {
-        let mcand_len = mcand.len();
-
         // avoids repetitive reallocations
         // +1 stands for contigent new place
         i_product.reserve(mcand_len + 1);
@@ -2090,15 +2060,15 @@ fn mulmul(row1: &[u8], row2: &[u8], times: u16) -> RawRow {
         let swap = mcand;
         mcand = i_sum;
         i_sum = swap;
+
+        mcand_len = mcand.len();
     }
 
-    // useless when both of factors cannot be nought
-    shrink_to_fit_raw(&mut mcand);
     mcand
 }
 
 /// Computes product of `mpler` and `mcand`.
-fn product(mpler: u8, mcand: &RawRow, product: &mut RawRow) {
+fn product(mpler: u8, mcand: &[u8], product: &mut RawRow) {
     let mut takeover = 0;
 
     // runs in vain for `mpler` = 0
@@ -2296,66 +2266,6 @@ mod tests_of_units {
         [0].to_vec()
     }
 
-    use crate::Row;
-    #[test]
-    fn new_from_num_test() {
-        let num = u128::MAX;
-        let row = new_from_num!(num);
-        let test = row.to_number();
-        let proof = num.to_string();
-
-        assert_eq!(proof, test);
-    }
-
-    mod into_num {
-        use crate::add;
-        use crate::Row;
-
-        #[test]
-        fn basic_test() {
-            let num = u128::MAX;
-            let row = Row::new_from_u128(num);
-
-            let mut esc = 0;
-            let test = try_into_num!(&row.row, u128, &mut esc);
-            assert_eq!(Some(num), test);
-            assert_eq!(0, esc);
-        }
-
-        #[test]
-        fn add_overflow_test() {
-            let num = u8::MAX;
-            let mut row = new_from_num!(num);
-            row = add(&row, &Row::unity());
-
-            let mut esc = 0;
-            let test = try_into_num!(&row.row, u8, &mut esc);
-            assert_eq!(None, test);
-            assert_eq!(3, esc);
-        }
-
-        #[test]
-        fn mul_overflow_test() {
-            let num = 300;
-            let row = new_from_num!(num);
-
-            let mut esc = 0;
-            let test = try_into_num!(&row.row, u8, &mut esc);
-            assert_eq!(None, test);
-            assert_eq!(2, esc);
-        }
-
-        #[test]
-        fn pow_overflow_test() {
-            let num = 1000;
-            let row = new_from_num!(num);
-
-            let mut esc = 0;
-            let test = try_into_num!(&row.row, u8, &mut esc);
-            assert_eq!(None, test);
-            assert_eq!(1, esc);
-        }
-    }
     mod placesrow {
         use crate::Row;
 
@@ -3183,7 +3093,10 @@ mod tests_of_units {
             let r2 = vec![1, 2, 3, 4];
             let res = add_shortcut(&r1, &r2);
             assert_eq!(Some(r2.clone()), res);
-            assert_ne!(r2.as_ptr(), res.unwrap().as_ptr());
+
+            #[allow(dangling_pointers_from_temporaries)]
+            let res_ptr = res.unwrap().as_ptr();
+            assert_ne!(r2.as_ptr(), res_ptr);
         }
 
         #[test]
@@ -3192,7 +3105,10 @@ mod tests_of_units {
             let r2 = nought_raw();
             let res = add_shortcut(&r1, &r2);
             assert_eq!(Some(r1.clone()), res);
-            assert_ne!(r1.as_ptr(), res.unwrap().as_ptr());
+
+            #[allow(dangling_pointers_from_temporaries)]
+            let res_ptr = res.unwrap().as_ptr();
+            assert_ne!(r1.as_ptr(), res_ptr);
         }
     }
 
@@ -3491,7 +3407,7 @@ mod tests_of_units {
 
     mod pow_shortcut {
         use super::nought;
-        use crate::{nought_raw, pow_shortcut, unity_raw, Row};
+        use crate::{nought_raw, pow_shortcut, unity_raw};
 
         #[test]
         fn zero_power_test() {
@@ -3509,7 +3425,7 @@ mod tests_of_units {
 
         #[test]
         fn one_power_test() {
-            let row = new_from_num!(3030).row;
+            let row = new_from_num_raw!(3030);
             let pow = pow_shortcut(&row, 1);
             assert_eq!(Some(row), pow);
         }
@@ -4906,9 +4822,9 @@ mod tests_of_units {
         #[test]
         #[rustfmt::skip]
         fn readme_sample_test() {
-            let test  = Row::new_from_str("9754610577924096936222542295378750190521").unwrap();
-            let proof = Row::new_from_u128(98_765_432_100_123_456_789);
-            assert_eq!(proof, heron_sqrt(&test));
+            let radicand  = Row::new_from_str("9754610577924096936222542295378750190521").unwrap();
+            let test = Row::new_from_u128(98_765_432_100_123_456_789);
+            assert_eq!(test, heron_sqrt(&radicand));
         }
     }
 
@@ -5388,8 +5304,8 @@ mod tests_of_units {
     }
 }
 
-// cargo test --features ext-tests --release
+// cargo fmt & cargo test --features ext-tests --release
 // cargo test --features ext-tests2 --release primes_ext_test
 // cargo test --features ext-tests3 --release primes_ext2_test
 // cargo test --features ext-tests,shorter-dividend-support --release
-// cargo test --release
+// cargo fmt && cargo test --release

@@ -9,7 +9,7 @@ Library for computations on large numbers.
     - multiplication +division
     - relation and decimal relation operators
     - order of magnitude
-    - power
+    - power +nth root
     - integer square root
     - primality check
     - prime number generator (primitive number types only)
@@ -77,9 +77,9 @@ assert_eq!(Oom::Precise(30), ord_of_mag(&number_2, OomKind::Loose));
 ##### square root
 
 ```rust
-let test  = Row::new_from_str("9754610577924096936222542295378750190521").unwrap();
-let proof = Row::new_from_u128(98_765_432_100_123_456_789);
-assert_eq!(proof, heron_sqrt(&test));
+let radicand  = Row::new_from_str("9754610577924096936222542295378750190521").unwrap();
+let test = Row::new_from_u128(98_765_432_100_123_456_789);
+assert_eq!(test, heron_sqrt(&radicand));
 ```
 ##### primality check
 
@@ -95,4 +95,22 @@ assert_eq!(Some(false), prime_ck(&num, Some(limit)));
 let limit = Duration::from_secs(60);
 let p = || pg!(200_000, PrimeGenStrain::Nth, false, u32, Some(limit));
 assert_eq!(2_750_159, p().uproot_max());
+```
+##### nth  root
+
+```rust
+let test = PlacesRow::new_from_usize(3);
+let radicand = PlacesRow::new_from_usize(33_554_431);
+assert_eq!(Some(test), root(&radicand, 13));
+
+let test = PlacesRow::new_from_usize(5560);
+let radicand = PlacesRow::new_from_usize(30_913_600);
+assert_eq!(Some(test), root(&radicand, 2));
+
+let test = PlacesRow::new_from_usize(99999999);
+let radicand = PlacesRow::new_from_str(
+    "999999910000003599999916000001259999987400000083999999640000000899999999",
+)
+.unwrap();
+assert_eq!(Some(test), root(&radicand, 9));
 ```
