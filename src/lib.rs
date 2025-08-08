@@ -4822,9 +4822,9 @@ mod tests_of_units {
         #[test]
         #[rustfmt::skip]
         fn readme_sample_test() {
-            let test  = Row::new_from_str("9754610577924096936222542295378750190521").unwrap();
-            let proof = Row::new_from_u128(98_765_432_100_123_456_789);
-            assert_eq!(proof, heron_sqrt(&test));
+            let radicand  = Row::new_from_str("9754610577924096936222542295378750190521").unwrap();
+            let test = Row::new_from_u128(98_765_432_100_123_456_789);
+            assert_eq!(test, heron_sqrt(&radicand));
         }
     }
 

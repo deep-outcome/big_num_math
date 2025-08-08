@@ -629,13 +629,20 @@ mod tests_of_units {
         fn readme_test() {
             let mut outs = RootTestOuts::new();
 
-            let proof = PlacesRow::new_from_usize(3);
-            let rad = PlacesRow::new_from_usize(33_554_431);
-            assert_eq!(Some(proof), root(&rad, 13, &mut outs));
+            let test = PlacesRow::new_from_usize(3);
+            let radicand = PlacesRow::new_from_usize(33_554_431);
+            assert_eq!(Some(test), root(&radicand, 13, &mut outs));
 
-            let proof = PlacesRow::new_from_usize(5560);
-            let rad = PlacesRow::new_from_usize(30_913_600);
-            assert_eq!(Some(proof), root(&rad, 2, &mut outs));
+            let test = PlacesRow::new_from_usize(5560);
+            let radicand = PlacesRow::new_from_usize(30_913_600);
+            assert_eq!(Some(test), root(&radicand, 2, &mut outs));
+
+            let test = PlacesRow::new_from_usize(99999999);
+            let radicand = PlacesRow::new_from_str(
+                "999999910000003599999916000001259999987400000083999999640000000899999999",
+            )
+            .unwrap();
+            assert_eq!(Some(test), root(&radicand, 9, &mut outs));
         }
 
         #[test]
