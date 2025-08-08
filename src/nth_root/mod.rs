@@ -1,6 +1,6 @@
 /// Variables and their meaning
 /// --------------------------------------------------
-/// B  — base of number system, e.g. binary or ternary
+/// B  — base (decadic)
 /// n  — root/radix degree
 /// x  — radicand
 /// y  — root/radix
