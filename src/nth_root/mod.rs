@@ -12,8 +12,9 @@
 use std::cmp::max;
 
 use crate::{
-    addition_sum, addition_two, divrem_accelerated, is_nought_raw, mulmul, mulmul_incremental,
-    nought_raw, pow_raw, rel_raw, subtraction_decremental, unity_raw, PlacesRow, RawRow, Rel, Row,
+    addition_sum, addition_two, divrem_accelerated, is_nought_raw, is_unity_raw, mulmul,
+    mulmul_incremental, nought_raw, pow_raw, rel_raw, subtraction_decremental, unity_raw,
+    PlacesRow, RawRow, Rel, Row,
 };
 
 #[cfg(test)]
@@ -32,9 +33,21 @@ pub fn root(
     radicand: &PlacesRow,
     nth: u16,
     #[cfg(test)] outs: &mut RootTestOuts,
+    #[cfg(test)] no_shortcuts: bool,
 ) -> Option<PlacesRow> {
     if nth == 0 {
         return None;
+    }
+
+    let rad = &radicand.row;
+
+    if let Some(res) = root_shortcut(
+        rad,
+        nth,
+        #[cfg(test)]
+        no_shortcuts,
+    ) {
+        return Some(res);
     }
 
     let base = &vec![0, 1];
@@ -69,7 +82,7 @@ pub fn root(
     // r
     let mut rem = nought_raw();
 
-    let mut agen = AlphaGenerator::new(radicand, nth as usize);
+    let mut agen = AlphaGenerator::new(rad, nth as usize);
 
     loop {
         // α
@@ -91,7 +104,7 @@ pub fn root(
 
         let orax_pow = pow_raw(&orax, nth);
 
-        let rel = rel_raw(&orax_pow, &radicand);
+        let rel = rel_raw(&orax_pow, rad);
         if let Rel::Greater(_) = rel {
             #[cfg(test)]
             {
@@ -116,6 +129,22 @@ pub fn root(
     }
 
     Some(Row { row: rax })
+}
+
+/// n >0, ⁿ√0 =0
+/// n >0, ⁿ√1 =1
+/// ¹√x =x
+fn root_shortcut(rad: &RawRow, deg: u16, #[cfg(test)] skip: bool) -> Option<PlacesRow> {
+    #[cfg(test)]
+    if skip {
+        return None;
+    }
+
+    return if deg == 1 || is_nought_raw(rad) || is_unity_raw(rad) {
+        Some(PlacesRow { row: rad.clone() })
+    } else {
+        None
+    };
 }
 
 fn next(
@@ -499,7 +528,7 @@ mod tests_of_units {
             let proof = new_from_num!(2);
             let mut outs = RootTestOuts::new();
 
-            assert_eq!(Some(proof), root(&rad, 3, &mut outs));
+            assert_eq!(Some(proof), root(&rad, 3, &mut outs, false));
         }
 
         #[test]
@@ -507,7 +536,7 @@ mod tests_of_units {
             let rad = new_from_num!(u32::MAX);
             let mut outs = RootTestOuts::new();
 
-            assert_eq!(None, root(&rad, 0, &mut outs));
+            assert_eq!(None, root(&rad, 0, &mut outs, false));
         }
 
         #[test]
@@ -517,7 +546,32 @@ mod tests_of_units {
 
             for &v in vals.iter() {
                 let rad = new_from_num!(v);
-                assert_eq!(root(&rad, 1, &mut outs), Some(rad));
+                assert_eq!(root(&rad, 1, &mut outs, true), Some(rad.clone()));
+                assert_eq!(root(&rad, 1, &mut outs, false), Some(rad.clone()));
+            }
+        }
+
+        #[test]
+        fn root_of_zero_test() {
+            let vals = [1, 2, 3, 4, 5, 100, 999];
+            let mut outs = RootTestOuts::new();
+
+            let nought = PlacesRow::nought();
+            for &v in vals.iter() {
+                assert_eq!(root(&nought, v, &mut outs, true), Some(nought.clone()));
+                assert_eq!(root(&nought, v, &mut outs, false), Some(nought.clone()));
+            }
+        }
+
+        #[test]
+        fn root_of_one_test() {
+            let vals = [1, 2, 3, 4, 5, 100, 999];
+            let mut outs = RootTestOuts::new();
+
+            let unity = PlacesRow::unity();
+            for &v in vals.iter() {
+                assert_eq!(root(&unity, v, &mut outs, true), Some(unity.clone()));
+                assert_eq!(root(&unity, v, &mut outs, false), Some(unity.clone()));
             }
         }
 
@@ -537,10 +591,11 @@ mod tests_of_units {
 
             for v in vals.iter() {
                 for &n in v.1 {
-                    let proof = new_from_num!(v.0);
+                    let proof = Some(new_from_num!(v.0));
                     let rad = new_from_num!(n);
 
-                    assert_eq!(Some(proof), root(&rad, 2, &mut outs));
+                    assert_eq!(proof, root(&rad, 2, &mut outs, true));
+                    assert_eq!(proof, root(&rad, 2, &mut outs, false));
                 }
             }
         }
@@ -560,10 +615,11 @@ mod tests_of_units {
 
             for v in vals.iter() {
                 for &n in v.1 {
-                    let proof = new_from_num!(v.0);
+                    let proof = Some(new_from_num!(v.0));
                     let rad = new_from_num!(n);
 
-                    assert_eq!(Some(proof), root(&rad, 3, &mut outs));
+                    assert_eq!(proof, root(&rad, 3, &mut outs, true));
+                    assert_eq!(proof, root(&rad, 3, &mut outs, false));
                 }
             }
         }
@@ -592,7 +648,7 @@ mod tests_of_units {
                 let proof = new_from_num!(v.0);
                 let rad = PlacesRow::new_from_usize(v.2);
 
-                assert_eq!(Some(proof), root(&rad, v.1, &mut outs),);
+                assert_eq!(Some(proof), root(&rad, v.1, &mut outs, false));
             }
         }
 
@@ -621,7 +677,7 @@ mod tests_of_units {
                 let proof = new_from_num!(v.0);
                 let rad = new_from_num!(v.2);
 
-                assert_eq!(Some(proof), root(&rad, v.1, &mut outs),);
+                assert_eq!(Some(proof), root(&rad, v.1, &mut outs, false));
             }
         }
 
@@ -629,20 +685,12 @@ mod tests_of_units {
         fn readme_test() {
             let mut outs = RootTestOuts::new();
 
-            let test = PlacesRow::new_from_usize(3);
-            let radicand = PlacesRow::new_from_usize(33_554_431);
-            assert_eq!(Some(test), root(&radicand, 13, &mut outs));
-
-            let test = PlacesRow::new_from_usize(5560);
-            let radicand = PlacesRow::new_from_usize(30_913_600);
-            assert_eq!(Some(test), root(&radicand, 2, &mut outs));
-
             let test = PlacesRow::new_from_usize(99999999);
             let radicand = PlacesRow::new_from_str(
                 "999999910000003599999916000001259999987400000083999999640000000899999999",
             )
             .unwrap();
-            assert_eq!(Some(test), root(&radicand, 9, &mut outs));
+            assert_eq!(Some(test), root(&radicand, 9, &mut outs, false));
         }
 
         #[test]
@@ -650,11 +698,11 @@ mod tests_of_units {
             let mut outs = RootTestOuts::new();
 
             let rad = new_from_num!(256);
-            _ = root(&rad, 4, &mut outs);
+            _ = root(&rad, 4, &mut outs, false);
             assert_eq!(2, outs.bcode);
 
             let rad = new_from_num!(257);
-            _ = root(&rad, 4, &mut outs);
+            _ = root(&rad, 4, &mut outs, false);
             assert_eq!(1, outs.bcode);
         }
 
@@ -663,8 +711,12 @@ mod tests_of_units {
             let mut outs = RootTestOuts::new();
             let rad = new_from_num!(0);
 
-            _ = root(&rad, 1, &mut outs);
+            _ = root(&rad, 1, &mut outs, false);
+            assert_eq!(0, outs.bdp.len());
+            assert_eq!(u16::MAX, outs.nth_less);
+            assert_eq!(0, outs.dbdlp.len());
 
+            _ = root(&rad, 1, &mut outs, true);
             assert_eq!(vec![0, 1], outs.bdp);
             assert_eq!(0, outs.nth_less);
             assert_eq!(vec![1], outs.dbdlp);
@@ -673,9 +725,9 @@ mod tests_of_units {
         #[test]
         fn computational_test() {
             let mut outs = RootTestOuts::new();
-            let rad = new_from_num!(0);
+            let rad = new_from_num!(2);
 
-            _ = root(&rad, 9, &mut outs);
+            _ = root(&rad, 9, &mut outs, false);
 
             assert_eq!(new_from_num_raw!(1_000_000_000), outs.bdp);
             assert_eq!(8, outs.nth_less);
@@ -710,8 +762,48 @@ mod tests_of_units {
                 let proof = Row::new_from_str(v.2).unwrap();
                 let rad = Row::new_from_str(v.0).unwrap();
 
-                assert_eq!(Some(proof), root(&rad, v.1, &mut outs),);
+                assert_eq!(Some(proof), root(&rad, v.1, &mut outs, false));
             }
+        }
+    }
+
+    mod root_shortcut {
+        use crate::{nought_raw, unity_raw, PlacesRow, Row};
+
+        use super::super::root_shortcut;
+
+        #[test]
+        fn nought_root_test() {
+            let nought = nought_raw();
+            let proof = PlacesRow::nought();
+
+            assert_eq!(root_shortcut(&nought, u16::MAX, false), Some(proof));
+        }
+
+        #[test]
+        fn unity_root_test() {
+            let unity = unity_raw();
+            let proof = PlacesRow::unity();
+
+            assert_eq!(root_shortcut(&unity, u16::MAX, false), Some(proof));
+        }
+
+        #[test]
+        fn deg_1_test() {
+            let rad = new_from_num!(u128::MAX);
+            assert_eq!(root_shortcut(&rad.row, 1, false), Some(rad));
+        }
+
+        #[test]
+        fn none_of_cases_test() {
+            let rad = new_from_num_raw!(2);
+            assert_eq!(root_shortcut(&rad, 2, false), None);
+        }
+
+        #[test]
+        fn skip_test() {
+            let unity = nought_raw();
+            assert_eq!(root_shortcut(&unity, 1, true), None);
         }
     }
 
