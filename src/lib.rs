@@ -2017,35 +2017,22 @@ fn mulmul_incremental(mpler: &[u8], mut mcand: RawRow, times: u16) -> RawRow {
     let mpler_len = mpler.len();
     let mut mcand_len = mcand.len();
 
-    // intermediate product of `mcand` and `mpler`
-    let mut i_product = Vec::with_capacity(0);
     // intermediate sum of intermediate products
     let mut i_sum = Vec::with_capacity(0);
 
     let mut cntr = 0;
     loop {
         // avoids repetitive reallocations
-        // +1 stands for contigent new place
-        i_product.reserve(mcand_len + 1);
-        // avoids repetitive reallocations
         // places count of product cannot
         // be greater than sum of places of operands
         i_sum.reserve(mcand_len + mpler_len);
 
         #[cfg(test)]
-        let i_product_ptr = i_product.as_ptr();
-
-        #[cfg(test)]
         let i_sum_ptr = i_sum.as_ptr();
 
         for offset in 0..mpler_len {
-            product(mpler[offset], &mcand, &mut i_product);
-            addition_sum(&i_product, &mut i_sum, offset);
-            i_product.clear();
+            muladd(mpler[offset], &mcand, &mut i_sum, offset);
         }
-
-        #[cfg(test)]
-        assert!(i_product_ptr == i_product.as_ptr());
 
         #[cfg(test)]
         assert!(i_sum_ptr == i_sum.as_ptr());
