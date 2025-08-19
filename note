@@ -6,8 +6,3 @@ noticeable
 
 tough
     - array of usizes: reduces memory footprint twice per byte (1001=9, 1001 1001 = 9 9), implies direct binary operation to preserve adequate performance
-
-questionable
-    - reflect to lite, especially to mishmas proj:
-        - mulmul escape for 0 multiplier
-    - make computations safe against overflow

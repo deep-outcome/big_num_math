@@ -2069,20 +2069,24 @@ fn mulmul_incremental(mpler: &[u8], mut mcand: RawRow, times: u16) -> RawRow {
 
 /// Computes product of `mpler` and `mcand`.
 fn product(mpler: u8, mcand: &[u8], product: &mut RawRow) {
+fn sumadd(mut addend: u8, sum: &mut RawRow, mut off: usize) {
     let mut takeover = 0;
+    let sum_len = sum.len();
 
-    // runs in vain for `mpler` = 0
-    //   🡺 inspect possibilities
-    for &num in mcand {
-        // each `prod` can be immediately added to intermediate sum
-        //   🡺 inspect this option
-        let prod = mpler * num;
-        let prod = ones(prod, &mut takeover);
-        product.push(prod);
-    }
+    loop {
+        if off < sum_len {
+            sum[off] = ones(sum[off] + addend, &mut takeover);
+            off += 1;
+        } else {
+            let num = ones(addend, &mut takeover);
+            sum.push(num);
+        };
 
-    if takeover != 0 {
-        product.push(takeover);
+        if takeover == 0 {
+            break;
+        } else {
+            addend = 0;
+        }
     }
 }
 
@@ -2243,7 +2247,7 @@ fn subtraction_decremental(
 /// Takes current size of place `num`, adds takeover
 /// `takeover_ref` to it, returns ones of summation
 /// and sets up `takeover_ref` with tens of summation.
-fn ones(num: u8, takeover_ref: &mut u8) -> u8 {
+const fn ones(num: u8, takeover_ref: &mut u8) -> u8 {
     let mut takeover_val = *takeover_ref;
     let total = num + takeover_val;
 
@@ -4913,33 +4917,71 @@ mod tests_of_units {
         }
     }
 
-    /// Long multiplication fact notes:
-    /// - When multiplying ones, maximum product is 81=9×9.
-    /// - Thus maximum tens product is 8=⌊81÷10⌋.
-    /// - Since 8+81=89 all results fit into 8=⌊89÷10⌋ tens.
-    mod product {
-        use crate::product as product_fn;
+    mod sumadd {
+        use crate::sumadd;
 
         #[test]
         fn basic_test() {
-            let mcand = vec![3, 2, 1];
-            let mpler = 3;
-            let mut product = Vec::new();
+            let mut sum = vec![1];
 
-            product_fn(mpler, &mcand, &mut product);
+            sumadd(1, &mut sum, 0);
+            assert_eq!(vec![2], sum);
+        }
 
-            assert_eq!(vec![9, 6, 3], product);
+        #[test]
+        fn empty_sum_test() {
+            let mut sum = vec![];
+
+            sumadd(9, &mut sum, 0);
+            assert_eq!(vec![9], sum);
+        }
+
+        #[test]
+        fn offset_test() {
+            let mut sum = vec![0, 1];
+
+            sumadd(1, &mut sum, 1);
+            assert_eq!(vec![0, 2], sum);
         }
 
         #[test]
         fn takeover_test() {
-            let mcand = vec![9, 9, 9, 9, 9];
-            let mpler = 9;
-            let mut product = Vec::new();
+            let mut sum = vec![1];
 
-            product_fn(mpler, &mcand, &mut product);
+            sumadd(9, &mut sum, 0);
+            assert_eq!(vec![0, 1], sum);
+        }
 
-            assert_eq!(vec![1, 9, 9, 9, 9, 8], product);
+        #[test]
+        fn extension_test() {
+            let mut sum = vec![1];
+
+            sumadd(9, &mut sum, 0);
+            assert_eq!(vec![0, 1], sum);
+        }
+
+        #[test]
+        fn max_product_test() {
+            let mut sum = vec![9, 9, 9, 9, 9, 9];
+
+            sumadd(81, &mut sum, 1);
+            assert_eq!(vec![9, 0, 8, 0, 0, 0, 1], sum);
+        }
+
+        #[test]
+        fn extreme_test() {
+            let mut sum = vec![0];
+
+            sumadd(255, &mut sum, 0);
+            assert_eq!(vec![5, 5, 2], sum);
+        }
+
+        #[test]
+        fn extreme_test2() {
+            let mut sum = vec![9, 9, 9];
+
+            sumadd(246, &mut sum, 0);
+            assert_eq!(vec![5, 4, 2, 1], sum);
         }
     }
 
