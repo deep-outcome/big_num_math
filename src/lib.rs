@@ -2067,8 +2067,35 @@ fn mulmul_incremental(mpler: &[u8], mut mcand: RawRow, times: u16) -> RawRow {
     mcand
 }
 
-/// Computes product of `mpler` and `mcand`.
-fn product(mpler: u8, mcand: &[u8], product: &mut RawRow) {
+/// Adding intermediate product directly to sums allows to avoid
+/// temporal storaging of intermediate products on place.
+///
+/// For instance,
+///  987
+/// ⋅ 55  
+/// -----
+///  4935
+/// 49350
+/// -----
+/// 54285
+/// = 5 +30 +900 +4000 +0 +50 +300 +9000 +40000
+/// = 35 +400 +4500 +350 +4000 +45000
+fn muladd(mpler: u8, mcand: &[u8], sum: &mut Vec<u8>, place_off: usize) {
+    let mut ix = 0;
+    let mcand_len = mcand.len();
+
+    loop {
+        let prod = mpler * mcand[ix];
+
+        sumadd(prod, sum, place_off + ix);
+
+        ix += 1;
+        if ix == mcand_len {
+            break;
+        }
+    }
+}
+
 fn sumadd(mut addend: u8, sum: &mut RawRow, mut off: usize) {
     let mut takeover = 0;
     let sum_len = sum.len();
@@ -4914,6 +4941,50 @@ mod tests_of_units {
             let row = unity_raw();
             let pow = mulmul(&row, &row, u16::MAX - 1);
             assert_eq!(row, pow);
+        }
+    }
+
+    mod muladd {
+        use crate::muladd;
+
+        #[test]
+        fn basic_test() {
+            let mpler = 2;
+            let mcand = [2, 3, 4];
+            let mut sum = Vec::new();
+
+            muladd(mpler, &mcand, &mut sum, 0);
+            assert_eq!(vec![4, 6, 8], sum);
+        }
+
+        #[test]
+        fn multiplication_test() {
+            let mpler = 9;
+            let mcand = [9, 8, 7, 6];
+            let mut sum = Vec::new();
+
+            muladd(mpler, &mcand, &mut sum, 0);
+            assert_eq!(vec![1, 0, 1, 1, 6], sum);
+        }
+
+        #[test]
+        fn offset_test() {
+            let mpler = 9;
+            let mcand = [1, 0, 0, 9];
+            let mut sum = Vec::new();
+
+            muladd(mpler, &mcand, &mut sum, 1);
+            assert_eq!(vec![9, 0, 0, 1, 8], sum);
+        }
+
+        #[test]
+        fn sum_test() {
+            let mpler = 9;
+            let mcand = [9, 9, 9, 9];
+            let mut sum = vec![9, 9, 9, 9, 9];
+
+            muladd(mpler, &mcand, &mut sum, 0);
+            assert_eq!(vec![0, 9, 9, 9, 8, 1], sum);
         }
     }
 
