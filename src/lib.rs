@@ -262,17 +262,17 @@ fn shrink_to_fit_raw(row: &mut RawRow) {
     row.shrink_to_fit();
 }
 
-fn truncate_leading_raw(row: &mut RawRow, lead: u8, upto: usize) {
-    let new_len = len_without_leading_raw(row, lead, upto);
+fn truncate_leading_raw(row: &mut RawRow, lead: u8, ex_to: usize) {
+    let new_len = len_without_leading_raw(row, lead, ex_to);
     row.truncate(new_len);
 }
 
-fn len_without_leading_raw(row: &RawRow, lead: u8, upto: usize) -> usize {
+fn len_without_leading_raw(row: &RawRow, lead: u8, ex_to: usize) -> usize {
     let mut row_len = row.len();
-    for ix in (upto..row_len).rev() {
-        if lead == row[ix] {
-            row_len -= 1;
-        } else {
+    while row_len > ex_to {
+        row_len -= 1;
+        if lead != row[row_len] {
+            row_len += 1;
             break;
         }
     }
@@ -525,9 +525,11 @@ fn rel_raw(r1: &[u8], r2: &[u8]) -> Rel {
     match rel_dec_raw(r1, r2) {
         RelDec::Greater(c) => Rel::Greater(Some(c)),
         RelDec::Lesser(c) => Rel::Lesser(Some(c)),
-        RelDec::Equal(c) => {
+        RelDec::Equal(mut inx) => {
             let mut rel = Rel::Equal;
-            for inx in (0..c).rev() {
+
+            while inx > 0 {
+                inx -= 1;
                 if r1[inx] > r2[inx] {
                     rel = Rel::Greater(None);
                     break;
@@ -719,13 +721,16 @@ pub fn mul(factor1: &PlacesRow, factor2: &PlacesRow) -> PlacesRow {
     let factor1 = &factor1.row;
     let factor2 = &factor2.row;
 
-    match mul_shortcut(factor1, factor2) {
-        Some(row) => return Row { row },
-        None => {}
-    };
-
-    let row = mulmul(factor1, factor2, 1);
+    let row = mul_raw(factor1, factor2);
     PlacesRow { row }
+}
+
+fn mul_raw(factor1: &[u8], factor2: &[u8]) -> RawRow {
+    if let Some(row) = mul_shortcut(factor1, factor2) {
+        row
+    } else {
+        mul_dynamo(factor1, factor2, true)
+    }
 }
 
 // x ⋅0 = 0
@@ -733,13 +738,13 @@ pub fn mul(factor1: &PlacesRow, factor2: &PlacesRow) -> PlacesRow {
 //
 // 1 ⋅x = x
 // x ⋅1 = x
-fn mul_shortcut(factor1: &RawRow, factor2: &RawRow) -> Option<RawRow> {
+fn mul_shortcut(factor1: &[u8], factor2: &[u8]) -> Option<RawRow> {
     if is_nought_raw(factor1) || is_nought_raw(factor2) {
         Some(nought_raw())
     } else if is_unity_raw(factor1) {
-        Some(factor2.clone())
+        Some(factor2.to_vec())
     } else if is_unity_raw(factor2) {
-        Some(factor1.clone())
+        Some(factor1.to_vec())
     } else {
         None
     }
@@ -762,21 +767,21 @@ fn pow_raw(row: &RawRow, pow: u16) -> RawRow {
         return row;
     }
 
-    mulmul(row, row, pow - 1)
+    pow_dynamo(row, pow)
 }
 
 // x⁰ = 1
 // x¹ = x
 // 0ⁿ = 0 n∊ℕ﹥₀
 // 1ⁿ = 1 n∊ℕ₀
-fn pow_shortcut(row: &RawRow, pow: u16) -> Option<RawRow> {
+fn pow_shortcut(base: &[u8], pow: u16) -> Option<RawRow> {
     if pow == 0 {
         Some(unity_raw())
     } else if pow == 1 {
-        Some(row.clone())
-    } else if is_nought_raw(row) {
+        Some(base.to_vec())
+    } else if is_nought_raw(base) {
         Some(nought_raw())
-    } else if is_unity_raw(row) {
+    } else if is_unity_raw(base) {
         Some(unity_raw())
     } else {
         None
@@ -889,7 +894,7 @@ fn divrem_accelerated_decremental(
                 // check whether divisor can be broaded up to
                 // end highest place
                 if end_num < sor_num {
-                    // same as remend_len == divisor_len +1
+                    // same as end_len == sor_len +1
                     if wr_ix == sor_len {
                         // rest of loop would run in vain otherwise
                         // also could have reentrancy consequence
@@ -967,7 +972,7 @@ fn divrem_accelerated_decremental(
             unsafe { mpler.set_len(mpler_wr_ix + 1) };
             mpler[mpler_wr_ix] = 1;
 
-            rat = mulmul_incremental(&mpler, rat, 1);
+            rat = mul_dynamo(&mpler, &rat, false);
             addition_sum(&rat, &mut ratio, 0);
 
             end_len = end.len();
@@ -1994,39 +1999,63 @@ fn heron_sqrt_raw(row: &[u8]) -> RawRow {
     cur
 }
 
-fn mulmul(row1: &[u8], row2: &[u8], times: u16) -> RawRow {
-    let row1_len = row1.len();
-    let row2_len = row2.len();
+const MUL_DYNAMO_CAP: usize = 1000;
+fn mul_dynamo(mpler: &[u8], mcand: &[u8], shrink: bool) -> RawRow {
+    let mpler_len = mpler.len();
 
-    // see note on i_sum.reserve
-    let mut mcand = Vec::with_capacity(row1_len + row2_len);
-    mcand.extend(row2);
+    let mut sum = Vec::with_capacity(MUL_DYNAMO_CAP);
 
-    mulmul_incremental(row1, mcand, times)
-}
-
-/// Combined method allows to compute multiplication and power using shared code.
-///
-/// Space for effecient power computation?
-///   🡺 Inspect log₂ power speed up.
-fn mulmul_incremental(mpler: &[u8], mut mcand: RawRow, times: u16) -> RawRow {
-    if is_nought_raw(mpler) || is_nought_raw(mcand.as_slice()) {
-        return nought_raw();
+    let mut offset = 0;
+    while offset < mpler_len {
+        muladd(mpler[offset], &mcand, &mut sum, offset);
+        offset += 1;
     }
 
-    let mpler_len = mpler.len();
-    let mut mcand_len = mcand.len();
+    // move to raw
+    if shrink {
+        shrink_to_fit_raw(&mut sum);
+    }
 
-    // intermediate sum of intermediate products
-    let mut i_sum = Vec::with_capacity(0);
+    sum
+}
 
-    let mut cntr = 0;
+#[cfg(test)]
+use std::sync::atomic::{AtomicU8, Ordering as AtomicOrdering};
+
+#[cfg(test)]
+static STEPS_AVAIL: AtomicU8 = AtomicU8::new(0);
+
+static mut POW_STEPS: [u16; 15] = [0; 15];
+fn pow_steps(mut step: u16) -> &'static [u16] {
+    #[cfg(test)]
+    assert_eq!(true, step > 1);
+
+    let mut ix = 0;
+
     loop {
-        // avoids repetitive reallocations
-        // places count of product cannot
-        // be greater than sum of places of operands
-        i_sum.reserve(mcand_len + mpler_len);
+        unsafe {
+            POW_STEPS[ix] = step;
+        }
 
+        step >>= 1;
+        if step == 1 {
+            break;
+        }
+
+        ix += 1;
+    }
+
+    unsafe { &POW_STEPS[..=ix] }
+}
+
+const fn clr_pow_steps(mut ex_to: usize) {
+    while ex_to > 0 {
+        ex_to -= 1;
+        unsafe {
+            POW_STEPS[ex_to] = 0;
+        }
+    }
+}
         #[cfg(test)]
         let i_sum_ptr = i_sum.as_ptr();
 
@@ -2688,7 +2717,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn upto_equal_len_test() {
+        fn exto_equal_len_test() {
             let count = len_without_leading_raw(&vec![5, 5, 5], 5, 3);
             assert_eq!(3, count);
         }
@@ -2831,8 +2860,8 @@ mod tests_of_units {
                     (2,0), (3, 0), (4, 1),
                     (30, 1), (31, 1), (32, 2),
                     (315, 2), (316, 2), (317, 3),
-                    (3161, 3), (3162, 3), (3163, 4),                       
-                    (316_227_765, 8), (316_227_766, 8), (316_227_767, 9),                                   
+                    (3161, 3), (3162, 3), (3163, 4),
+                    (316_227_765, 8), (316_227_766, 8), (316_227_767, 9),
                 ];
 
                 for v in values {
@@ -2876,7 +2905,7 @@ mod tests_of_units {
                     (4, 0)    , (5, 1)     , (6, 1),
                     // lesser-longer-greater triplets
                     (40, 1)   , (50, 2)    , (60, 2),
-                    (4000, 3) , (5000, 4)  , (6000, 4)                                                                                                                                                                
+                    (4000, 3) , (5000, 4)  , (6000, 4)
                 ];
 
                 for v in values {
@@ -4913,22 +4942,79 @@ mod tests_of_units {
         }
     }
 
-    mod mulmul {
-        use crate::{mulmul, nought_raw, unity_raw};
+    mod pow_steps {
+        use crate::{pow_steps, POW_STEPS};
 
         #[test]
-        fn power_of_nought_test() {
-            let row = nought_raw();
-            let pow = mulmul(&row, &row, u16::MAX - 1);
-            assert_eq!(row, pow);
+        fn basic_test() {
+            let steps = pow_steps(4);
+            let proof = vec![4, 2];
+
+            assert_eq!(proof, steps);
         }
 
         #[test]
-        fn power_of_one_test() {
-            let row = unity_raw();
-            let pow = mulmul(&row, &row, u16::MAX - 1);
-            assert_eq!(row, pow);
+        fn max() {
+            let mut step = u16::MAX;
+            let steps = pow_steps(step);
+            assert_eq!(15, steps.len());
+
+            for s in steps {
+                assert_eq!(step, *s);
+                step /= 2;
+            }
         }
+
+        #[test]
+        #[allow(static_mut_refs)]
+        fn steps_capacity() {
+            assert_eq!(15, unsafe { POW_STEPS.len() });
+        }
+
+        #[test]
+        fn odd_end() {
+            let steps = pow_steps(12);
+            let proof = vec![12, 6, 3];
+
+            assert_eq!(proof, steps);
+        }
+
+        #[test]
+        fn even_end() {
+            let steps = pow_steps(16);
+            let proof = vec![16, 8, 4, 2];
+
+            assert_eq!(proof, steps);
+        }
+    }
+
+    use crate::{clr_pow_steps as clr_pow_steps_fn, POW_STEPS, STEPS_AVAIL};
+    use std::sync::atomic::Ordering;
+
+    #[test]
+    #[allow(static_mut_refs)]
+    fn clr_pow_steps() {
+        while STEPS_AVAIL
+            .compare_exchange(0, 1, Ordering::Relaxed, Ordering::Relaxed)
+            .is_err()
+        {}
+
+        unsafe {
+            POW_STEPS.fill(9);
+        }
+
+        const EX_TO: usize = 7;
+        clr_pow_steps_fn(EX_TO);
+
+        let steps_len = unsafe { POW_STEPS.len() };
+        for i in 0..steps_len {
+            let proof = if i < EX_TO { 0 } else { 9 };
+            assert_eq!(proof, unsafe { POW_STEPS[i] });
+        }
+
+        clr_pow_steps_fn(steps_len);
+
+        STEPS_AVAIL.store(0, Ordering::Relaxed);
     }
 
     mod muladd {

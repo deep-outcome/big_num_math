@@ -12,9 +12,8 @@
 use std::cmp::max;
 
 use crate::{
-    addition_sum, addition_two, divrem_accelerated, is_nought_raw, is_unity_raw, mulmul,
-    mulmul_incremental, nought_raw, pow_raw, rel_raw, subtraction_decremental, unity_raw,
-    PlacesRow, RawRow, Rel, Row,
+    addition_sum, addition_two, divrem_accelerated, is_nought_raw, is_unity_raw, mul_raw,
+    nought_raw, pow_raw, rel_raw, subtraction_decremental, unity_raw, PlacesRow, RawRow, Rel, Row,
 };
 
 #[cfg(test)]
@@ -62,11 +61,11 @@ pub fn root(
     // decadic base powered by degree
     // base degree power
     // Bⁿ
-    let bdp = mulmul(base, bdpl, 1);
+    let bdp = mul_raw(base, bdpl);
 
     // degree base degree less power
     // nBⁿ⁻¹
-    let dbdlp = mulmul(&new_from_num_raw!(nth), bdpl, 1);
+    let dbdlp = mul_raw(&new_from_num_raw!(nth), bdpl);
 
     #[cfg(test)]
     {
@@ -91,7 +90,7 @@ pub fn root(
         // y', r'
         let (orax, orem) = next(
             &rax,
-            rem,
+            &rem,
             &bdp,
             &alpha,
             nth,
@@ -149,7 +148,7 @@ fn root_shortcut(rad: &RawRow, deg: u16, #[cfg(test)] skip: bool) -> Option<Plac
 
 fn next(
     rax: &RawRow,     // y
-    rem: RawRow,      // r
+    rem: &RawRow,     // r
     bdp: &RawRow,     // Bⁿ
     alpha: &[u8],     // α
     degree: u16,      // n
@@ -163,7 +162,7 @@ fn next(
     let rax_pow_less = pow_raw(&rax, degree_less);
 
     // Bⁿyⁿ, subtrahend
-    let sub = mulmul_incremental(bdp, mulmul(&rax_pow_less, &rax, 1), 1);
+    let sub = mul_raw(bdp, mul_raw(&rax_pow_less, &rax).as_slice());
 
     let wrax_cap = rax.len() + 1;
     let mut wrax = Vec::new();
@@ -182,17 +181,12 @@ fn next(
     }
 
     // Bⁿr +α, limit
-    let mut lim = mulmul_incremental(bdp, rem, 1);
+    let mut lim = mul_raw(bdp, rem);
     addition_sum(alpha, &mut lim, 0);
-
-    #[cfg(test)]
-    {
-        outs.rax_pow_less = rax_pow_less.clone();
-    }
 
     // let make initial guess, if possible
     let (betag, beta) = if let Some(g) = guess(
-        rax_pow_less,
+        &rax_pow_less,
         dbdlp,
         &lim,
         #[cfg(test)]
@@ -208,6 +202,7 @@ fn next(
     #[cfg(test)]
     {
         outs.wrax = wrax.clone();
+        outs.rax_pow_less = rax_pow_less.clone();
         outs.sub = sub.clone();
         outs.lim = lim.clone();
         outs.beta = beta.clone();
@@ -257,7 +252,7 @@ fn next(
 }
 
 fn guess(
-    rax_pow_less: RawRow,
+    rax_pow_less: &RawRow,
     dbdlp: &RawRow,
     lim: &RawRow,
     #[cfg(test)] div_out: &mut RawRow,
@@ -265,7 +260,7 @@ fn guess(
 ) -> Option<RawRow> {
     if !is_nought_raw(rax_pow_less.as_slice()) {
         // nBⁿ⁻¹ ·yⁿ⁻¹
-        let div = mulmul_incremental(dbdlp, rax_pow_less, 1);
+        let div = mul_raw(dbdlp, rax_pow_less);
 
         #[cfg(test)]
         {
@@ -941,7 +936,7 @@ mod tests_of_units {
 
             let (rax, rem) = next(
                 &tset.rax(),
-                tset.rem(),
+                &tset.rem(),
                 &tset.bdp(),
                 &tset.alp(),
                 tset.deg(),
@@ -992,7 +987,7 @@ mod tests_of_units {
 
             _ = next(
                 &mut tset.rax(),
-                tset.rem(),
+                &tset.rem(),
                 &tset.bdp(),
                 &tset.alp(),
                 tset.deg(),
@@ -1026,7 +1021,7 @@ mod tests_of_units {
 
             _ = next(
                 &mut tset.rax(),
-                tset.rem(),
+                &tset.rem(),
                 &tset.bdp(),
                 &tset.alp(),
                 tset.deg(),
@@ -1060,7 +1055,7 @@ mod tests_of_units {
 
             _ = next(
                 &mut tset.rax(),
-                tset.rem(),
+                &tset.rem(),
                 &tset.bdp(),
                 &tset.alp(),
                 tset.deg(),
@@ -1094,7 +1089,7 @@ mod tests_of_units {
 
             _ = next(
                 &mut tset.rax(),
-                tset.rem(),
+                &tset.rem(),
                 &tset.bdp(),
                 &tset.alp(),
                 tset.deg(),
@@ -1128,7 +1123,7 @@ mod tests_of_units {
 
             _ = next(
                 &mut tset.rax(),
-                tset.rem(),
+                &tset.rem(),
                 &tset.bdp(),
                 &tset.alp(),
                 tset.deg(),
@@ -1171,7 +1166,7 @@ mod tests_of_units {
 
             _ = next(
                 &mut tset.rax(),
-                tset.rem(),
+                &tset.rem(),
                 &tset.bdp(),
                 &tset.alp(),
                 tset.deg(),
@@ -1215,7 +1210,7 @@ mod tests_of_units {
 
             _ = next(
                 &mut tset.rax(),
-                tset.rem(),
+                &tset.rem(),
                 &tset.bdp(),
                 &tset.alp(),
                 tset.deg(),
@@ -1258,7 +1253,7 @@ mod tests_of_units {
 
             _ = next(
                 &mut tset.rax(),
-                tset.rem(),
+                &tset.rem(),
                 &tset.bdp(),
                 &tset.alp(),
                 tset.deg(),
@@ -1290,7 +1285,7 @@ mod tests_of_units {
             let mut div_out = vec![];
             let mut g_out = vec![];
 
-            let g = guess(rax_pow_less, &empty, &empty, &mut div_out, &mut g_out);
+            let g = guess(&rax_pow_less, &empty, &empty, &mut div_out, &mut g_out);
             assert_eq!(None, g);
             assert_eq!(0, div_out.len());
             assert_eq!(0, g_out.len());
@@ -1304,7 +1299,7 @@ mod tests_of_units {
             let mut div_out = vec![];
             let mut g_out = vec![];
 
-            let g = guess(rax_pow_less, &dbdlp, &lim, &mut div_out, &mut g_out);
+            let g = guess(&rax_pow_less, &dbdlp, &lim, &mut div_out, &mut g_out);
             assert_eq!(None, g);
             assert_eq!(vec![0], g_out);
             assert_eq!(vec![0, 0, 0, 5], div_out);
@@ -1318,7 +1313,7 @@ mod tests_of_units {
             let mut div_out = vec![];
             let mut g_out = vec![];
 
-            let g = guess(rax_pow_less, &dbdlp, &lim, &mut div_out, &mut g_out);
+            let g = guess(&rax_pow_less, &dbdlp, &lim, &mut div_out, &mut g_out);
             assert_eq!(None, g);
             assert_eq!(vec![1], g_out);
             assert_eq!(lim, div_out);
@@ -1332,7 +1327,7 @@ mod tests_of_units {
             let mut div_out = vec![];
             let mut g_out = vec![];
 
-            let g = guess(rax_pow_less, &dbdlp, &lim, &mut div_out, &mut g_out);
+            let g = guess(&rax_pow_less, &dbdlp, &lim, &mut div_out, &mut g_out);
             assert_eq!(Some(vec![2]), g);
             assert_eq!(vec![0, 0, 0, 5], div_out);
         }
@@ -1345,7 +1340,7 @@ mod tests_of_units {
             let mut div_out = vec![];
             let mut g_out = vec![];
 
-            let g = guess(rax_pow_less, &dbdlp, &lim, &mut div_out, &mut g_out);
+            let g = guess(&rax_pow_less, &dbdlp, &lim, &mut div_out, &mut g_out);
             assert_eq!(Some(vec![0, 1]), g);
             assert_eq!(vec![0, 0, 0, 5], div_out);
         }
