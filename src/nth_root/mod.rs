@@ -12,8 +12,9 @@
 use std::cmp::max;
 
 use crate::{
-    addition_sum, addition_two, divrem_accelerated, is_nought_raw, is_unity_raw, mul_raw,
-    nought_raw, pow_raw, rel_raw, subtraction_decremental, unity_raw, PlacesRow, RawRow, Rel, Row,
+    addition_sum, addition_two, divrem_accelerated, is_nought_raw, is_unity_raw, mul_dynamo,
+    mul_raw, nought_raw, pow_raw, rel_raw, subtraction_decremental, unity_raw, PlacesRow, RawRow,
+    Rel, Row,
 };
 
 #[cfg(test)]
@@ -56,16 +57,16 @@ pub fn root(
     let nth_less = nth - 1;
 
     // Bⁿ⁻¹
-    let bdpl = &pow_raw(base, nth_less);
+    let bdpl = &pow_raw(base, nth_less, false);
 
     // decadic base powered by degree
     // base degree power
     // Bⁿ
-    let bdp = mul_raw(base, bdpl);
+    let bdp = mul_dynamo(base, bdpl);
 
     // degree base degree less power
     // nBⁿ⁻¹
-    let dbdlp = mul_raw(&new_from_num_raw!(nth), bdpl);
+    let dbdlp = mul_dynamo(&new_from_num_raw!(nth), bdpl);
 
     #[cfg(test)]
     {
@@ -101,7 +102,7 @@ pub fn root(
             &mut NextTestOuts::new(),
         );
 
-        let orax_pow = pow_raw(&orax, nth);
+        let orax_pow = pow_raw(&orax, nth, false);
 
         let rel = rel_raw(&orax_pow, rad);
         if let Rel::Greater(_) = rel {
@@ -159,10 +160,10 @@ fn next(
     #[cfg(test)] outs: &mut NextTestOuts,
 ) -> (RawRow, RawRow) {
     // yⁿ⁻¹
-    let rax_pow_less = pow_raw(&rax, degree_less);
+    let rax_pow_less = pow_raw(&rax, degree_less, false);
 
     // Bⁿyⁿ, subtrahend
-    let sub = mul_raw(bdp, mul_raw(&rax_pow_less, &rax).as_slice());
+    let sub = mul_raw(bdp, mul_dynamo(&rax_pow_less, &rax).as_slice(), false);
 
     let wrax_cap = rax.len() + 1;
     let mut wrax = Vec::new();
@@ -181,7 +182,7 @@ fn next(
     }
 
     // Bⁿr +α, limit
-    let mut lim = mul_raw(bdp, rem);
+    let mut lim = mul_raw(bdp, rem, false);
     addition_sum(alpha, &mut lim, 0);
 
     // let make initial guess, if possible
@@ -252,15 +253,15 @@ fn next(
 }
 
 fn guess(
-    rax_pow_less: &RawRow,
-    dbdlp: &RawRow,
-    lim: &RawRow,
+    rax_pow_less: &RawRow, // yⁿ⁻¹
+    dbdlp: &RawRow,        // nBⁿ⁻¹
+    lim: &RawRow,          // Bⁿr +α
     #[cfg(test)] div_out: &mut RawRow,
     #[cfg(test)] g_out: &mut RawRow,
 ) -> Option<RawRow> {
     if !is_nought_raw(rax_pow_less.as_slice()) {
         // nBⁿ⁻¹ ·yⁿ⁻¹
-        let div = mul_raw(dbdlp, rax_pow_less);
+        let div = mul_dynamo(dbdlp, rax_pow_less);
 
         #[cfg(test)]
         {
@@ -322,7 +323,7 @@ fn incr<'a>(
 
     loop {
         // (By +β)ⁿ
-        let mut omax = pow_raw(&orax, degree);
+        let mut omax = pow_raw(&orax, degree, false);
 
         // (By +β)ⁿ -Bⁿyⁿ
         subtraction_decremental(
@@ -382,7 +383,7 @@ fn decr(orax: &mut RawRow, unity: &RawRow, degree: u16, sub: &RawRow, lim: &RawR
         );
 
         // (By +β)ⁿ
-        let mut omax = pow_raw(&orax, degree);
+        let mut omax = pow_raw(&orax, degree, false);
 
         // (By +β)ⁿ -Bⁿyⁿ
         subtraction_decremental(

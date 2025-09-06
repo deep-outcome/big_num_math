@@ -521,7 +521,7 @@ pub fn rel(num: &PlacesRow, comparand: &PlacesRow) -> Rel {
     rel_raw(r1, r2)
 }
 
-fn rel_raw(r1: &[u8], r2: &[u8]) -> Rel {
+const fn rel_raw(r1: &[u8], r2: &[u8]) -> Rel {
     match rel_dec_raw(r1, r2) {
         RelDec::Greater(c) => Rel::Greater(Some(c)),
         RelDec::Lesser(c) => Rel::Lesser(Some(c)),
@@ -604,7 +604,7 @@ pub fn rel_dec(num: &PlacesRow, comparand: &PlacesRow) -> RelDec {
 // num.len() > comparand.len() ⇒ num > comparand
 // num.len() < comparand.len() ⇒ num < comparand
 // num.len() = comparand.len() ⇒ num ⪒ comparand
-fn rel_dec_raw(r1: &[u8], r2: &[u8]) -> RelDec {
+const fn rel_dec_raw(r1: &[u8], r2: &[u8]) -> RelDec {
     let r1_cnt = dec_pla_cnt_raw(r1);
     let r2_cnt = dec_pla_cnt_raw(r2);
 
@@ -623,7 +623,7 @@ fn rel_dec_raw(r1: &[u8], r2: &[u8]) -> RelDec {
     };
 }
 
-fn dec_pla_cnt_raw(r: &[u8]) -> usize {
+const fn dec_pla_cnt_raw(r: &[u8]) -> usize {
     if is_nought_raw(r) {
         0
     } else {
@@ -721,15 +721,21 @@ pub fn mul(factor1: &PlacesRow, factor2: &PlacesRow) -> PlacesRow {
     let factor1 = &factor1.row;
     let factor2 = &factor2.row;
 
-    let row = mul_raw(factor1, factor2);
+    let row = mul_raw(factor1, factor2, true);
     PlacesRow { row }
 }
 
-fn mul_raw(factor1: &[u8], factor2: &[u8]) -> RawRow {
+fn mul_raw(factor1: &[u8], factor2: &[u8], shrink: bool) -> RawRow {
     if let Some(row) = mul_shortcut(factor1, factor2) {
         row
     } else {
-        mul_dynamo(factor1, factor2, true)
+        let mut row = mul_dynamo(factor1, factor2);
+
+        if shrink {
+            shrink_to_fit_raw(&mut row);
+        }
+
+        row
     }
 }
 
@@ -756,18 +762,23 @@ fn mul_shortcut(factor1: &[u8], factor2: &[u8]) -> Option<RawRow> {
 ///
 /// Returns `PlacesRow` with result.
 pub fn pow(base: &PlacesRow, power: u16) -> PlacesRow {
-    let row = &base.row;
+    let base = &base.row;
 
-    let row = pow_raw(row, power);
+    let row = pow_raw(base, power, true);
     Row { row }
 }
 
-fn pow_raw(row: &RawRow, pow: u16) -> RawRow {
-    if let Some(row) = pow_shortcut(row, pow) {
-        return row;
+fn pow_raw(base: &RawRow, pow: u16, shrink: bool) -> RawRow {
+    if let Some(pow) = pow_shortcut(base, pow) {
+        return pow;
     }
 
-    pow_dynamo(row, pow)
+    let mut pow = pow_dynamo(base, pow);
+    if shrink {
+        shrink_to_fit_raw(&mut pow);
+    }
+
+    pow
 }
 
 // x⁰ = 1
@@ -972,7 +983,7 @@ fn divrem_accelerated_decremental(
             unsafe { mpler.set_len(mpler_wr_ix + 1) };
             mpler[mpler_wr_ix] = 1;
 
-            rat = mul_dynamo(&mpler, &rat, false);
+            rat = mul_dynamo(&mpler, &rat);
             addition_sum(&rat, &mut ratio, 0);
 
             end_len = end.len();
@@ -2000,7 +2011,7 @@ fn heron_sqrt_raw(row: &[u8]) -> RawRow {
 }
 
 const MUL_DYNAMO_CAP: usize = 1000;
-fn mul_dynamo(mpler: &[u8], mcand: &[u8], shrink: bool) -> RawRow {
+fn mul_dynamo(mpler: &[u8], mcand: &[u8]) -> RawRow {
     let mpler_len = mpler.len();
 
     let mut sum = Vec::with_capacity(MUL_DYNAMO_CAP);
@@ -2011,76 +2022,81 @@ fn mul_dynamo(mpler: &[u8], mcand: &[u8], shrink: bool) -> RawRow {
         offset += 1;
     }
 
-    // move to raw
-    if shrink {
-        shrink_to_fit_raw(&mut sum);
-    }
-
     sum
 }
 
-#[cfg(test)]
-use std::sync::atomic::{AtomicU8, Ordering as AtomicOrdering};
-
-#[cfg(test)]
-static STEPS_AVAIL: AtomicU8 = AtomicU8::new(0);
-
-static mut POW_STEPS: [u16; 15] = [0; 15];
-fn pow_steps(mut step: u16) -> &'static [u16] {
+fn pow_steps(mut step: u16) -> Vec<u16> {
     #[cfg(test)]
-    assert_eq!(true, step > 1);
-
-    let mut ix = 0;
-
-    loop {
-        unsafe {
-            POW_STEPS[ix] = step;
+    {
+        if step < 2 {
+            panic!("Pow steps for powers > 1 only.");
         }
+    }
+
+    let mut steps = Vec::with_capacity(15);
+    loop {
+        steps.push(step);
 
         step >>= 1;
         if step == 1 {
             break;
         }
-
-        ix += 1;
     }
 
-    unsafe { &POW_STEPS[..=ix] }
+    steps
 }
 
-const fn clr_pow_steps(mut ex_to: usize) {
-    while ex_to > 0 {
-        ex_to -= 1;
-        unsafe {
-            POW_STEPS[ex_to] = 0;
+const POW_DYNAMO_CAP: usize = 2500;
+fn pow_dynamo(base: &[u8], pow: u16) -> RawRow {
+    let mut sum = Vec::with_capacity(POW_DYNAMO_CAP);
+    let mut mcand = Vec::with_capacity(POW_DYNAMO_CAP);
+
+    mcand.extend_from_slice(base);
+
+    let steps = pow_steps(pow);
+    let mut s_iter = steps.iter();
+    let mut curr_s = unsafe { s_iter.next_back().unwrap_unchecked() };
+
+    let base_len = base.len();
+    let mut offset;
+    loop {
+        let mcand_len = mcand.len();
+        offset = 0;
+        while offset < mcand_len {
+            muladd(mcand[offset], &mcand, &mut sum, offset);
+            offset += 1;
         }
-    }
-}
-        #[cfg(test)]
-        let i_sum_ptr = i_sum.as_ptr();
 
-        for offset in 0..mpler_len {
-            muladd(mpler[offset], &mcand, &mut i_sum, offset);
+        if curr_s & 1 == 1 {
+            clear_swap(&mut mcand, &mut sum);
+
+            offset = 0;
+            while offset < base_len {
+                muladd(base[offset], &mcand, &mut sum, offset);
+                offset += 1;
+            }
         }
 
-        #[cfg(test)]
-        assert!(i_sum_ptr == i_sum.as_ptr());
-
-        cntr += 1;
-        if cntr == times {
-            mcand = i_sum;
+        if let Some(s) = s_iter.next_back() {
+            curr_s = s
+        } else {
             break;
         }
 
-        mcand.clear();
-        let swap = mcand;
-        mcand = i_sum;
-        i_sum = swap;
-
-        mcand_len = mcand.len();
+        clear_swap(&mut mcand, &mut sum);
     }
 
-    mcand
+    sum
+}
+
+fn clear_swap<'a>(mcand: *mut RawRow, i_sum: *mut RawRow) {
+    unsafe {
+        let mut swap = mcand.read();
+        swap.clear();
+
+        mcand.write(i_sum.read());
+        i_sum.write(swap);
+    }
 }
 
 /// Adding intermediate product directly to sums allows to avoid
@@ -2133,7 +2149,7 @@ fn sumadd(mut addend: u8, sum: &mut RawRow, mut off: usize) {
     }
 }
 
-pub(crate) fn addition_sum(addend: &[u8], sum: &mut RawRow, offset: usize) {
+fn addition_sum(addend: &[u8], sum: &mut RawRow, offset: usize) {
     let a_len = addend.len();
     let s_len = sum.len();
 
@@ -2165,7 +2181,7 @@ pub(crate) fn addition_sum(addend: &[u8], sum: &mut RawRow, offset: usize) {
     }
 }
 
-pub(crate) fn addition_two(lh_addend: &[u8], rh_addend: &[u8], sum: &mut RawRow) {
+fn addition_two(lh_addend: &[u8], rh_addend: &[u8], sum: &mut RawRow) {
     let lha_len = lh_addend.len();
     let rha_len = rh_addend.len();
 
@@ -3230,13 +3246,16 @@ mod tests_of_units {
 
     /// Multiplication.
     mod mul {
-        use crate::{mul, Row};
+        use crate::{mul, Row, MUL_DYNAMO_CAP};
 
         #[test]
         fn basic_test() {
             let row1 = Row::new_from_usize(2);
             let row2 = Row::new_from_usize(3);
             let prod = mul(&row1, &row2);
+
+            assert_eq!(true, prod.row.capacity() < MUL_DYNAMO_CAP);
+
             assert_eq!(&[6], &*prod);
         }
 
@@ -3300,6 +3319,19 @@ mod tests_of_units {
         }
     }
 
+    mod mul_raw {
+
+        use crate::{mul_raw, MUL_DYNAMO_CAP};
+        #[test]
+        fn shrinking_test() {
+            let prod = mul_raw(&vec![2], &vec![3], false);
+            assert_eq!(true, prod.capacity() == MUL_DYNAMO_CAP);
+
+            let prod = mul_raw(&vec![2], &vec![3], true);
+            assert_eq!(true, prod.capacity() < MUL_DYNAMO_CAP);
+        }
+    }
+
     mod mul_shortcut {
         use crate::{mul_shortcut, nought_raw, unity_raw, Row};
 
@@ -3355,12 +3387,14 @@ mod tests_of_units {
     /// 2º=1, 2¹=1×2, 2²=1×2×2, 2³=1×2×2×2, …
     ///                   ⋮                   
     mod pow {
-        use crate::{pow, Row};
+        use crate::{pow, Row, POW_DYNAMO_CAP};
 
         #[test]
         fn basic_test() {
             let row = Row::new_from_usize(2);
             assert_eq!(&[4], &*pow(&row, 2));
+
+            assert_eq!(true, row.row.capacity() < POW_DYNAMO_CAP);
         }
 
         #[test]
@@ -3449,6 +3483,19 @@ mod tests_of_units {
             let row = Row::new_from_usize(1);
             let pow = pow(&row, u16::MAX);
             assert_eq!(&[1], &*pow);
+        }
+    }
+
+    mod pow_raw {
+
+        use crate::{pow_raw, POW_DYNAMO_CAP};
+        #[test]
+        fn shrinking_test() {
+            let prod = pow_raw(&vec![2], 3, false);
+            assert_eq!(true, prod.capacity() == POW_DYNAMO_CAP);
+
+            let prod = pow_raw(&vec![2], 3, true);
+            assert_eq!(true, prod.capacity() < POW_DYNAMO_CAP);
         }
     }
 
@@ -4942,8 +4989,50 @@ mod tests_of_units {
         }
     }
 
+    mod mul_dynamo {
+        use crate::mul_dynamo;
+
+        #[test]
+        fn basic_test() {
+            let mpler = vec![2];
+            let mcand = vec![3, 2];
+
+            let prod = mul_dynamo(&mpler, &mcand);
+            assert_eq!(vec![6, 4], prod);
+        }
+
+        #[test]
+        // does not support zero multiplication
+        fn zero_multiplier_test() {
+            let mpler = vec![0];
+            let mcand = vec![3, 2, 1];
+
+            let prod = mul_dynamo(&mpler, &mcand);
+            assert_eq!(vec![0, 0, 0], prod);
+        }
+
+        #[test]
+        fn one_multiplier_test() {
+            let mpler = vec![1];
+            let mcand = vec![3, 2, 1];
+
+            let prod = mul_dynamo(&mpler, &mcand);
+            assert_eq!(mcand, prod);
+        }
+
+        #[test]
+        fn load_test() {
+            let mpler = vec![1, 2, 3, 4, 5];
+            let mcand = vec![5, 4, 3, 2, 1];
+            let proof = new_from_num_raw!(670_592_745);
+
+            let prod = mul_dynamo(&mpler, &mcand);
+            assert_eq!(proof, prod);
+        }
+    }
+
     mod pow_steps {
-        use crate::{pow_steps, POW_STEPS};
+        use crate::pow_steps;
 
         #[test]
         fn basic_test() {
@@ -4951,28 +5040,23 @@ mod tests_of_units {
             let proof = vec![4, 2];
 
             assert_eq!(proof, steps);
+            assert_eq!(15, steps.capacity());
         }
 
         #[test]
-        fn max() {
+        fn max_test() {
             let mut step = u16::MAX;
             let steps = pow_steps(step);
             assert_eq!(15, steps.len());
 
             for s in steps {
-                assert_eq!(step, *s);
+                assert_eq!(step, s);
                 step /= 2;
             }
         }
 
         #[test]
-        #[allow(static_mut_refs)]
-        fn steps_capacity() {
-            assert_eq!(15, unsafe { POW_STEPS.len() });
-        }
-
-        #[test]
-        fn odd_end() {
+        fn odd_end_test() {
             let steps = pow_steps(12);
             let proof = vec![12, 6, 3];
 
@@ -4980,7 +5064,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn even_end() {
+        fn even_end_test() {
             let steps = pow_steps(16);
             let proof = vec![16, 8, 4, 2];
 
@@ -4988,33 +5072,87 @@ mod tests_of_units {
         }
     }
 
-    use crate::{clr_pow_steps as clr_pow_steps_fn, POW_STEPS, STEPS_AVAIL};
-    use std::sync::atomic::Ordering;
+    mod pow_dynamo {
+        use crate::{nought_raw, pow_dynamo, unity_raw, Row};
 
+        #[test]
+        fn basic_test() {
+            let pow = pow_dynamo(&[2], 16);
+            assert_eq!(vec![6, 3, 5, 5, 6], pow);
+        }
+
+        #[test]
+        #[should_panic(expected = "Pow steps for powers > 1 only.")]
+        fn pow_zero_test() {
+            _ = pow_dynamo(&[2], 0);
+        }
+
+        #[test]
+        #[should_panic(expected = "Pow steps for powers > 1 only.")]
+        fn pow_one_test() {
+            _ = pow_dynamo(&[2], 1);
+        }
+
+        #[test]
+        fn pow_of_zero_test() {
+            let pows = [2, 3, 5, 11, 20];
+            let zero = nought_raw();
+
+            for p in pows {
+                let pow = pow_dynamo(&zero, p);
+                assert_eq!(zero, pow);
+            }
+        }
+
+        #[test]
+        fn pow_of_one_test() {
+            let pows = [2, 3, 5, 11, 20];
+            let one = unity_raw();
+
+            for p in pows {
+                let pow = pow_dynamo(&one, p);
+                assert_eq!(one, pow);
+            }
+        }
+
+        #[test]
+        fn pow_two_test() {
+            let pow = pow_dynamo(&[5, 5, 2], 2);
+            assert_eq!(vec![5, 2, 0, 5, 6], pow);
+        }
+
+        #[test]
+        fn odd_test() {
+            let pow = pow_dynamo(&[5, 5, 2], 11);
+            let proof = Row::new_from_str("296443535898840969287109375").unwrap();
+
+            assert_eq!(proof.row, pow);
+        }
+
+        #[test]
+        fn even_test() {
+            let pow = pow_dynamo(&[5, 5, 2], 10);
+            let proof = Row::new_from_str("1162523670191533212890625").unwrap();
+
+            assert_eq!(proof.row, pow);
+        }
+    }
+
+    use crate::clear_swap;
     #[test]
-    #[allow(static_mut_refs)]
-    fn clr_pow_steps() {
-        while STEPS_AVAIL
-            .compare_exchange(0, 1, Ordering::Relaxed, Ordering::Relaxed)
-            .is_err()
-        {}
+    fn clear_swap_test() {
+        let mut mcand = vec![3, 2, 1];
+        let mut i_sum = vec![6, 5, 4];
 
-        unsafe {
-            POW_STEPS.fill(9);
-        }
+        let mcand_ptr = mcand.as_ptr() as usize;
+        let i_sum_ptr = i_sum.as_ptr() as usize;
 
-        const EX_TO: usize = 7;
-        clr_pow_steps_fn(EX_TO);
+        clear_swap(&mut mcand, &mut i_sum);
 
-        let steps_len = unsafe { POW_STEPS.len() };
-        for i in 0..steps_len {
-            let proof = if i < EX_TO { 0 } else { 9 };
-            assert_eq!(proof, unsafe { POW_STEPS[i] });
-        }
-
-        clr_pow_steps_fn(steps_len);
-
-        STEPS_AVAIL.store(0, Ordering::Relaxed);
+        assert_eq!(mcand.as_ptr() as usize, i_sum_ptr);
+        assert_eq!(i_sum.as_ptr() as usize, mcand_ptr);
+        assert_eq!(vec![6, 5, 4], mcand);
+        assert_eq!(0, i_sum.len());
     }
 
     mod muladd {

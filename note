@@ -1,5 +1,5 @@
 noticeable
-    - check with shrink to fit on all
+    - check with shrink to fit on all, beware of leading truncation
     - mulmul escape for 0 multiplier
     - check once again whether division is "im"possible (avoid substracting)
 
