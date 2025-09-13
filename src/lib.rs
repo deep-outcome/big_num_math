@@ -663,9 +663,10 @@ pub fn sub(minuend: &PlacesRow, subtrahend: &PlacesRow) -> Option<PlacesRow> {
     let minuend = &minuend.row;
     let subtrahend = &subtrahend.row;
 
-    match sub_shortcut(minuend, subtrahend) {
-        Some(res) => return res,
-        None => {}
+    match rel_raw(minuend, subtrahend) {
+        Rel::Equal => return Some(Row::nought()),
+        Rel::Lesser(_) => return None,
+        _ => {}
     };
 
     let diff = subtraction(
@@ -677,24 +678,6 @@ pub fn sub(minuend: &PlacesRow, subtrahend: &PlacesRow) -> Option<PlacesRow> {
     )
     .0;
     Some(Row { row: diff })
-}
-
-// x -0 = x
-// x -x = 0
-// a -b, a < b not supported
-fn sub_shortcut(minuend: &RawRow, subtrahend: &RawRow) -> Option<Option<Row>> {
-    if is_nought_raw(subtrahend) {
-        let row = Row {
-            row: minuend.clone(),
-        };
-        return Some(Some(row));
-    }
-
-    return match rel_raw(minuend, subtrahend) {
-        Rel::Lesser(_) => Some(None),
-        Rel::Equal => Some(Some(Row::nought())),
-        _ => return None,
-    };
 }
 
 /// Computes `factor1` and `factor2` product.
@@ -3136,67 +3119,64 @@ mod tests_of_units {
         use crate::{sub, Row};
 
         #[test]
-        fn lesser_minuend_test() {
-            let minuend = Row::new_from_usize(4);
-            let subtrahend = Row::new_from_usize(5);
-
-            assert!(sub(&minuend, &subtrahend).is_none());
-        }
-
-        #[test]
         fn universal_test() {
             for triplet in [(99, 11, 88), (133, 133, 0), (90, 19, 71), (700, 699, 1)] {
-                let minuend = Row::new_from_usize(triplet.0);
-                let subtrahend = Row::new_from_usize(triplet.1);
+                let minuend = new_from_num!(triplet.0);
+                let subtrahend = new_from_num!(triplet.1);
 
-                let proof = Row::new_from_usize(triplet.2);
+                let proof = new_from_num!(triplet.2);
                 let diff = sub(&minuend, &subtrahend);
                 assert!(diff.is_some());
 
                 assert_eq!(proof, diff.unwrap());
             }
         }
-    }
-
-    mod sub_shortcut {
-        use crate::{nought_raw, sub_shortcut, Row};
 
         #[test]
         fn nought_subtrahend_test() {
-            let minuend = Row::new_from_usize(40);
-            let subtrahend = nought_raw();
+            let minuend = new_from_num!(40);
+            let subtrahend = Row::nought();
 
             let proof = minuend.clone();
-            let test = sub_shortcut(&minuend.row, &subtrahend);
-            assert_eq!(Some(Some(proof)), test);
+            let test = sub(&minuend, &subtrahend);
+            assert_eq!(Some(proof), test);
         }
-
+        
         #[test]
         fn lesser_minuend_test() {
-            let minuend = Row::new_from_usize(0).row;
-            let subtrahend = Row::new_from_usize(1).row;
-
-            let res = sub_shortcut(&minuend, &subtrahend);
-            assert_eq!(Some(None), res);
+            let minuend = new_from_num!(4);
+            let subtrahend = new_from_num!(5);
+            
+            assert!(sub(&minuend, &subtrahend).is_none());
         }
 
         #[test]
         fn equal_operands_test() {
-            let minuend = Row::new_from_usize(1364).row;
-            let subtrahend = Row::new_from_usize(1364).row;
+            let minuend = new_from_num!(1364);
+            let subtrahend = minuend.clone();
 
             let proof = Row::nought();
-            let test = sub_shortcut(&minuend, &subtrahend);
-            assert_eq!(Some(Some(proof)), test);
+            let test = sub(&minuend, &subtrahend);
+            assert_eq!(Some(proof), test);
         }
 
         #[test]
         fn greater_minuend_test() {
-            let minuend = Row::new_from_usize(2).row;
-            let subtrahend = Row::new_from_usize(1).row;
+            let minuend = new_from_num!(2);
+            let subtrahend = new_from_num!(1);
 
-            let res = sub_shortcut(&minuend, &subtrahend);
-            assert_eq!(None, res);
+            let res = sub(&minuend, &subtrahend);
+            assert_eq!(Some(new_from_num!(1)), res);
+        }
+
+        #[test]
+        fn boht_nought_test() {
+            let minuend = Row::nought();
+            let subtrahend = Row::nought();
+
+            let proof = Row::nought();
+            let test = sub(&minuend, &subtrahend);
+            assert_eq!(Some(proof), test);
         }
     }
 
