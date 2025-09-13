@@ -257,11 +257,6 @@ impl PlacesRow {
     }
 }
 
-fn shrink_to_fit_raw(row: &mut RawRow) {
-    truncate_leading_raw(row, 0, 1);
-    row.shrink_to_fit();
-}
-
 fn truncate_leading_raw(row: &mut RawRow, lead: u8, ex_to: usize) {
     let new_len = len_without_leading_raw(row, lead, ex_to);
     row.truncate(new_len);
@@ -669,7 +664,7 @@ pub fn sub(minuend: &PlacesRow, subtrahend: &PlacesRow) -> Option<PlacesRow> {
         _ => {}
     };
 
-    let diff = subtraction(
+    let mut diff = subtraction(
         &minuend,
         &subtrahend,
         false,
@@ -677,6 +672,9 @@ pub fn sub(minuend: &PlacesRow, subtrahend: &PlacesRow) -> Option<PlacesRow> {
         &mut 0,
     )
     .0;
+
+    diff.shrink_to_fit();
+
     Some(Row { row: diff })
 }
 
@@ -698,7 +696,7 @@ fn mul_raw(factor1: &[u8], factor2: &[u8], shrink: bool) -> RawRow {
         let mut row = mul_dynamo(factor1, factor2);
 
         if shrink {
-            shrink_to_fit_raw(&mut row);
+            row.shrink_to_fit();
         }
 
         row
@@ -739,7 +737,7 @@ fn pow_raw(base: &RawRow, pow: u16, shrink: bool) -> RawRow {
 
     let mut pow = pow_dynamo(base, pow);
     if shrink {
-        shrink_to_fit_raw(&mut pow);
+        pow.shrink_to_fit();
     }
 
     pow
@@ -2261,7 +2259,7 @@ fn subtraction_decremental(
         }
     }
 
-    shrink_to_fit_raw(minuend);
+    truncate_leading_raw(minuend, 0, 1);
     ratio
 }
 
@@ -2631,36 +2629,6 @@ mod tests_of_units {
         fn from_usize_test() {
             let row: Row = From::<usize>::from(123);
             assert_eq!(&[3, 2, 1], &*row);
-        }
-    }
-
-    mod shrink_to_fit_raw {
-        use crate::shrink_to_fit_raw;
-
-        #[test]
-        fn zero_truncation_test() {
-            let cap = 100;
-            let mut row = Vec::with_capacity(cap);
-            row.push(1);
-            row.push(2);
-            row.push(0);
-
-            shrink_to_fit_raw(&mut row);
-            assert_eq!(&[1, 2], &*row);
-            assert!(row.capacity() < cap);
-        }
-
-        #[test]
-        fn first_preservation_test() {
-            let cap = 100;
-            let mut row = Vec::with_capacity(cap);
-            row.push(0);
-            row.push(0);
-            row.push(0);
-
-            shrink_to_fit_raw(&mut row);
-            assert_eq!(&[0], &*row);
-            assert!(row.capacity() < cap);
         }
     }
 
@@ -3141,12 +3109,12 @@ mod tests_of_units {
             let test = sub(&minuend, &subtrahend);
             assert_eq!(Some(proof), test);
         }
-        
+
         #[test]
         fn lesser_minuend_test() {
             let minuend = new_from_num!(4);
             let subtrahend = new_from_num!(5);
-            
+
             assert!(sub(&minuend, &subtrahend).is_none());
         }
 
@@ -3177,6 +3145,17 @@ mod tests_of_units {
             let proof = Row::nought();
             let test = sub(&minuend, &subtrahend);
             assert_eq!(Some(proof), test);
+        }
+
+        #[test]
+        fn shrinking_test() {
+            let minuend = new_from_num!(1234567890_1234567890usize);
+            let subtrahend = new_from_num!(1234567890_1234567889usize);
+
+            let proof = Row::unity();
+            let test = sub(&minuend, &subtrahend);
+            assert_eq!(Some(proof), test);
+            assert_eq!(true, test.unwrap().row.capacity() < minuend.row.len());
         }
     }
 
@@ -5368,8 +5347,6 @@ mod tests_of_units {
                 let diff = diffcount.0;
                 assert_eq!(&[1], &*diff);
                 assert_eq!(&[1], &*diffcount.1);
-                let diffcap = diff.capacity();
-                assert!(1 == diffcap || diffcap < 3);
             }
 
             // because it can be
@@ -5444,8 +5421,6 @@ mod tests_of_units {
                 assert_ne!(vec![2, 0, 9, 9, 9], remainder);
                 assert_ne!(vec![2, 0], remainder);
                 assert_eq!(vec![2], remainder);
-                let remcap = remainder.capacity();
-                assert!(1 == remcap || remcap < 5);
                 assert_eq!(&[0, 0, 0, 1], &*remratio.1);
             }
 

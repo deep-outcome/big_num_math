@@ -236,7 +236,7 @@ fn next(
     };
 
     // r' =(Bⁿr +α) -((By +β)ⁿ -Bⁿyⁿ)
-    subtraction_decremental(
+    _ = subtraction_decremental(
         &mut lim,
         &max,
         false,
@@ -326,7 +326,7 @@ fn incr<'a>(
         let mut omax = pow_raw(&orax, degree, false);
 
         // (By +β)ⁿ -Bⁿyⁿ
-        subtraction_decremental(
+        _ = subtraction_decremental(
             &mut omax,
             sub,
             false,
@@ -345,7 +345,7 @@ fn incr<'a>(
                 };
             }
 
-            subtraction_decremental(
+            _ = subtraction_decremental(
                 &mut orax,
                 unity,
                 false,
@@ -386,7 +386,7 @@ fn decr(orax: &mut RawRow, unity: &RawRow, degree: u16, sub: &RawRow, lim: &RawR
         let mut omax = pow_raw(&orax, degree, false);
 
         // (By +β)ⁿ -Bⁿyⁿ
-        subtraction_decremental(
+        _ = subtraction_decremental(
             &mut omax,
             sub,
             false,
