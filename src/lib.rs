@@ -638,11 +638,6 @@ pub fn add(addend1: &PlacesRow, addend2: &PlacesRow) -> PlacesRow {
     let r1 = &addend1.row;
     let r2 = &addend2.row;
 
-    match add_shortcut(r1, r2) {
-        Some(row) => return Row { row },
-        _ => {}
-    }
-
     let max_len = max(r1.len(), r2.len());
 
     // avoids repetitive reallocations
@@ -659,18 +654,6 @@ pub fn add(addend1: &PlacesRow, addend2: &PlacesRow) -> PlacesRow {
     assert!(sum_ptr == sum.as_ptr());
 
     Row { row: sum }
-}
-
-// 0 +x = x
-// x +0 = x
-fn add_shortcut(addend1: &RawRow, addend2: &RawRow) -> Option<RawRow> {
-    if is_nought_raw(addend1) {
-        Some(addend2.clone())
-    } else if is_nought_raw(addend2) {
-        Some(addend1.clone())
-    } else {
-        None
-    }
 }
 
 /// Computes `minuend` and `subtrahend` difference.
@@ -3138,38 +3121,13 @@ mod tests_of_units {
             let sum = add(&addend1, &addend2);
             assert_eq!(addend1, sum);
         }
-    }
-
-    mod add_shortcut {
-        use crate::{add_shortcut, nought_raw, unity_raw};
 
         #[test]
-        fn none_nought_test() {
-            assert_eq!(None, add_shortcut(&unity_raw(), &unity_raw()));
-        }
-
-        #[test]
-        fn r1_nought_test() {
-            let r1 = nought_raw();
-            let r2 = vec![1, 2, 3, 4];
-            let res = add_shortcut(&r1, &r2);
-            assert_eq!(Some(r2.clone()), res);
-
-            #[allow(dangling_pointers_from_temporaries)]
-            let res_ptr = res.unwrap().as_ptr();
-            assert_ne!(r2.as_ptr(), res_ptr);
-        }
-
-        #[test]
-        fn r2_nought_test() {
-            let r1 = vec![1, 2, 3, 4];
-            let r2 = nought_raw();
-            let res = add_shortcut(&r1, &r2);
-            assert_eq!(Some(r1.clone()), res);
-
-            #[allow(dangling_pointers_from_temporaries)]
-            let res_ptr = res.unwrap().as_ptr();
-            assert_ne!(r1.as_ptr(), res_ptr);
+        fn both_addends_nought_test() {
+            let addend1 = Row::nought();
+            let addend2 = Row::nought();
+            let sum = add(&addend1, &addend2);
+            assert_eq!(Row::nought(), sum);
         }
     }
 
