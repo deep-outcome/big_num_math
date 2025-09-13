@@ -251,7 +251,7 @@ impl PlacesRow {
 
     /// Returns decimal places count.
     ///
-    /// Check with `DecCnt` for detail on count properties.
+    /// Check with [`DecCnt`] for detail on count properties.
     pub fn places(&self) -> usize {
         dec_pla_cnt_raw(&self.row)
     }
@@ -387,7 +387,7 @@ impl From<usize> for PlacesRow {
 
 /// Represents 1,000 numbers of √10 ≈ 3.16.
 ///
-/// Check with `fn ord_of_mag`.
+/// Check with `fn` [`ord_of_mag`].
 pub const SQUARE_ROOT_TEN_COMPARATOR: &str = "3162277660168379331998893544432718533719555139325216826857504852792594438639238221344248108379300295187347284152840055148548856030453880014690519596700153903344921657179259940659150153474113339484124085316929577090471576461044369257879062037808609941828371711548406328552999118596824564203326961604691314336128949791890266529543612676178781350061388186278580463683134952478031143769334671973819513185678403231241795402218308045872844614600253577579702828644029024407977896034543989163349222652612067792651676031048436697793756926155720500369894909469421850007358348844643882731109289109042348054235653403907274019786543725939641726001306990000955784463109626790694418336130181302894541703315807731626386395193793704654765220632063686587197822049312426053454111609356979828132452297000798883523759585328579251362964686511497675217123459559238039375625125369855194955325099947038843990336466165470647234999796132343403021857052187836676345789510732982875157945215771652139626324438399018484560935762602";
 
 /// Order of magnitude computational kind.
@@ -395,7 +395,7 @@ pub const SQUARE_ROOT_TEN_COMPARATOR: &str = "3162277660168379331998893544432718
 pub enum OomKind {
     /// Uses `√10` for relation.
     ///
-    /// Check with `SQUARE_ROOT_TEN_COMPARATOR`.
+    /// Check with [`SQUARE_ROOT_TEN_COMPARATOR`].
     Strict,
     /// Uses `5` for relation.
     Loose,
@@ -413,7 +413,7 @@ pub enum Oom {
     /// Approximated _oom_ is result of operation on `PlacesRow` requiring
     /// greater precision than provided by `SQUARE_ROOT_TEN_COMPARATOR`.
     ///
-    /// Check with `fn ord_of_mag`.
+    /// Check with `fn` [`ord_of_mag`].
     Approx(usize),
 }
 
@@ -425,7 +425,7 @@ pub enum Oom {
 ///
 /// Then _i_ is order of magnitude of such number.
 ///
-/// `Strict` kind evaluation is precise up to 1,000 numbers of `SQUARE_ROOT_TEN_COMPARATOR`.
+/// `Strict` kind evaluation is precise up to 1,000 numbers of [`SQUARE_ROOT_TEN_COMPARATOR`].
 /// Any `num` requiring higher precision is considered to be of higher order. That
 /// means its order of magnitude is arranged equal to its decimal places count
 /// and is reported as `Oom::Approx(usize)`.
@@ -757,8 +757,6 @@ fn mul_shortcut(factor1: &[u8], factor2: &[u8]) -> Option<RawRow> {
 }
 
 /// Computes `power` of `base`.
-///
-/// Potentially CPU, memory intensive.
 ///
 /// Returns `PlacesRow` with result.
 pub fn pow(base: &PlacesRow, power: u16) -> PlacesRow {
@@ -1685,7 +1683,7 @@ pub enum PrimeGenStrain {
 
 /// Flexible prime number generator.
 ///
-/// Beware, macro _returns_ `PrimeGenRes`. Thus it can be directly unusable within `fn` body.
+/// Beware, macro _returns_ [`PrimeGenRes`]. Thus it can be directly unusable within `fn` body.
 ///
 /// Unity is not cosidered to be prime number.
 ///
@@ -1859,7 +1857,7 @@ macro_rules! pg {
     }};
 }
 
-/// Memory economic version of `pg` macro.
+/// Memory economic version of [`pg`] macro.
 ///
 /// Since `pg_sw`, space wise prime generator, uses less space, it allows
 /// to generate larger prime numbers compared to `pg`.
@@ -3427,7 +3425,6 @@ mod tests_of_units {
         }
 
         #[test]
-        #[cfg(feature = "ext-tests")]
         // readme sample
         fn advanced_test5() {
             let row = Row::new_from_u128(u128::MAX);
