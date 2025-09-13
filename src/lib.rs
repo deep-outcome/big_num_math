@@ -787,7 +787,7 @@ pub fn divrem(dividend: &PlacesRow, divisor: &PlacesRow) -> Option<(PlacesRow, P
 
 // x ∶0, illegal
 // x ∶1 = x
-// a ∶b = 0Ra, a << b, a ≪ b
+// a ∶b = 0Ra, a < b
 fn divrem_shortcut(dividend: &RawRow, divisor: &RawRow) -> Option<Option<(Row, Row)>> {
     if is_nought_raw(divisor) {
         return Some(None);
@@ -800,8 +800,8 @@ fn divrem_shortcut(dividend: &RawRow, divisor: &RawRow) -> Option<Option<(Row, R
     let shortcut = if is_unity_raw(divisor) {
         (end_clone(), Row::nought())
     } else {
-        match rel_dec_raw(dividend, divisor) {
-            RelDec::Lesser(_) => (Row::nought(), end_clone()),
+        match rel_raw(dividend, divisor) {
+            Rel::Lesser(_) => (Row::nought(), end_clone()),
             _ => return None,
         }
     };
@@ -3593,9 +3593,9 @@ mod tests_of_units {
         }
 
         #[test]
-        fn shorter_dividend_test() {
-            let dividend = Row::new_from_usize(99);
-            let divisor = Row::new_from_usize(999).row;
+        fn lesser_dividend_test() {
+            let dividend = Row::new_from_usize(0);
+            let divisor = Row::new_from_usize(1).row;
 
             let proof = (Row::nought(), dividend.clone());
             let ratrem = divrem_shortcut(&dividend.row, &divisor);
