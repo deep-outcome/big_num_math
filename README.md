@@ -2,11 +2,11 @@
 Library for computations on large numbers.
 
 - development notes: 
-    1. no plan for additional functions
+    1. no additional functions planned (still not obviated)
     2. upcoming optimizations (memory consumption, speed up on some computations, …)
 - functions only:
     - addition +substraction, 
-    - multiplication +division
+    - multiplication +division (with remainder)
     - relation and decimal relation operators
     - order of magnitude
     - power +nth root
