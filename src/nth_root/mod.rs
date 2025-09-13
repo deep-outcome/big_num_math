@@ -681,7 +681,7 @@ mod tests_of_units {
         fn readme_test() {
             let mut outs = RootTestOuts::new();
 
-            let test = PlacesRow::new_from_usize(99999999);
+            let test = PlacesRow::new_from_usize(99_999_999);
             let radicand = PlacesRow::new_from_str(
                 "999999910000003599999916000001259999987400000083999999640000000899999999",
             )

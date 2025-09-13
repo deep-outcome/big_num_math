@@ -3,7 +3,7 @@ Library for computations on large numbers.
 
 - development notes: 
     1. no additional functions planned (still not obviated)
-    2. upcoming optimizations (memory consumption, speed up on some computations, …)
+    2. planned optimizations (memory consumption [half memory requirement])
 - functions only:
     - addition +substraction, 
     - multiplication +division (with remainder)
@@ -99,7 +99,7 @@ assert_eq!(2_750_159, p().uproot_max());
 ##### nth  root
 
 ```rust
-let test = PlacesRow::new_from_usize(99999999);
+let test = PlacesRow::new_from_usize(99_999_999);
 let radicand = PlacesRow::new_from_str(
     "999999910000003599999916000001259999987400000083999999640000000899999999",
 )
