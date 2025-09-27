@@ -3583,7 +3583,7 @@ mod tests_of_units {
     }
 
     pub mod divrem_accelerated {
-        use crate::{divrem_accelerated, Row};
+        use crate::{divrem_accelerated, nought_raw, unity_raw, Row};
 
         #[derive(PartialEq, Eq, Debug)]
         pub enum DivRemEscCode {
@@ -3637,6 +3637,54 @@ mod tests_of_units {
             // 15006 -3×  5000 ⇒ 3 +1
             //     6 -1×     5 ⇒ 1 +1
             // rem 1           ⇒ Σ 8 = 5 +3 (+0)
+        }
+
+        #[test]
+        fn zero_division_test() {
+            let dividend = nought_raw();
+            let divisor = new_from_num_raw!(usize::MAX);
+
+            let mut tg = TestGauges::blank();
+            let remratio = divrem_accelerated(&dividend, &divisor, &mut tg);
+
+            assert_eq!(vec![0], remratio.0);
+            assert_eq!(vec![0], remratio.1);
+
+            assert_eq!(0, tg.w_ctr);
+            assert_eq!(0, tg.ctr);
+            assert_eq!(DivRemEscCode::Pli, tg.esc);
+        }
+
+        #[test]
+        fn one_division_test1() {
+            let dividend = unity_raw();
+            let divisor = unity_raw();
+
+            let mut tg = TestGauges::blank();
+            let remratio = divrem_accelerated(&dividend, &divisor, &mut tg);
+
+            assert_eq!(vec![0], remratio.0);
+            assert_eq!(vec![1], remratio.1);
+
+            assert_eq!(0, tg.w_ctr);
+            assert_eq!(2, tg.ctr);
+            assert_eq!(DivRemEscCode::Dcf, tg.esc);
+        }
+
+        #[test]
+        fn one_division_test2() {
+            let dividend = unity_raw();
+            let divisor = new_from_num_raw!(usize::MAX);
+
+            let mut tg = TestGauges::blank();
+            let remratio = divrem_accelerated(&dividend, &divisor, &mut tg);
+
+            assert_eq!(vec![1], remratio.0);
+            assert_eq!(vec![0], remratio.1);
+
+            assert_eq!(0, tg.w_ctr);
+            assert_eq!(0, tg.ctr);
+            assert_eq!(DivRemEscCode::Pli, tg.esc);
         }
 
         #[test]
