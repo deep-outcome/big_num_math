@@ -262,7 +262,7 @@ fn truncate_leading_raw(row: &mut RawRow, lead: u8, ex_to: usize) {
     row.truncate(new_len);
 }
 
-fn len_without_leading_raw(row: &RawRow, lead: u8, ex_to: usize) -> usize {
+fn len_without_leading_raw(row: &[u8], lead: u8, ex_to: usize) -> usize {
     let mut row_len = row.len();
     while row_len > ex_to {
         row_len -= 1;
@@ -664,18 +664,12 @@ pub fn sub(minuend: &PlacesRow, subtrahend: &PlacesRow) -> Option<PlacesRow> {
         _ => {}
     };
 
-    let mut diff = subtraction(
-        &minuend,
-        &subtrahend,
-        false,
-        #[cfg(test)]
-        &mut 0,
-    )
-    .0;
+    let mut minuend = minuend.clone();
+    _ = subtraction_arithmetical(&mut minuend, &subtrahend);
 
-    diff.shrink_to_fit();
+    minuend.shrink_to_fit();
 
-    Some(Row { row: diff })
+    Some(Row { row: minuend })
 }
 
 /// Computes `factor1` and `factor2` product.
@@ -783,9 +777,9 @@ pub fn divrem(dividend: &PlacesRow, divisor: &PlacesRow) -> Option<(PlacesRow, P
     Some((Row { row: remratio.1 }, Row { row: remratio.0 }))
 }
 
-// x ∶0, illegal
-// x ∶1 = x
-// a ∶b = 0Ra, a < b
+// x ÷0, illegal
+// x ÷1 = x
+// a ÷b = 0Ra, a < b
 fn divrem_shortcut(dividend: &RawRow, divisor: &RawRow) -> Option<Option<(Row, Row)>> {
     if is_nought_raw(divisor) {
         return Some(None);
@@ -2168,31 +2162,43 @@ fn addition_two(lh_addend: &[u8], rh_addend: &[u8], sum: &mut RawRow) {
     }
 }
 
-fn subtraction(
-    minuend: &[u8],
-    subtrahend: &[u8],
-    remainder: bool,
-    #[cfg(test)] ctr: &mut usize,
-) -> (RawRow, RawRow) {
-    let mut diffrem = minuend.to_vec();
-
-    let ratio = subtraction_decremental(
-        &mut diffrem,
+fn subtraction_arithmetical(minuend: &mut RawRow, subtrahend: &[u8]) -> RawRow {
+    let ratio = subtraction_dynamo(
+        minuend,
         subtrahend,
-        remainder,
+        false,
         #[cfg(test)]
-        ctr,
+        &mut 0,
     );
-    (diffrem, ratio)
+
+    truncate_leading_raw(minuend, 0, 1);
+    ratio
+}
+
+fn subtraction_divisional(mut minuend: &mut [u8], subtrahend: &[u8]) -> (RawRow, usize) {
+    let ratio = subtraction_dynamo(
+        minuend,
+        subtrahend,
+        true,
+        #[cfg(test)]
+        &mut 0,
+    );
+
+    let mut len = len_without_leading_raw(minuend, 9, subtrahend.len());
+    minuend = &mut minuend[..len];
+
+    len = len_without_leading_raw(minuend, 0, 0);
+
+    (ratio, len)
 }
 
 /// For difference computation applies precondition minuend ≥ subtrahend.
-/// Returns difference/remainder and ration in order.
+/// Returns difference/remainder and ratio in order.
 //
 // NOTE: Support for longer subtrahend implies extended guard condition on
 // correction `inx < subtrahend_len && inx < minuend_len`. See feature 'shorter-dividend-support'.
-fn subtraction_decremental(
-    minuend: &mut RawRow,
+fn subtraction_dynamo(
+    minuend: &mut [u8],
     subtrahend: &[u8],
     remainder: bool,
     #[cfg(test)] ctr: &mut usize,
@@ -2200,7 +2206,7 @@ fn subtraction_decremental(
     let minuend_len = minuend.len();
     let subtrahend_len = subtrahend.len();
 
-    let mut ratio = nought_raw();
+    let mut ratio = 0;
     let one = vec![1; 1];
     let mut takeover;
     let mut inx;
@@ -2248,19 +2254,19 @@ fn subtraction_decremental(
                 inx += 1;
             }
 
-            truncate_leading_raw(minuend, 9, inx);
             break;
         }
 
-        addition_sum(&one, &mut ratio, 0);
+        ratio += 1;
 
-        if !remainder {
-            break;
+        if remainder {
+            continue;
         }
+
+        break;
     }
 
-    truncate_leading_raw(minuend, 0, 1);
-    ratio
+    new_from_num_raw!(ratio)
 }
 
 /// Supports algorithimical decimal row computations.
@@ -5345,114 +5351,44 @@ mod tests_of_units {
     /// - Maximum subtrahend is 10=9+1(takeover).
     mod subtraction {
 
-        mod subtracting {
-            use crate::{subtraction, Row};
+        mod subtraction_arithmetical {
+            use crate::{subtraction_arithmetical, Row};
 
             #[test]
             fn basic_test() {
-                let diffcount = subtraction(&vec![9, 9], &vec![0, 1], false, &mut 0);
-                assert_eq!(&[9, 8], &*diffcount.0);
-                assert_eq!(&[1], &*diffcount.1);
-            }
-
-            #[test]
-            // minuend must be "copied" to difference if subtrahend is
-            // exhausted
-            fn minuend_copy_test() {
-                let diffcount = subtraction(&vec![7, 7, 7], &vec![1], false, &mut 0);
-                assert_eq!(&[6, 7, 7], &*diffcount.0);
-                assert_eq!(&[1], &*diffcount.1);
+                let mut mindiff = vec![9, 9];
+                let ratio = subtraction_arithmetical(&mut mindiff, &vec![0, 1]);
+                assert_eq!(&[9, 8], &*mindiff);
+                assert_eq!(&[1], &*ratio);
             }
 
             #[test]
             fn advanced_test() {
-                let minuend =
+                let mut mindiff =
                     Row::new_from_str("6577102745386680762814942322444851025767571854389858533375")
-                        .unwrap();
+                        .unwrap()
+                        .row;
                 let subtrahend =
                     Row::new_from_str("6296101835386680762814942322444851025767571854389858533376")
-                        .unwrap();
+                        .unwrap()
+                        .row;
                 let proof =
                     Row::new_from_str("281000909999999999999999999999999999999999999999999999999")
-                        .unwrap();
+                        .unwrap()
+                        .row;
 
-                let diffcount = subtraction(&minuend.row, &subtrahend.row, false, &mut 0);
-                assert_eq!(proof.row, diffcount.0);
-                assert_eq!(&[1], &*diffcount.1);
+                let ratio = subtraction_arithmetical(&mut mindiff, &subtrahend);
+                assert_eq!(proof, mindiff);
+                assert_eq!(&[1], &*ratio);
             }
 
             #[test]
             /// tests takeover ∈ [0,1] carry on
             fn takeover_test() {
-                let diffcount = subtraction(&vec![8, 2, 2, 0, 1], &vec![9, 2, 1, 1], false, &mut 0);
-                assert_eq!(&[9, 9, 0, 9], &*diffcount.0);
-                assert_eq!(&[1], &*diffcount.1);
-            }
-
-            #[test]
-            fn zero_truncation_test() {
-                let diffcount = subtraction(&vec![9, 9, 9], &vec![8, 9, 9], false, &mut 0);
-                let diff = diffcount.0;
-                assert_eq!(&[1], &*diff);
-                assert_eq!(&[1], &*diffcount.1);
-            }
-
-            // because it can be
-            // [1,0,9] - [2,0,9] = [9,9,9]
-            // [9,9,9] + [2,0,9] = [1,0,9]
-            // top place 9 must be preserved
-            #[test]
-            fn top_place_9_preservation_test() {
-                let minuend = &vec![1, 0, 9];
-                let subtrahend = vec![2, 0, 9];
-                let diffcount = subtraction(minuend, &subtrahend, false, &mut 0);
-                assert_eq!(minuend, &*diffcount.0);
-                assert_eq!(&[0], &*diffcount.1);
-            }
-
-            // [1,1,1] - [3,4,7] = [8,6,3]
-            // not user scenario, only internal expectation
-            #[test]
-            fn lesser_minuend_test() {
-                let minuend = &vec![1, 1, 1];
-                let subtrahend = vec![3, 4, 7];
-                let diffcount = subtraction(minuend, &subtrahend, false, &mut 0);
-                assert_eq!(minuend, &*diffcount.0);
-                assert_eq!(&[0], &*diffcount.1);
-            }
-        }
-
-        mod remainder {
-            use crate::{subtraction, Row};
-
-            #[test]
-            fn basic_test() {
-                let remratio = subtraction(&vec![3, 3], &vec![1, 1], true, &mut 0);
-                assert_eq!(&[0], &*remratio.0);
-                assert_eq!(&[3], &*remratio.1);
-            }
-
-            #[test]
-            // minuend must be "copied" to remainder if subtrahend is
-            // exhausted
-            fn minuend_copy_test() {
-                let remratio = subtraction(&vec![7, 7, 7], &vec![1], true, &mut 0);
-                assert_eq!(&[0], &*remratio.0);
-                assert_eq!(&[7, 7, 7], &*remratio.1);
-            }
-
-            #[test]
-            fn remainder_test() {
-                let remratio = subtraction(&vec![9], &vec![7], true, &mut 0);
-                assert_eq!(&[2], &*remratio.0);
-                assert_eq!(&[1], &*remratio.1);
-            }
-
-            #[test]
-            fn takeover_test() {
-                let remratio = subtraction(&vec![9, 0, 9], &vec![9], true, &mut 0);
-                assert_eq!(&[0], &*remratio.0);
-                assert_eq!(&[1, 0, 1], &*remratio.1);
+                let mut mindiff = vec![8, 2, 2, 0, 1];
+                let ratio = subtraction_arithmetical(&mut mindiff, &vec![9, 2, 1, 1]);
+                assert_eq!(&[9, 9, 0, 9], &*mindiff);
+                assert_eq!(&[1], &*ratio);
             }
 
             #[test]
@@ -5463,48 +5399,140 @@ mod tests_of_units {
             // - after `9`s truncation [2,0,0],
             // - after `0`s truncation [2]
             fn overrun_clearing_test() {
-                let remratio = subtraction(&vec![2, 0, 0, 7, 7], &vec![7, 7], true, &mut 0);
-                let remainder = remratio.0;
-                assert_ne!(vec![5, 2, 9, 9, 9], remainder);
-                assert_ne!(vec![2, 0, 9, 9, 9], remainder);
-                assert_ne!(vec![2, 0], remainder);
-                assert_eq!(vec![2], remainder);
-                assert_eq!(&[0, 0, 0, 1], &*remratio.1);
+                let mut mindiff = vec![2, 0, 0, 0, 0];
+                let ratio = subtraction_arithmetical(&mut mindiff, &vec![7, 7, 3]);
+
+                assert_eq!(&[2, 0, 0, 9, 9], &*mindiff);
+                assert_eq!(&[0], &*ratio);
+            }
+
+            #[test]
+            fn zero_truncation_test() {
+                let mut mindiff = vec![9, 9, 9];
+                let ratio = subtraction_arithmetical(&mut mindiff, &vec![8, 9, 9]);
+                assert_eq!(&[1], &*mindiff);
+                assert_eq!(&[1], &*ratio);
+            }
+
+            // because it can be
+            // [1,0,9] - [2,0,9] = [9,9,9]
+            // [9,9,9] + [2,0,9] = [1,0,9]
+            // top place 9 must be preserved
+            #[test]
+            fn top_place_9_preservation_test() {
+                let mindiff = vec![1, 0, 9];
+                let mut proof = mindiff.clone();
+
+                let ratio = subtraction_arithmetical(&mut proof, &vec![2, 0, 9]);
+                assert_eq!(mindiff, proof);
+                assert_eq!(&[0], &*ratio);
+            }
+
+            // [1,1,1] - [3,4,7] = [8,6,3]
+            // [8,6,3] + [3,4,7] = [1,1,1]
+            // not user scenario, only internal expectation
+            #[test]
+            fn lesser_minuend_test() {
+                let mindiff = vec![1, 1, 1];
+                let mut proof = mindiff.clone();
+                let ratio = subtraction_arithmetical(&mut proof, &vec![3, 4, 7]);
+                assert_eq!(mindiff, proof);
+                assert_eq!(&[0], &*ratio);
+            }
+
+            #[test]
+            fn equal_operands_test() {
+                let mut mindiff = vec![1, 1, 1];
+                let subtrahend = mindiff.clone();
+
+                let ratio = subtraction_arithmetical(&mut mindiff, &subtrahend);
+                assert_eq!(&[0], &*mindiff);
+                assert_eq!(&[1], &*ratio);
+            }
+        }
+
+        mod subtraction_divisional {
+            use crate::subtraction_divisional;
+
+            #[test]
+            fn basic_test() {
+                let mut minrem = vec![3, 3];
+                let (ratio, rem_len) = subtraction_divisional(&mut minrem, &vec![1, 1]);
+                assert_eq!(&[0, 0], &*minrem);
+                assert_eq!(&[3], &*ratio);
+                assert_eq!(0, rem_len);
+            }
+
+            #[test]
+            fn remainder_test() {
+                let mut minrem = vec![9];
+                let (ratio, rem_len) = subtraction_divisional(&mut minrem, &vec![7]);
+                assert_eq!(&[2], &*minrem);
+                assert_eq!(&[1], &*ratio);
+                assert_eq!(1, rem_len);
+            }
+
+            #[test]
+            fn takeover_test() {
+                let mut minrem = vec![9, 0, 9];
+                let (ratio, rem_len) = subtraction_divisional(&mut minrem, &vec![9]);
+                assert_eq!(&[0, 9, 9], &*minrem);
+                assert_eq!(&[1, 0, 1], &*ratio);
+                assert_eq!(0, rem_len);
+            }
+
+            #[test]
+            // after invalid subtraction on remainder, places hold numbers resulting
+            // from borrowing and subtracting
+            // e.g. [2,0,0,7,7]-[7,7]=[5,2,9,9,9]:
+            // - after remainder restoration [2,0,9,9,9],
+            // - after `9`s truncation [2,0],
+            // - after `0`s truncation [2]
+            fn overrun_clearing_test() {
+                let mut minrem = vec![2, 0, 0, 7, 7];
+                let (ratio, rem_len) = subtraction_divisional(&mut minrem, &vec![7, 7]);
+
+                assert_eq!(&[2, 0, 9, 9, 9], &*minrem);
+                assert_eq!(&[0, 0, 0, 1], &*ratio);
+                assert_eq!(1, rem_len);
             }
 
             #[test]
             fn advanced_test() {
-                let minuend = Row::new_from_usize(627710173);
-                let remainder = Row::new_from_usize(130);
-                let ratio = Row::new_from_usize(1955483);
+                let mut minrem = new_from_num_raw!(627710173);
+                let remainder = new_from_num_raw!(999999_130);
+                let ratio = new_from_num_raw!(1955483);
 
-                let remratio = subtraction(&minuend.row, &vec![1, 2, 3], true, &mut 0);
-                assert_eq!(&*remainder, &*remratio.0);
-                assert_eq!(&*ratio, &*remratio.1);
+                let (rat, rem_len) = subtraction_divisional(&mut minrem, &vec![1, 2, 3]);
+                assert_eq!(remainder, minrem);
+                assert_eq!(ratio, rat);
+                assert_eq!(3, rem_len);
             }
 
             #[test]
             fn advanced_test2() {
-                let minuend = Row::new_from_usize(627710173);
-                let subtrahend = Row::new_from_usize(3552741);
-                let remainder = Row::new_from_usize(2427757);
-                let ratio = Row::new_from_usize(176);
+                let mut minrem = new_from_num_raw!(627710173);
+                let subtrahend = new_from_num_raw!(3552741);
+                let remainder = new_from_num_raw!(99__2_427_757);
+                let ratio = new_from_num_raw!(176);
 
-                let remratio = subtraction(&minuend.row, &subtrahend.row, true, &mut 0);
-                assert_eq!(&*remainder, &*remratio.0);
-                assert_eq!(&*ratio, &*remratio.1);
+                let (rat, rem_len) = subtraction_divisional(&mut minrem, &subtrahend);
+                assert_eq!(remainder, minrem);
+                assert_eq!(ratio, rat);
+                assert_eq!(7, rem_len);
             }
 
             #[test]
             fn advanced_test3() {
-                let minuend = Row::new_from_usize(242775712);
-                let subtrahend = Row::new_from_usize(33333);
-                let remainder = Row::new_from_usize(11473);
-                let ratio = Row::new_from_usize(7283);
+                let mut minrem = new_from_num_raw!(242775712);
+                let subtrahend = new_from_num_raw!(33333);
+                let remainder = new_from_num_raw!(9999__11_473);
+                let ratio = new_from_num_raw!(7283);
 
-                let remratio = subtraction(&minuend.row, &subtrahend.row, true, &mut 0);
-                assert_eq!(&*remainder, &*remratio.0);
-                assert_eq!(&*ratio, &*remratio.1);
+                let (rat, rem_len) = subtraction_divisional(&mut minrem, &subtrahend);
+                assert_eq!(remainder, minrem);
+                assert_eq!(ratio, rat);
+                assert_eq!(5, rem_len);
             }
 
             // because it can be
@@ -5514,41 +5542,89 @@ mod tests_of_units {
             // 5411 = 5 ·902 +901
             #[test]
             fn top_place_9_preservation_test() {
-                let minuend = vec![1, 1, 4, 5];
+                let mut minrem = vec![1, 1, 4, 5];
                 let subtrahend = vec![2, 0, 9];
-                let remratio = subtraction(&minuend, &subtrahend, true, &mut 0);
-                assert_eq!(&[1, 0, 9], &*remratio.0);
-                assert_eq!(&[5], &*remratio.1);
+                let (ratio, rem_len) = subtraction_divisional(&mut minrem, &subtrahend);
+                assert_eq!(&[1, 0, 9, 9], &*minrem);
+                assert_eq!(&[5], &*ratio);
+                assert_eq!(3, rem_len);
             }
 
             // [1,1,1] - [3,4,7] = [8,6,3]
+            // [8,6,3] + [3,4,7] = [1,1,1]
             // implied by means of overrun correction
             #[test]
             fn lesser_dividend_test() {
-                let dividend = &vec![1, 1, 1];
-                let divisor = vec![3, 4, 7];
-                let remratio = subtraction(dividend, &divisor, true, &mut 0);
-                assert_eq!(dividend, &*remratio.0);
-                assert_eq!(&[0], &*remratio.1);
+                let mut minrem = vec![1, 1, 1];
+                let proof = minrem.clone();
+                let (ratio, rem_len) = subtraction_divisional(&mut minrem, &vec![3, 4, 7]);
+                assert_eq!(proof, minrem);
+                assert_eq!(&[0], &*ratio);
+                assert_eq!(3, rem_len);
             }
 
             // implied by means of overrun correction
             #[test]
             fn equal_operands_test() {
-                let num = &vec![1, 1, 1];
-                let remratio = subtraction(num, num, true, &mut 0);
-                assert_eq!(&[0], &*remratio.0);
-                assert_eq!(&[1], &*remratio.1);
+                let mut minrem = vec![1, 1, 1];
+                let subtrahend = vec![1, 1, 1];
+
+                let (ratio, rem_len) = subtraction_divisional(&mut minrem, &subtrahend);
+                assert_eq!(&[0, 0, 0], &*minrem);
+                assert_eq!(&[1], &*ratio);
+                assert_eq!(0, rem_len);
             }
 
             #[test]
             #[cfg(feature = "shorter-dividend-support")]
             fn shorter_dividend_test() {
-                let dividend = &vec![1, 1, 1];
-                let divisor = vec![0, 4, 6, 8, 9, 3, 4, 7];
-                let remratio = subtraction(dividend, &divisor, true, &mut 0);
-                assert_eq!(dividend, &*remratio.0);
-                assert_eq!(&[0], &*remratio.1);
+                let mut minrem = vec![1, 1, 1];
+                let subtrahend = vec![0, 4, 6, 8, 9, 3, 4, 7];
+                let proof = minrem.clone();
+
+                let (ratio, rem_len) = subtraction_divisional(&mut minrem, &subtrahend);
+                assert_eq!(proof, minrem);
+                assert_eq!(&[0], &*ratio);
+                assert_eq!(1, rem_len);
+            }
+        }
+
+        mod subtraction_dynamo {
+
+            use crate::subtraction_dynamo;
+
+            #[test]
+            // after invalid subtraction on remainder, places hold numbers resulting
+            // from borrowing and subtracting
+            // e.g. [2,0,0,7,7]-[7,7]=[5,2,9,9,9]:
+            // - after remainder restoration [2,0,9,9,9],
+            // - after `9`s truncation [2,0],
+            // - after `0`s truncation [2]
+            fn overrun_test_1() {
+                let mut ctr = 0;
+                let mut minrem = vec![2, 0, 0, 7, 7];
+                let ratio = subtraction_dynamo(&mut minrem, &vec![7, 7], true, &mut ctr);
+
+                assert_eq!(&[2, 0, 9, 9, 9], &*minrem);
+                assert_eq!(&[0, 0, 0, 1], &*ratio);
+                assert_eq!(1001, ctr);
+            }
+
+            #[test]
+            // after invalid subtraction on remainder, places hold numbers resulting
+            // from borrowing and subtracting
+            // e.g. [2,0,0,0,0]-[7,7,3]=[5,2,6,9,9]:
+            // - after remainder restoration [2,0,0,9,9],
+            // - after `9`s truncation [2,0,0],
+            // - after `0`s truncation [2]
+            fn overrun_test_2() {
+                let mut ctr = 0;
+                let mut minrem = vec![2, 0, 0, 0, 0];
+                let ratio = subtraction_dynamo(&mut minrem, &vec![7, 7, 3], false, &mut ctr);
+
+                assert_eq!(&[2, 0, 0, 9, 9], &*minrem);
+                assert_eq!(&[0], &*ratio);
+                assert_eq!(1, ctr);
             }
         }
     }

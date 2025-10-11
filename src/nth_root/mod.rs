@@ -12,13 +12,9 @@
 use std::cmp::max;
 
 use crate::{
-    addition_sum, addition_two, divrem_accelerated, is_nought_raw, is_unity_raw, mul_dynamo,
-    mul_raw, nought_raw, pow_raw, rel_raw, subtraction_decremental, unity_raw, PlacesRow, RawRow,
-    Rel, Row,
+    addition_sum, addition_two, divrem_dynamo, is_nought_raw, is_unity_raw, mul_dynamo, mul_raw,
+    nought_raw, pow_raw, rel_raw, subtraction_arithmetical, unity_raw, PlacesRow, RawRow, Rel, Row,
 };
-
-#[cfg(test)]
-use crate::tests_of_units::divrem_accelerated::TestGauges;
 
 #[cfg(test)]
 use tests_of_units::next::test_aides::NextTestOuts;
@@ -236,13 +232,7 @@ fn next(
     };
 
     // r' =(Bⁿr +α) -((By +β)ⁿ -Bⁿyⁿ)
-    _ = subtraction_decremental(
-        &mut lim,
-        &max,
-        false,
-        #[cfg(test)]
-        &mut 0,
-    );
+    _ = subtraction_arithmetical(&mut lim, &max);
 
     return (rax, lim);
 
@@ -269,11 +259,11 @@ fn guess(
         }
 
         // (Bⁿr +α) ÷(nBⁿ⁻¹ ·yⁿ⁻¹)
-        let g = divrem_accelerated(
+        let g = divrem_dynamo(
             lim,
             &div,
             #[cfg(test)]
-            &mut TestGauges::blank(),
+            &mut 0,
         )
         .1;
 
@@ -326,13 +316,7 @@ fn incr<'a>(
         let mut omax = pow_raw(&orax, degree, false);
 
         // (By +β)ⁿ -Bⁿyⁿ
-        _ = subtraction_decremental(
-            &mut omax,
-            sub,
-            false,
-            #[cfg(test)]
-            &mut 0,
-        );
+        _ = subtraction_arithmetical(&mut omax, sub);
 
         // (By +β)ⁿ -Bⁿyⁿ ≤ Bⁿr +α
         let rel = rel_raw(&omax, lim);
@@ -345,13 +329,7 @@ fn incr<'a>(
                 };
             }
 
-            _ = subtraction_decremental(
-                &mut orax,
-                unity,
-                false,
-                #[cfg(test)]
-                &mut 0,
-            );
+            _ = subtraction_arithmetical(&mut orax, unity);
 
             return IncRes::Attainment((orax, max));
         }
@@ -374,25 +352,13 @@ fn decr(orax: &mut RawRow, unity: &RawRow, degree: u16, sub: &RawRow, lim: &RawR
     // seeking largest beta that
     // (By +β)ⁿ -Bⁿyⁿ ≤ Bⁿr +α
     loop {
-        _ = subtraction_decremental(
-            orax,
-            unity,
-            false,
-            #[cfg(test)]
-            &mut 0,
-        );
+        _ = subtraction_arithmetical(orax, unity);
 
         // (By +β)ⁿ
         let mut omax = pow_raw(&orax, degree, false);
 
         // (By +β)ⁿ -Bⁿyⁿ
-        _ = subtraction_decremental(
-            &mut omax,
-            sub,
-            false,
-            #[cfg(test)]
-            &mut 0,
-        );
+        _ = subtraction_arithmetical(&mut omax, sub);
 
         // (By +β)ⁿ -Bⁿyⁿ ≤ Bⁿr +α
         if let Rel::Greater(_) = rel_raw(&omax, lim) {

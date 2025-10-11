@@ -1,5 +1,15 @@
-noticeable
-    - check once again whether division is "im"possible (avoid substracting)
+- validate divrem usage, check with divrem decremental usage
+- rewrite divrem tests
+- rename:
+    - mul_dynamo -> multiplication
+    - pow_dynamo -> power
+    - divrem -> division_with_remainder
+    - divrem_dynamo -> -> division_with_remainder_dynamo
+- move divrems to second group
+- consider adding shrink to add and divrem    
+
+
+IMPROVEMENTS    
 
 tough
     - array of usizes: reduces memory footprint twice per byte (1001=9, 1001 1001 = 9 9), implies direct binary operation to preserve adequate performance
