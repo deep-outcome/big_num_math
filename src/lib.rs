@@ -767,11 +767,11 @@ pub fn divrem(dividend: &PlacesRow, divisor: &PlacesRow) -> Option<(PlacesRow, P
         None => {}
     }
 
-    let remratio = divrem_accelerated(
+    let remratio = divrem_dynamo(
         &dividend,
         &divisor,
         #[cfg(test)]
-        &mut TestGauges::blank(),
+        &mut vec![],
     );
 
     Some((Row { row: remratio.1 }, Row { row: remratio.0 }))
@@ -802,193 +802,167 @@ fn divrem_shortcut(dividend: &RawRow, divisor: &RawRow) -> Option<Option<(Row, R
 }
 
 #[cfg(test)]
-use tests_of_units::divrem_accelerated::{DivRemEscCode, TestGauges};
+use tests_of_units::divrem_dynamo::DivRemGrade;
 
-fn divrem_accelerated(
+fn divrem_dynamo(
     dividend: &[u8],
     divisor: &[u8],
-    #[cfg(test)] tg: &mut TestGauges,
+    #[cfg(test)] codes: &mut Vec<DivRemGrade>,
 ) -> (RawRow, RawRow) {
     let dividend = dividend.to_vec();
-    divrem_accelerated_decremental(
+    divrem_dynamo_decremental(
         dividend,
         divisor,
         #[cfg(test)]
-        tg,
+        codes,
     )
 }
 
-// in order to avoid highly excessive looping, divrem computation can be speed up
-// by simple substracting divisor 10 products first
-fn divrem_accelerated_decremental(
+fn divrem_dynamo_decremental(
     mut end: Vec<u8>,
     sor: &[u8],
-    #[cfg(test)] tg: &mut TestGauges,
+    #[cfg(test)] codes: &mut Vec<DivRemGrade>,
 ) -> (RawRow, RawRow) {
-    let sor_len = sor.len();
     let mut end_len = end.len();
+    let sor_len = sor.len();
 
-    let mut ratio = vec![0];
+    #[cfg(test)]
+    assert_eq!(false, is_nought_raw(sor));
 
     if end_len < sor_len {
         #[cfg(test)]
-        {
-            tg.esc = DivRemEscCode::Pli
-        }
-        return (end, ratio);
+        codes.push(DivRemGrade::DLBPI);
+        return (end, nought_raw());
     }
 
-    if end_len > sor_len {
-        // widen divisor
-        let mut wsor = vec![0; end_len];
-        // e.g. 15 000 ÷ 15
-        // 5 -2 +1 = 4
-        // mpler = [0,0,0,1], one at 4ᵗʰ place
-        let mut mpler = vec![0; end_len - sor_len + 1];
+    let mut ratio = Vec::with_capacity(50);
+    let mut start_ix = dividend_start(&end, sor);
 
-        // highest index
-        let sor_hg_ix = sor_len - 1;
-        let mut wr_ix = end_len - 1;
+    'div: loop {
+        let (rat, rem_len) = subtraction_divisional(&mut end[start_ix..end_len], sor);
 
-        'w: loop {
-            let mut l_ix = wr_ix;
-            let mut r_ix = sor_hg_ix;
-
-            'ck: loop {
-                let end_num = end[l_ix];
-                let sor_num = sor[r_ix];
-
-                // check whether divisor can be broaded up to
-                // end highest place
-                if end_num < sor_num {
-                    // same as end_len == sor_len +1
-                    if wr_ix == sor_len {
-                        // rest of loop would run in vain otherwise
-                        // also could have reentrancy consequence
-
-                        #[cfg(test)]
-                        {
-                            tg.esc = DivRemEscCode::Cbu
-                        }
-
-                        break 'w;
-                    } else {
-                        wr_ix -= 1;
-                        break 'ck;
-                    }
-                }
-
-                if end_num > sor_num {
-                    break 'ck;
-                }
-
-                if r_ix == 0 {
-                    break 'ck;
-                }
-
-                l_ix -= 1;
-                r_ix -= 1;
-            }
-
-            #[cfg(test)]
-            {
-                tg.w_ctr += 1;
-
-                // sor is always widen upto highest or second highestmost place
-                assert!(end_len == wr_ix + 1 || end_len == wr_ix + 2)
-            }
-
-            let wsor_len = wr_ix + 1;
-            // shortening wdsor removes leading numbers
-            // which could influence computation in arithmetic
-            // (significants) or execution (zeros) means
-            unsafe { wsor.set_len(wsor_len) };
-
-            let mut sor_ix = sor_hg_ix;
-            'cp: loop {
-                wsor[wr_ix] = sor[sor_ix];
-
-                if sor_ix == 0 {
-                    break 'cp;
-                }
-
-                sor_ix -= 1;
-                wr_ix -= 1;
-            }
-
-            let mut rat = subtraction_decremental(
-                &mut end,
-                &wsor,
-                true,
-                #[cfg(test)]
-                &mut tg.ctr,
-            );
-
-            // e.g. 15 000 ÷ 25 ⇒ 2 500
-            // 4 -2 = 2 ⇒ [0,0,1], one at index 2
-            let mpler_wr_ix = wsor_len - sor_len;
-
-            #[cfg(test)]
-            {
-                // unbroadable vain run safecheck
-                assert_eq!(true, mpler_wr_ix > 0);
-            }
-
-            // previous "extensions" are stripped simply
-            // by length shrinking
-            unsafe { mpler.set_len(mpler_wr_ix + 1) };
-            mpler[mpler_wr_ix] = 1;
-
-            rat = mul_dynamo(&mpler, &rat);
-            addition_sum(&rat, &mut ratio, 0);
-
-            end_len = end.len();
-            wr_ix = end_len - 1;
-
-            if end_len < sor_len {
-                #[cfg(test)]
-                {
-                    tg.esc = DivRemEscCode::Pll;
-                }
-                return (end, ratio);
-            } else if end_len == sor_len {
-                if end[wr_ix] < sor[wr_ix] {
-                    #[cfg(test)]
-                    {
-                        tg.esc = DivRemEscCode::Lop;
-                    }
-                    return (end, ratio);
-                }
-
-                break 'w;
-            }
-        }
-    }
-
-    // if end is already rem this "runs in vain"
-    let rat = subtraction_decremental(
-        &mut end,
-        &sor,
-        true,
         #[cfg(test)]
-        &mut tg.ctr,
-    );
+        assert_eq!(true, rat.len() == 1);
 
-    let rat = if is_nought_raw(&ratio) {
-        rat
-    } else {
-        addition_sum(&rat, &mut ratio, 0);
-        ratio
-    };
+        ratio.insert(0, rat[0]);
+
+        end_len = start_ix + rem_len;
+
+        if rem_len == 0 && end_len > 0 {
+            // place index
+            let mut pix = end_len;
+
+            while pix > 0 {
+                pix -= 1;
+                if end[pix] != 0 {
+                    pix += 1;
+                    break;
+                }
+            }
+
+            let places = end_len - pix;
+            if places > 0 {
+                add_places(&mut ratio, places);
+                end_len -= places;
+            }
+
+            #[cfg(test)]
+            {
+                let c = if end_len == 0 {
+                    DivRemGrade::DFVD
+                } else if places > 0 {
+                    DivRemGrade::DPVD
+                } else {
+                    DivRemGrade::DNVD
+                };
+
+                codes.push(c);
+            }
+        }
+
+        if end_len == 0 {
+            #[cfg(test)]
+            codes.push(DivRemGrade::DEXH);
+
+            break 'div;
+        }
+
+        let undivided_places = end_len - rem_len;
+        if end_len < sor_len {
+            if start_ix > 0 {
+                #[cfg(test)]
+                codes.push(DivRemGrade::RVD);
+
+                add_places(&mut ratio, undivided_places);
+            }
+
+            #[cfg(test)]
+            codes.push(DivRemGrade::DLBP);
+            break 'div;
+        }
+
+        if start_ix == 0 {
+            #[cfg(test)]
+            codes.push(DivRemGrade::DLBV);
+
+            break 'div;
+        }
+
+        start_ix = dividend_start(&end[..end_len], sor);
+        let places = undivided_places - start_ix - 1;
+
+        if places > 0 {
+            #[cfg(test)]
+            codes.push(DivRemGrade::DEC);
+
+            add_places(&mut ratio, places);
+        }
+    }
 
     #[cfg(test)]
-    {
-        if tg.esc != DivRemEscCode::Cbu {
-            tg.esc = DivRemEscCode::Dcf;
+    assert_eq!(true, (end_len == 0 && end[0] == 0) || end_len > 0);
+
+    end.truncate(max(end_len, 1));
+
+    return (end, ratio);
+
+    fn add_places(ratio: &mut RawRow, mut p: usize) {
+        while p > 0 {
+            p -= 1;
+            ratio.insert(0, 0);
+        }
+    }
+}
+
+const fn dividend_start(end: &[u8], sor: &[u8]) -> usize {
+    #[cfg(test)]
+    assert_eq!(true, end.len() >= sor.len(), "Dividend has less places.");
+
+    let mut end_ix = end.len();
+    let mut sor_ix = sor.len();
+
+    let mut start_ix = end_ix - sor_ix;
+
+    if start_ix > 0 {
+        while sor_ix > 0 {
+            end_ix -= 1;
+            sor_ix -= 1;
+
+            let end_num = end[end_ix];
+            let sor_num = sor[sor_ix];
+
+            if end_num > sor_num {
+                break;
+            }
+
+            if end_num < sor_num {
+                start_ix -= 1;
+                break;
+            }
         }
     }
 
-    (end, rat)
+    start_ix
 }
 
 #[cfg(test)]
@@ -1041,11 +1015,11 @@ pub fn prime_ck(
             ix += 1;
         }
 
-        let rem = divrem_accelerated(
+        let rem = divrem_dynamo(
             &sum,
             &vec![3],
             #[cfg(test)]
-            &mut TestGauges::blank(),
+            &mut vec![],
         )
         .0;
 
@@ -1550,11 +1524,11 @@ pub fn prime_ck(
             continue;
         }
 
-        let rem = divrem_accelerated(
+        let rem = divrem_dynamo(
             row,
             &probe,
             #[cfg(test)]
-            &mut TestGauges::blank(),
+            &mut vec![],
         )
         .0;
 
@@ -1930,29 +1904,29 @@ fn heron_sqrt_raw(row: &[u8]) -> RawRow {
     }
 
     let two = &vec![2];
-    let mut cur = divrem_accelerated(
+    let mut cur = divrem_dynamo(
         row,
         two,
         #[cfg(test)]
-        &mut TestGauges::blank(),
+        &mut vec![],
     )
     .1;
 
     loop {
-        let mut rat = divrem_accelerated(
+        let mut rat = divrem_dynamo(
             &row,
             &cur,
             #[cfg(test)]
-            &mut TestGauges::blank(),
+            &mut vec![],
         )
         .1;
 
         addition_sum(&cur, &mut rat, 0);
-        let nex = divrem_accelerated(
+        let nex = divrem_dynamo(
             &rat,
             &two,
             #[cfg(test)]
-            &mut TestGauges::blank(),
+            &mut vec![],
         )
         .1;
 
@@ -2206,8 +2180,9 @@ fn subtraction_dynamo(
     let minuend_len = minuend.len();
     let subtrahend_len = subtrahend.len();
 
-    let mut ratio = 0;
-    let one = vec![1; 1];
+    let mut ratio = nought_raw();
+    let unity = unity_raw();
+
     let mut takeover;
     let mut inx;
     loop {
@@ -2257,7 +2232,7 @@ fn subtraction_dynamo(
             break;
         }
 
-        ratio += 1;
+        addition_sum(&unity, &mut ratio, 0);
 
         if remainder {
             continue;
@@ -2266,7 +2241,7 @@ fn subtraction_dynamo(
         break;
     }
 
-    new_from_num_raw!(ratio)
+    ratio
 }
 
 /// Supports algorithimical decimal row computations.

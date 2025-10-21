@@ -263,7 +263,7 @@ fn guess(
             lim,
             &div,
             #[cfg(test)]
-            &mut 0,
+            &mut vec![],
         )
         .1;
 
