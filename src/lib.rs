@@ -802,174 +802,6 @@ fn divrem_shortcut(dividend: &RawRow, divisor: &RawRow) -> Option<Option<(Row, R
 }
 
 #[cfg(test)]
-use tests_of_units::division::DivRemGrade;
-
-fn division(
-    dividend: &[u8],
-    divisor: &[u8],
-    #[cfg(test)] codes: &mut Vec<DivRemGrade>,
-) -> (RawRow, RawRow) {
-    let dividend = dividend.to_vec();
-    division_dynamo(
-        dividend,
-        divisor,
-        #[cfg(test)]
-        codes,
-    )
-}
-
-fn division_dynamo(
-    mut end: Vec<u8>,
-    sor: &[u8],
-    #[cfg(test)] codes: &mut Vec<DivRemGrade>,
-) -> (RawRow, RawRow) {
-    let mut end_len = end.len();
-    let sor_len = sor.len();
-
-    #[cfg(test)]
-    assert_eq!(false, is_nought_raw(sor));
-
-    if end_len < sor_len {
-        #[cfg(test)]
-        codes.push(DivRemGrade::DLBPI);
-        return (end, nought_raw());
-    }
-
-    let mut ratio = Vec::with_capacity(50);
-    let mut start_ix = dividend_start(&end, sor);
-
-    'div: loop {
-        let (rat, rem_len) = subtraction_divisional(&mut end[start_ix..end_len], sor);
-
-        #[cfg(test)]
-        assert_eq!(true, rat.len() == 1);
-
-        ratio.insert(0, rat[0]);
-
-        end_len = start_ix + rem_len;
-
-        // devnote: would perfectly work also without
-        // this microoptimalization
-        if rem_len == 0 && end_len > 0 {
-            // place index
-            let mut pix = end_len;
-
-            while pix > 0 {
-                pix -= 1;
-                if end[pix] != 0 {
-                    pix += 1;
-                    break;
-                }
-            }
-
-            let places = end_len - pix;
-            if places > 0 {
-                add_places(&mut ratio, places);
-                end_len -= places;
-            }
-
-            #[cfg(test)]
-            {
-                let c = if end_len == 0 {
-                    DivRemGrade::DFVD
-                } else if places > 0 {
-                    DivRemGrade::DPVD
-                } else {
-                    DivRemGrade::NDVD
-                };
-
-                codes.push(c);
-            }
-        }
-
-        if end_len == 0 {
-            #[cfg(test)]
-            codes.push(DivRemGrade::DEXH);
-
-            break 'div;
-        }
-
-        let undivided_places = end_len - rem_len;
-        if end_len < sor_len {
-            if start_ix > 0 {
-                #[cfg(test)]
-                codes.push(DivRemGrade::RVD);
-
-                add_places(&mut ratio, undivided_places);
-            }
-
-            #[cfg(test)]
-            codes.push(DivRemGrade::DLBP);
-            break 'div;
-        }
-
-        if start_ix == 0 {
-            #[cfg(test)]
-            codes.push(DivRemGrade::DLBV);
-
-            break 'div;
-        }
-
-        start_ix = dividend_start(&end[..end_len], sor);
-        let places = undivided_places - start_ix - 1;
-
-        if places > 0 {
-            #[cfg(test)]
-            codes.push(DivRemGrade::DEVD);
-
-            add_places(&mut ratio, places);
-        }
-    }
-
-    #[cfg(test)]
-    assert_eq!(true, (end_len == 0 && end[0] == 0) || end_len > 0);
-
-    end.truncate(max(end_len, 1));
-
-    return (end, ratio);
-
-    fn add_places(ratio: &mut RawRow, mut p: usize) {
-        while p > 0 {
-            p -= 1;
-            ratio.insert(0, 0);
-        }
-    }
-}
-
-// devnote: seemingly can be leveraged for examination of dividend and divisor equality
-// and also has potential to determine remainder; involving extra complexity
-fn dividend_start(end: &[u8], sor: &[u8]) -> usize {
-    #[cfg(test)]
-    assert_eq!(true, end.len() >= sor.len(), "Dividend has less places.");
-
-    let mut end_ix = end.len();
-    let mut sor_ix = sor.len();
-
-    let mut start_ix = end_ix - sor_ix;
-
-    if start_ix > 0 {
-        while sor_ix > 0 {
-            end_ix -= 1;
-            sor_ix -= 1;
-
-            let end_num = end[end_ix];
-            let sor_num = sor[sor_ix];
-
-            if end_num > sor_num {
-                break;
-            }
-
-            if end_num < sor_num {
-                start_ix -= 1;
-                break;
-            }
-        }
-    }
-
-    start_ix
-}
-
-#[cfg(test)]
 use tests_of_units::prime_ck::{PrimeCkEscCode, PrimeCkTestGauges};
 
 /// Examines `num` primality.
@@ -1942,6 +1774,174 @@ fn heron_sqrt_raw(row: &[u8]) -> RawRow {
     }
 
     cur
+}
+
+#[cfg(test)]
+use tests_of_units::division::DivRemGrade;
+
+fn division(
+    dividend: &[u8],
+    divisor: &[u8],
+    #[cfg(test)] codes: &mut Vec<DivRemGrade>,
+) -> (RawRow, RawRow) {
+    let dividend = dividend.to_vec();
+    division_dynamo(
+        dividend,
+        divisor,
+        #[cfg(test)]
+        codes,
+    )
+}
+
+fn division_dynamo(
+    mut end: Vec<u8>,
+    sor: &[u8],
+    #[cfg(test)] codes: &mut Vec<DivRemGrade>,
+) -> (RawRow, RawRow) {
+    let mut end_len = end.len();
+    let sor_len = sor.len();
+
+    #[cfg(test)]
+    assert_eq!(false, is_nought_raw(sor));
+
+    if end_len < sor_len {
+        #[cfg(test)]
+        codes.push(DivRemGrade::DLBPI);
+        return (end, nought_raw());
+    }
+
+    let mut ratio = Vec::with_capacity(50);
+    let mut start_ix = dividend_start(&end, sor);
+
+    'div: loop {
+        let (rat, rem_len) = subtraction_divisional(&mut end[start_ix..end_len], sor);
+
+        #[cfg(test)]
+        assert_eq!(true, rat.len() == 1);
+
+        ratio.insert(0, rat[0]);
+
+        end_len = start_ix + rem_len;
+
+        // devnote: would perfectly work also without
+        // this microoptimalization
+        if rem_len == 0 && end_len > 0 {
+            // place index
+            let mut pix = end_len;
+
+            while pix > 0 {
+                pix -= 1;
+                if end[pix] != 0 {
+                    pix += 1;
+                    break;
+                }
+            }
+
+            let places = end_len - pix;
+            if places > 0 {
+                add_places(&mut ratio, places);
+                end_len -= places;
+            }
+
+            #[cfg(test)]
+            {
+                let c = if end_len == 0 {
+                    DivRemGrade::DFVD
+                } else if places > 0 {
+                    DivRemGrade::DPVD
+                } else {
+                    DivRemGrade::NDVD
+                };
+
+                codes.push(c);
+            }
+        }
+
+        if end_len == 0 {
+            #[cfg(test)]
+            codes.push(DivRemGrade::DEXH);
+
+            break 'div;
+        }
+
+        let undivided_places = end_len - rem_len;
+        if end_len < sor_len {
+            if start_ix > 0 {
+                #[cfg(test)]
+                codes.push(DivRemGrade::RVD);
+
+                add_places(&mut ratio, undivided_places);
+            }
+
+            #[cfg(test)]
+            codes.push(DivRemGrade::DLBP);
+            break 'div;
+        }
+
+        if start_ix == 0 {
+            #[cfg(test)]
+            codes.push(DivRemGrade::DLBV);
+
+            break 'div;
+        }
+
+        start_ix = dividend_start(&end[..end_len], sor);
+        let places = undivided_places - start_ix - 1;
+
+        if places > 0 {
+            #[cfg(test)]
+            codes.push(DivRemGrade::DEVD);
+
+            add_places(&mut ratio, places);
+        }
+    }
+
+    #[cfg(test)]
+    assert_eq!(true, (end_len == 0 && end[0] == 0) || end_len > 0);
+
+    end.truncate(max(end_len, 1));
+
+    return (end, ratio);
+
+    fn add_places(ratio: &mut RawRow, mut p: usize) {
+        while p > 0 {
+            p -= 1;
+            ratio.insert(0, 0);
+        }
+    }
+}
+
+// devnote: seemingly can be leveraged for examination of dividend and divisor equality
+// and also has potential to determine remainder; involving extra complexity
+fn dividend_start(end: &[u8], sor: &[u8]) -> usize {
+    #[cfg(test)]
+    assert_eq!(true, end.len() >= sor.len(), "Dividend has less places.");
+
+    let mut end_ix = end.len();
+    let mut sor_ix = sor.len();
+
+    let mut start_ix = end_ix - sor_ix;
+
+    if start_ix > 0 {
+        while sor_ix > 0 {
+            end_ix -= 1;
+            sor_ix -= 1;
+
+            let end_num = end[end_ix];
+            let sor_num = sor[sor_ix];
+
+            if end_num > sor_num {
+                break;
+            }
+
+            if end_num < sor_num {
+                start_ix -= 1;
+                break;
+            }
+        }
+    }
+
+    start_ix
 }
 
 const MUL_DYNAMO_CAP: usize = 1000;

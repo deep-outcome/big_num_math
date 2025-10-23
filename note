@@ -2,12 +2,6 @@
 - validate no division by zero
 - validate division by greater dividend
 - new_from_str_row
-- rename:
-    - mul_dynamo -> multiplication
-    - pow_dynamo -> power
-    - divrem -> division_with_remainder
-    - divrem_dynamo -> -> division_with_remainder_dynamo
-- move divrems to second group
 - consider adding shrink to add and divrem    
 
 
