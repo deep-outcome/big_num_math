@@ -12,7 +12,7 @@
 use std::cmp::max;
 
 use crate::{
-    addition_sum, addition_two, divrem_dynamo, is_nought_raw, is_unity_raw, mul_dynamo, mul_raw,
+    addition_sum, addition_two, division, is_nought_raw, is_unity_raw, mul_raw, multiplication,
     nought_raw, pow_raw, rel_raw, subtraction_arithmetical, unity_raw, PlacesRow, RawRow, Rel, Row,
 };
 
@@ -58,11 +58,11 @@ pub fn root(
     // decadic base powered by degree
     // base degree power
     // Bⁿ
-    let bdp = mul_dynamo(base, bdpl);
+    let bdp = multiplication(base, bdpl);
 
     // degree base degree less power
     // nBⁿ⁻¹
-    let dbdlp = mul_dynamo(&new_from_num_raw!(nth), bdpl);
+    let dbdlp = multiplication(&new_from_num_raw!(nth), bdpl);
 
     #[cfg(test)]
     {
@@ -159,7 +159,7 @@ fn next(
     let rax_pow_less = pow_raw(&rax, degree_less, false);
 
     // Bⁿyⁿ, subtrahend
-    let sub = mul_raw(bdp, mul_dynamo(&rax_pow_less, &rax).as_slice(), false);
+    let sub = mul_raw(bdp, multiplication(&rax_pow_less, &rax).as_slice(), false);
 
     let wrax_cap = rax.len() + 1;
     let mut wrax = Vec::new();
@@ -251,7 +251,7 @@ fn guess(
 ) -> Option<RawRow> {
     if !is_nought_raw(rax_pow_less.as_slice()) {
         // nBⁿ⁻¹ ·yⁿ⁻¹
-        let div = mul_dynamo(dbdlp, rax_pow_less);
+        let div = multiplication(dbdlp, rax_pow_less);
 
         #[cfg(test)]
         {
@@ -259,7 +259,7 @@ fn guess(
         }
 
         // (Bⁿr +α) ÷(nBⁿ⁻¹ ·yⁿ⁻¹)
-        let g = divrem_dynamo(
+        let g = division(
             lim,
             &div,
             #[cfg(test)]

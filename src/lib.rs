@@ -687,7 +687,7 @@ fn mul_raw(factor1: &[u8], factor2: &[u8], shrink: bool) -> RawRow {
     if let Some(row) = mul_shortcut(factor1, factor2) {
         row
     } else {
-        let mut row = mul_dynamo(factor1, factor2);
+        let mut row = multiplication(factor1, factor2);
 
         if shrink {
             row.shrink_to_fit();
@@ -729,7 +729,7 @@ fn pow_raw(base: &RawRow, pow: u16, shrink: bool) -> RawRow {
         return pow;
     }
 
-    let mut pow = pow_dynamo(base, pow);
+    let mut pow = power(base, pow);
     if shrink {
         pow.shrink_to_fit();
     }
@@ -767,7 +767,7 @@ pub fn divrem(dividend: &PlacesRow, divisor: &PlacesRow) -> Option<(PlacesRow, P
         None => {}
     }
 
-    let remratio = divrem_dynamo(
+    let remratio = division(
         &dividend,
         &divisor,
         #[cfg(test)]
@@ -802,15 +802,15 @@ fn divrem_shortcut(dividend: &RawRow, divisor: &RawRow) -> Option<Option<(Row, R
 }
 
 #[cfg(test)]
-use tests_of_units::divrem_dynamo::DivRemGrade;
+use tests_of_units::division::DivRemGrade;
 
-fn divrem_dynamo(
+fn division(
     dividend: &[u8],
     divisor: &[u8],
     #[cfg(test)] codes: &mut Vec<DivRemGrade>,
 ) -> (RawRow, RawRow) {
     let dividend = dividend.to_vec();
-    divrem_dynamo_decremental(
+    division_dynamo(
         dividend,
         divisor,
         #[cfg(test)]
@@ -818,7 +818,7 @@ fn divrem_dynamo(
     )
 }
 
-fn divrem_dynamo_decremental(
+fn division_dynamo(
     mut end: Vec<u8>,
     sor: &[u8],
     #[cfg(test)] codes: &mut Vec<DivRemGrade>,
@@ -1019,7 +1019,7 @@ pub fn prime_ck(
             ix += 1;
         }
 
-        let rem = divrem_dynamo(
+        let rem = division(
             &sum,
             &vec![3],
             #[cfg(test)]
@@ -1528,7 +1528,7 @@ pub fn prime_ck(
             continue;
         }
 
-        let rem = divrem_dynamo(
+        let rem = division(
             row,
             &probe,
             #[cfg(test)]
@@ -1908,7 +1908,7 @@ fn heron_sqrt_raw(row: &[u8]) -> RawRow {
     }
 
     let two = &vec![2];
-    let mut cur = divrem_dynamo(
+    let mut cur = division(
         row,
         two,
         #[cfg(test)]
@@ -1917,7 +1917,7 @@ fn heron_sqrt_raw(row: &[u8]) -> RawRow {
     .1;
 
     loop {
-        let mut rat = divrem_dynamo(
+        let mut rat = division(
             &row,
             &cur,
             #[cfg(test)]
@@ -1926,7 +1926,7 @@ fn heron_sqrt_raw(row: &[u8]) -> RawRow {
         .1;
 
         addition_sum(&cur, &mut rat, 0);
-        let nex = divrem_dynamo(
+        let nex = division(
             &rat,
             &two,
             #[cfg(test)]
@@ -1945,7 +1945,7 @@ fn heron_sqrt_raw(row: &[u8]) -> RawRow {
 }
 
 const MUL_DYNAMO_CAP: usize = 1000;
-fn mul_dynamo(mpler: &[u8], mcand: &[u8]) -> RawRow {
+fn multiplication(mpler: &[u8], mcand: &[u8]) -> RawRow {
     let mpler_len = mpler.len();
 
     let mut sum = Vec::with_capacity(MUL_DYNAMO_CAP);
@@ -1959,7 +1959,7 @@ fn mul_dynamo(mpler: &[u8], mcand: &[u8]) -> RawRow {
     sum
 }
 
-fn pow_steps(mut step: u16) -> Vec<u16> {
+fn power_steps(mut step: u16) -> Vec<u16> {
     #[cfg(test)]
     {
         if step < 2 {
@@ -1980,14 +1980,14 @@ fn pow_steps(mut step: u16) -> Vec<u16> {
     steps
 }
 
-const POW_DYNAMO_CAP: usize = 2500;
-fn pow_dynamo(base: &[u8], pow: u16) -> RawRow {
-    let mut sum = Vec::with_capacity(POW_DYNAMO_CAP);
-    let mut mcand = Vec::with_capacity(POW_DYNAMO_CAP);
+const POWER_CAP: usize = 2500;
+fn power(base: &[u8], pow: u16) -> RawRow {
+    let mut sum = Vec::with_capacity(POWER_CAP);
+    let mut mcand = Vec::with_capacity(POWER_CAP);
 
     mcand.extend_from_slice(base);
 
-    let steps = pow_steps(pow);
+    let steps = power_steps(pow);
     let mut s_iter = steps.iter();
     let mut curr_s = unsafe { s_iter.next_back().unwrap_unchecked() };
 
@@ -3287,14 +3287,14 @@ mod tests_of_units {
     /// 2º=1, 2¹=1×2, 2²=1×2×2, 2³=1×2×2×2, …
     ///                   ⋮                   
     mod pow {
-        use crate::{pow, Row, POW_DYNAMO_CAP};
+        use crate::{pow, Row, POWER_CAP};
 
         #[test]
         fn basic_test() {
             let row = Row::new_from_usize(2);
             assert_eq!(&[4], &*pow(&row, 2));
 
-            assert_eq!(true, row.row.capacity() < POW_DYNAMO_CAP);
+            assert_eq!(true, row.row.capacity() < POWER_CAP);
         }
 
         #[test]
@@ -3387,14 +3387,14 @@ mod tests_of_units {
 
     mod pow_raw {
 
-        use crate::{pow_raw, POW_DYNAMO_CAP};
+        use crate::{pow_raw, POWER_CAP};
         #[test]
         fn shrinking_test() {
             let prod = pow_raw(&vec![2], 3, false);
-            assert_eq!(true, prod.capacity() == POW_DYNAMO_CAP);
+            assert_eq!(true, prod.capacity() == POWER_CAP);
 
             let prod = pow_raw(&vec![2], 3, true);
-            assert_eq!(true, prod.capacity() < POW_DYNAMO_CAP);
+            assert_eq!(true, prod.capacity() < POWER_CAP);
         }
     }
 
@@ -3567,8 +3567,8 @@ mod tests_of_units {
         }
     }
 
-    pub mod divrem_dynamo {
-        use crate::{divrem_dynamo, nought_raw, unity_raw, Row};
+    pub mod division {
+        use crate::{division, nought_raw, unity_raw, Row};
         use DivRemGrade::*;
 
         #[derive(Debug, PartialEq)]
@@ -3599,7 +3599,7 @@ mod tests_of_units {
             let divisor = vec![5];
 
             let proof_ra = Row::new_from_usize(13001).row;
-            let (rem, ratio) = divrem_dynamo(&dividend.row, &divisor, &mut vec![]);
+            let (rem, ratio) = division(&dividend.row, &divisor, &mut vec![]);
 
             assert_eq!(vec![1], rem);
             assert_eq!(proof_ra, ratio);
@@ -3611,7 +3611,7 @@ mod tests_of_units {
             let divisor = unity_raw();
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![0], rem);
             assert_eq!(vec![0], ratio);
@@ -3625,7 +3625,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(usize::MAX);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![0], rem);
             assert_eq!(vec![0], ratio);
@@ -3639,7 +3639,7 @@ mod tests_of_units {
             let divisor = unity_raw();
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![0], rem);
             assert_eq!(vec![1], ratio);
@@ -3653,7 +3653,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(usize::MAX);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![1], rem);
             assert_eq!(vec![0], ratio);
@@ -3667,7 +3667,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(1000);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(dividend, rem);
             assert_eq!(vec![0], ratio);
@@ -3681,7 +3681,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(2);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![1], rem);
             assert_eq!(vec![0], ratio);
@@ -3694,7 +3694,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(1);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![0], rem);
             assert_eq!(vec![0], ratio);
@@ -3707,7 +3707,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(65);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![0], rem);
             assert_eq!(vec![0, 0, 0, 1], ratio);
@@ -3721,7 +3721,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(65);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![0], rem);
             assert_eq!(vec![0, 1, 0, 1], ratio);
@@ -3735,7 +3735,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(65);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![0], rem);
             assert_eq!(vec![0, 1, 0, 0, 0, 1], ratio);
@@ -3749,7 +3749,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(65);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![1], rem);
             assert_eq!(vec![1, 0, 0, 1], ratio);
@@ -3763,7 +3763,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(65);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![0, 1], rem);
             assert_eq!(vec![1, 0, 0, 0, 1, 0, 1], ratio);
@@ -3777,7 +3777,7 @@ mod tests_of_units {
             let divisor = dividend.clone();
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![0], rem);
             assert_eq!(vec![1], ratio);
@@ -3791,7 +3791,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(65);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![0], rem);
             assert_eq!(vec![1, 0, 0, 1], ratio);
@@ -3805,7 +3805,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(600);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![5, 5], rem);
             assert_eq!(vec![0, 0, 1], ratio);
@@ -3818,7 +3818,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(600);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![5, 5], rem);
             assert_eq!(vec![0, 0, 0, 1, 0, 0, 1], ratio);
@@ -3831,7 +3831,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(600);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![5, 5], rem);
             assert_eq!(vec![1], ratio);
@@ -3844,7 +3844,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(600);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![5, 5], rem);
             assert_eq!(vec![1, 0, 0, 1], ratio);
@@ -3857,7 +3857,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(300);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![9, 9, 2], rem);
             assert_eq!(vec![1], ratio);
@@ -3871,7 +3871,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(300);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![9, 9, 2], rem);
             assert_eq!(vec![1, 0, 0, 2], ratio);
@@ -3885,7 +3885,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(usize::MAX);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![0], rem);
             assert_eq!(vec![1], ratio);
@@ -3899,7 +3899,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(2);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![0], rem);
             assert_eq!(vec![1], ratio);
@@ -3913,7 +3913,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(600);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![0], rem);
             assert_eq!(vec![1], ratio);
@@ -3927,7 +3927,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(599);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![1], rem);
             assert_eq!(vec![1], ratio);
@@ -3941,7 +3941,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(600);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![0, 9, 5], rem);
             assert_eq!(vec![9], ratio);
@@ -3955,7 +3955,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(600);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![0], rem);
             assert_eq!(vec![1, 0, 0, 1], ratio);
@@ -3969,7 +3969,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(600);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![9, 9, 5], rem);
             assert_eq!(vec![0, 0, 0, 1], ratio);
@@ -3983,7 +3983,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(600);
 
             let mut codes = vec![];
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
 
             assert_eq!(vec![0, 9, 5], rem);
             assert_eq!(vec![9, 0, 0, 0, 1], ratio);
@@ -3997,7 +3997,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(249);
 
             let proof_ra = new_from_num_raw!(1366595851088106278969375933460916511u128);
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut vec![]);
+            let (rem, ratio) = division(&dividend, &divisor, &mut vec![]);
 
             assert_eq!(vec![6, 1, 2], rem);
             assert_eq!(proof_ra, ratio);
@@ -4009,7 +4009,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(2);
 
             let proof_ra = new_from_num_raw!(170141183460469231731687303715884105727u128);
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut vec![]);
+            let (rem, ratio) = division(&dividend, &divisor, &mut vec![]);
 
             assert_eq!(vec![1], rem);
             assert_eq!(proof_ra, ratio);
@@ -4021,7 +4021,7 @@ mod tests_of_units {
             let divisor = new_from_num_raw!(u128::MAX / 2);
 
             let proof_ra = new_from_num_raw!(2);
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut vec![]);
+            let (rem, ratio) = division(&dividend, &divisor, &mut vec![]);
 
             assert_eq!(vec![1], rem);
             assert_eq!(proof_ra, ratio);
@@ -4041,7 +4041,7 @@ mod tests_of_units {
             )
             .unwrap()
             .row;
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut vec![]);
+            let (rem, ratio) = division(&dividend, &divisor, &mut vec![]);
 
             assert_eq!(vec![0], rem);
             assert_eq!(proof_ra, ratio);
@@ -4061,7 +4061,7 @@ mod tests_of_units {
             )
             .unwrap()
             .row;
-            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut vec![]);
+            let (rem, ratio) = division(&dividend, &divisor, &mut vec![]);
 
             assert_eq!(vec![7], rem);
             assert_eq!(proof_ra, ratio);
@@ -5096,15 +5096,15 @@ mod tests_of_units {
         }
     }
 
-    mod mul_dynamo {
-        use crate::mul_dynamo;
+    mod multiplication {
+        use crate::multiplication;
 
         #[test]
         fn basic_test() {
             let mpler = vec![2];
             let mcand = vec![3, 2];
 
-            let prod = mul_dynamo(&mpler, &mcand);
+            let prod = multiplication(&mpler, &mcand);
             assert_eq!(vec![6, 4], prod);
         }
 
@@ -5114,7 +5114,7 @@ mod tests_of_units {
             let mpler = vec![0];
             let mcand = vec![3, 2, 1];
 
-            let prod = mul_dynamo(&mpler, &mcand);
+            let prod = multiplication(&mpler, &mcand);
             assert_eq!(vec![0, 0, 0], prod);
         }
 
@@ -5123,7 +5123,7 @@ mod tests_of_units {
             let mpler = vec![1];
             let mcand = vec![3, 2, 1];
 
-            let prod = mul_dynamo(&mpler, &mcand);
+            let prod = multiplication(&mpler, &mcand);
             assert_eq!(mcand, prod);
         }
 
@@ -5133,17 +5133,17 @@ mod tests_of_units {
             let mcand = vec![5, 4, 3, 2, 1];
             let proof = new_from_num_raw!(670_592_745);
 
-            let prod = mul_dynamo(&mpler, &mcand);
+            let prod = multiplication(&mpler, &mcand);
             assert_eq!(proof, prod);
         }
     }
 
-    mod pow_steps {
-        use crate::pow_steps;
+    mod power_steps {
+        use crate::power_steps;
 
         #[test]
         fn basic_test() {
-            let steps = pow_steps(4);
+            let steps = power_steps(4);
             let proof = vec![4, 2];
 
             assert_eq!(proof, steps);
@@ -5153,7 +5153,7 @@ mod tests_of_units {
         #[test]
         fn max_test() {
             let mut step = u16::MAX;
-            let steps = pow_steps(step);
+            let steps = power_steps(step);
             assert_eq!(15, steps.len());
 
             for s in steps {
@@ -5164,7 +5164,7 @@ mod tests_of_units {
 
         #[test]
         fn odd_end_test() {
-            let steps = pow_steps(12);
+            let steps = power_steps(12);
             let proof = vec![12, 6, 3];
 
             assert_eq!(proof, steps);
@@ -5172,32 +5172,32 @@ mod tests_of_units {
 
         #[test]
         fn even_end_test() {
-            let steps = pow_steps(16);
+            let steps = power_steps(16);
             let proof = vec![16, 8, 4, 2];
 
             assert_eq!(proof, steps);
         }
     }
 
-    mod pow_dynamo {
-        use crate::{nought_raw, pow_dynamo, unity_raw, Row};
+    mod power {
+        use crate::{nought_raw, power, unity_raw, Row};
 
         #[test]
         fn basic_test() {
-            let pow = pow_dynamo(&[2], 16);
+            let pow = power(&[2], 16);
             assert_eq!(vec![6, 3, 5, 5, 6], pow);
         }
 
         #[test]
         #[should_panic(expected = "Pow steps for powers > 1 only.")]
         fn pow_zero_test() {
-            _ = pow_dynamo(&[2], 0);
+            _ = power(&[2], 0);
         }
 
         #[test]
         #[should_panic(expected = "Pow steps for powers > 1 only.")]
         fn pow_one_test() {
-            _ = pow_dynamo(&[2], 1);
+            _ = power(&[2], 1);
         }
 
         #[test]
@@ -5206,7 +5206,7 @@ mod tests_of_units {
             let zero = nought_raw();
 
             for p in pows {
-                let pow = pow_dynamo(&zero, p);
+                let pow = power(&zero, p);
                 assert_eq!(zero, pow);
             }
         }
@@ -5217,20 +5217,20 @@ mod tests_of_units {
             let one = unity_raw();
 
             for p in pows {
-                let pow = pow_dynamo(&one, p);
+                let pow = power(&one, p);
                 assert_eq!(one, pow);
             }
         }
 
         #[test]
         fn pow_two_test() {
-            let pow = pow_dynamo(&[5, 5, 2], 2);
+            let pow = power(&[5, 5, 2], 2);
             assert_eq!(vec![5, 2, 0, 5, 6], pow);
         }
 
         #[test]
         fn odd_test() {
-            let pow = pow_dynamo(&[5, 5, 2], 11);
+            let pow = power(&[5, 5, 2], 11);
             let proof = Row::new_from_str("296443535898840969287109375").unwrap();
 
             assert_eq!(proof.row, pow);
@@ -5238,7 +5238,7 @@ mod tests_of_units {
 
         #[test]
         fn even_test() {
-            let pow = pow_dynamo(&[5, 5, 2], 10);
+            let pow = power(&[5, 5, 2], 10);
             let proof = Row::new_from_str("1162523670191533212890625").unwrap();
 
             assert_eq!(proof.row, pow);
