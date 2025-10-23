@@ -848,6 +848,8 @@ fn divrem_dynamo_decremental(
 
         end_len = start_ix + rem_len;
 
+        // devnote: would perfectly work also without
+        // this microoptimalization
         if rem_len == 0 && end_len > 0 {
             // place index
             let mut pix = end_len;
@@ -873,7 +875,7 @@ fn divrem_dynamo_decremental(
                 } else if places > 0 {
                     DivRemGrade::DPVD
                 } else {
-                    DivRemGrade::DNVD
+                    DivRemGrade::NDVD
                 };
 
                 codes.push(c);
@@ -913,7 +915,7 @@ fn divrem_dynamo_decremental(
 
         if places > 0 {
             #[cfg(test)]
-            codes.push(DivRemGrade::DEC);
+            codes.push(DivRemGrade::DEVD);
 
             add_places(&mut ratio, places);
         }
@@ -934,7 +936,9 @@ fn divrem_dynamo_decremental(
     }
 }
 
-const fn dividend_start(end: &[u8], sor: &[u8]) -> usize {
+// devnote: seemingly can be leveraged for examination of dividend and divisor equality
+// and also has potential to determine remainder; involving extra complexity
+fn dividend_start(end: &[u8], sor: &[u8]) -> usize {
     #[cfg(test)]
     assert_eq!(true, end.len() >= sor.len(), "Dividend has less places.");
 
@@ -3563,38 +3567,30 @@ mod tests_of_units {
         }
     }
 
-    pub mod divrem_accelerated {
-        use crate::{divrem_accelerated, nought_raw, unity_raw, Row};
+    pub mod divrem_dynamo {
+        use crate::{divrem_dynamo, nought_raw, unity_raw, Row};
+        use DivRemGrade::*;
 
-        #[derive(PartialEq, Eq, Debug)]
-        pub enum DivRemEscCode {
-            Unset = 0,
-            /// place lesser initially
-            Pli = 1,
-            /// place lesser later
-            Pll = 2,
-            /// lesser on place
-            Lop = 3,
-            /// division classic finish
-            Dcf = 4,
-            /// cannot broaden up
-            Cbu = 5,
-        }
-
-        pub struct TestGauges {
-            pub w_ctr: usize,
-            pub ctr: usize,
-            pub esc: DivRemEscCode,
-        }
-
-        impl TestGauges {
-            pub fn blank() -> Self {
-                Self {
-                    w_ctr: 0,
-                    ctr: 0,
-                    esc: DivRemEscCode::Unset,
-                }
-            }
+        #[derive(Debug, PartialEq)]
+        pub enum DivRemGrade {
+            /// dividend lesser by place initially
+            DLBPI,
+            /// dividend lesser by place
+            DLBP,
+            /// dividend lesser by value
+            DLBV,
+            /// dividend full virtual division
+            DFVD,
+            /// dividend partial virtual division
+            DPVD,
+            /// no dividend virtual division
+            NDVD,
+            /// dividend exhaustion
+            DEXH,
+            /// remainder virtual division
+            RVD,
+            /// dividend extension virtual division
+            DEVD,
         }
 
         #[test]
@@ -3602,38 +3598,39 @@ mod tests_of_units {
             let dividend = Row::new_from_usize(65006);
             let divisor = vec![5];
 
-            let ratio = Row::new_from_usize(13001).row;
+            let proof_ra = Row::new_from_usize(13001).row;
+            let (rem, ratio) = divrem_dynamo(&dividend.row, &divisor, &mut vec![]);
 
-            let mut tg = TestGauges::blank();
-            let remratio = divrem_accelerated(&dividend.row, &divisor, &mut tg);
-            assert_eq!(DivRemEscCode::Dcf, tg.esc);
-
-            assert_eq!(vec![1], remratio.0);
-            assert_eq!(ratio, remratio.1);
-
-            assert_eq!(2, tg.w_ctr);
-            assert_eq!(8, tg.ctr);
-
-            // 65006 -1× 50000 ⇒ 1 +1
-            // 15006 -3×  5000 ⇒ 3 +1
-            //     6 -1×     5 ⇒ 1 +1
-            // rem 1           ⇒ Σ 8 = 5 +3 (+0)
+            assert_eq!(vec![1], rem);
+            assert_eq!(proof_ra, ratio);
         }
 
         #[test]
-        fn zero_division_test() {
+        fn zero_division_test_1() {
+            let dividend = nought_raw();
+            let divisor = unity_raw();
+
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+
+            assert_eq!(vec![0], rem);
+            assert_eq!(vec![0], ratio);
+
+            assert_eq!(vec![DEXH], codes);
+        }
+
+        #[test]
+        fn zero_division_test_2() {
             let dividend = nought_raw();
             let divisor = new_from_num_raw!(usize::MAX);
 
-            let mut tg = TestGauges::blank();
-            let remratio = divrem_accelerated(&dividend, &divisor, &mut tg);
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
 
-            assert_eq!(vec![0], remratio.0);
-            assert_eq!(vec![0], remratio.1);
+            assert_eq!(vec![0], rem);
+            assert_eq!(vec![0], ratio);
 
-            assert_eq!(0, tg.w_ctr);
-            assert_eq!(0, tg.ctr);
-            assert_eq!(DivRemEscCode::Pli, tg.esc);
+            assert_eq!(vec![DLBPI], codes);
         }
 
         #[test]
@@ -3641,15 +3638,13 @@ mod tests_of_units {
             let dividend = unity_raw();
             let divisor = unity_raw();
 
-            let mut tg = TestGauges::blank();
-            let remratio = divrem_accelerated(&dividend, &divisor, &mut tg);
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
 
-            assert_eq!(vec![0], remratio.0);
-            assert_eq!(vec![1], remratio.1);
+            assert_eq!(vec![0], rem);
+            assert_eq!(vec![1], ratio);
 
-            assert_eq!(0, tg.w_ctr);
-            assert_eq!(2, tg.ctr);
-            assert_eq!(DivRemEscCode::Dcf, tg.esc);
+            assert_eq!(vec![DEXH], codes);
         }
 
         #[test]
@@ -3657,316 +3652,485 @@ mod tests_of_units {
             let dividend = unity_raw();
             let divisor = new_from_num_raw!(usize::MAX);
 
-            let mut tg = TestGauges::blank();
-            let remratio = divrem_accelerated(&dividend, &divisor, &mut tg);
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
 
-            assert_eq!(vec![1], remratio.0);
-            assert_eq!(vec![0], remratio.1);
+            assert_eq!(vec![1], rem);
+            assert_eq!(vec![0], ratio);
 
-            assert_eq!(0, tg.w_ctr);
-            assert_eq!(0, tg.ctr);
-            assert_eq!(DivRemEscCode::Pli, tg.esc);
+            assert_eq!(vec![DLBPI], codes);
         }
 
         #[test]
-        fn advanced_test1() {
-            let dividend = Row::new_from_usize(65535);
-            let divisor = Row::new_from_usize(277);
+        fn dividend_lesser_by_place_test() {
+            let dividend = new_from_num_raw!(100);
+            let divisor = new_from_num_raw!(1000);
 
-            let mut tg = TestGauges::blank();
-            let remratio = divrem_accelerated(&dividend.row, &divisor.row, &mut tg);
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
 
-            assert_eq!(vec![3, 6, 1], remratio.0);
-            assert_eq!(vec![6, 3, 2], remratio.1);
+            assert_eq!(dividend, rem);
+            assert_eq!(vec![0], ratio);
 
-            assert_eq!(2, tg.w_ctr);
-            assert_eq!(14, tg.ctr);
-
-            // 65535 -2× 27700 ⇒ 2 +1
-            // 10135 -3×  2770 ⇒ 3 +1
-            // 1825  -6×   277 ⇒ 6 +1
-            // rem 163         ⇒ Σ 14 = 11 +3 (+0)
+            assert_eq!(vec![DLBPI], codes);
         }
 
         #[test]
-        fn advanced_test2() {
-            let dividend = Row::new_from_usize(65535);
-            let divisor = vec![7, 2];
+        fn dividend_lesser_by_value_test_1() {
+            let dividend = new_from_num_raw!(1);
+            let divisor = new_from_num_raw!(2);
 
-            let mut tg = TestGauges::blank();
-            let remratio = divrem_accelerated(&dividend.row, &divisor, &mut tg);
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
 
-            assert_eq!(vec![6], remratio.0);
-            assert_eq!(vec![7, 2, 4, 2], remratio.1);
-
-            assert_eq!(3, tg.w_ctr);
-            assert_eq!(19, tg.ctr);
-
-            // 65535 -2× 27000 ⇒ 2 +1
-            // 11535 -4×  2700 ⇒ 4 +1
-            // 735   -2×   270 ⇒ 2 +1
-            // 195   -7×    27 ⇒ 7 +1
-            // rem 6           ⇒ Σ 19 = 15 +4 (+0)
+            assert_eq!(vec![1], rem);
+            assert_eq!(vec![0], ratio);
+            assert_eq!(vec![DLBV], codes);
         }
 
         #[test]
-        fn advanced_test3() {
-            let dividend = Row::new_from_usize(99);
-            let divisor = vec![5];
+        fn dividend_lesser_by_value_test_2() {
+            let dividend = new_from_num_raw!(0);
+            let divisor = new_from_num_raw!(1);
 
-            let mut tg = TestGauges::blank();
-            let remratio = divrem_accelerated(&dividend.row, &divisor, &mut tg);
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
 
-            assert_eq!(vec![4], remratio.0);
-            assert_eq!(vec![9, 1], remratio.1);
-
-            assert_eq!(1, tg.w_ctr);
-            assert_eq!(12, tg.ctr);
-
-            // 99 -1× 50 ⇒ 1 +1
-            // 49 -9×  5 ⇒ 9 +1
-            // rem 4     ⇒ Σ 12 = 10 +2 (+0)
+            assert_eq!(vec![0], rem);
+            assert_eq!(vec![0], ratio);
+            assert_eq!(vec![DEXH], codes);
         }
 
         #[test]
-        fn advanced_test4() {
-            let dividend = Row::new_from_usize(65535);
-            let divisor = Row::new_from_usize(65536);
+        fn dividend_full_virtual_division_test_1() {
+            let dividend = new_from_num_raw!(65000);
+            let divisor = new_from_num_raw!(65);
 
-            let mut tg = TestGauges::blank();
-            let remratio = divrem_accelerated(&dividend.row, &divisor.row, &mut tg);
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
 
-            assert_eq!(dividend.row, remratio.0);
-            assert_eq!(vec![0], remratio.1);
+            assert_eq!(vec![0], rem);
+            assert_eq!(vec![0, 0, 0, 1], ratio);
 
-            assert_eq!(0, tg.w_ctr);
-            assert_eq!(1, tg.ctr);
-            // rem 65535 ⇒ Σ 1 = 0 +1 (+0)
+            assert_eq!(vec![DFVD, DEXH], codes);
         }
 
         #[test]
-        fn advanced_test5() {
-            let num = &Row::new_from_usize(65535).row;
+        fn dividend_full_virtual_division_test_2() {
+            let dividend = new_from_num_raw!(65_650);
+            let divisor = new_from_num_raw!(65);
 
-            let mut tg = TestGauges::blank();
-            let remratio = divrem_accelerated(&num, &num, &mut tg);
-            assert_eq!(DivRemEscCode::Dcf, tg.esc);
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
 
-            assert_eq!(vec![0], remratio.0);
-            assert_eq!(vec![1], remratio.1);
+            assert_eq!(vec![0], rem);
+            assert_eq!(vec![0, 1, 0, 1], ratio);
 
-            assert_eq!(0, tg.w_ctr);
-            assert_eq!(2, tg.ctr);
-            // 65535 -1× 65535 ⇒ 1 +1
-            // rem 0           ⇒ Σ 2 = 1 +1 (+0)
+            assert_eq!(vec![NDVD, DEVD, DFVD, DEXH], codes);
         }
 
         #[test]
-        fn advanced_test6() {
-            let dividend = Row::new_from_usize(60_000);
-            let divisor = Row::new_from_usize(6001); // cannot broaden up
+        fn dividend_full_virtual_division_test_3() {
+            let dividend = new_from_num_raw!(6_500_650);
+            let divisor = new_from_num_raw!(65);
 
-            let mut tg = TestGauges::blank();
-            let remratio = divrem_accelerated(&dividend.row, &divisor.row, &mut tg);
-            assert_eq!(DivRemEscCode::Cbu, tg.esc);
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
 
-            assert_eq!(vec![1, 9, 9, 5], remratio.0);
-            assert_eq!(vec![9], remratio.1);
+            assert_eq!(vec![0], rem);
+            assert_eq!(vec![0, 1, 0, 0, 0, 1], ratio);
 
-            assert_eq!(0, tg.w_ctr);
-            assert_eq!(10, tg.ctr);
-
-            // 60000 -9× 6001 ⇒ 9 +1
-            // rem 5991       ⇒ Σ 10 = 9 +1 (+0)
+            assert_eq!(vec![DPVD, DEVD, DFVD, DEXH], codes);
         }
 
         #[test]
-        fn advanced_test7() {
-            let dividend = Row::new_from_usize(111);
-            let divisor = Row::new_from_usize(1111);
+        fn dividend_partial_virtual_division_test_1() {
+            let dividend = new_from_num_raw!(65066);
+            let divisor = new_from_num_raw!(65);
 
-            let mut tg = TestGauges::blank();
-            let remratio = divrem_accelerated(&dividend.row, &divisor.row, &mut tg);
-            assert_eq!(DivRemEscCode::Pli, tg.esc);
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
 
-            assert_eq!(dividend.row, remratio.0);
-            assert_eq!(vec![0], remratio.1);
+            assert_eq!(vec![1], rem);
+            assert_eq!(vec![1, 0, 0, 1], ratio);
 
-            assert_eq!(0, tg.w_ctr);
-            assert_eq!(0, tg.ctr);
-            // rem 111 ⇒ Σ 0
+            assert_eq!(vec![DPVD, DEVD, DLBP], codes);
         }
 
         #[test]
-        fn advanced_test8() {
-            let dividend = Row::new_from_usize(65535);
-            let divisor = Row::new_from_usize(6552);
+        fn dividend_partial_virtual_division_test_2() {
+            let dividend = new_from_num_raw!(65_650_075);
+            let divisor = new_from_num_raw!(65);
 
-            let mut tg = TestGauges::blank();
-            let remratio = divrem_accelerated(&dividend.row, &divisor.row, &mut tg);
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
 
-            assert_eq!(vec![5, 1], remratio.0);
-            assert_eq!(vec![0, 1], remratio.1);
+            assert_eq!(vec![0, 1], rem);
+            assert_eq!(vec![1, 0, 0, 0, 1, 0, 1], ratio);
 
-            assert_eq!(1, tg.w_ctr);
-            assert_eq!(2, tg.ctr);
-
-            // 65535 -1× 65520 ⇒ 1 +1
-            // rem 15          ⇒ Σ 2 = 1 +1 +0
+            assert_eq!(vec![NDVD, DEVD, DPVD, DEVD, DLBV], codes);
         }
 
         #[test]
-        fn advanced_test9() {
-            let dividend = Row::new_from_usize(65000);
-            let divisor = Row::new_from_usize(65);
+        fn dividend_exhaustion_test_1() {
+            let dividend = new_from_num_raw!(65065);
+            let divisor = dividend.clone();
 
-            let mut tg = TestGauges::blank();
-            let remratio = divrem_accelerated(&dividend.row, &divisor.row, &mut tg);
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
 
-            assert_eq!(vec![0], remratio.0);
-            assert_eq!(vec![0, 0, 0, 1], remratio.1);
+            assert_eq!(vec![0], rem);
+            assert_eq!(vec![1], ratio);
 
-            assert_eq!(1, tg.w_ctr);
-            assert_eq!(2, tg.ctr);
-
-            // 65000 -1× 65000 ⇒ 1 +1
-            // rem 0           ⇒ Σ 2 = 1 +1 +0
+            assert_eq!(vec![DEXH], codes);
         }
 
         #[test]
-        fn advanced_test10() {
-            let dividend = Row::new_from_usize(65001);
-            let divisor = Row::new_from_usize(65);
+        fn dividend_exhaustion_test_2() {
+            let dividend = new_from_num_raw!(65065);
+            let divisor = new_from_num_raw!(65);
 
-            let mut tg = TestGauges::blank();
-            let remratio = divrem_accelerated(&dividend.row, &divisor.row, &mut tg);
-            assert_eq!(DivRemEscCode::Pll, tg.esc);
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
 
-            assert_eq!(vec![1], remratio.0);
-            assert_eq!(vec![0, 0, 0, 1], remratio.1);
+            assert_eq!(vec![0], rem);
+            assert_eq!(vec![1, 0, 0, 1], ratio);
 
-            assert_eq!(1, tg.w_ctr);
-            assert_eq!(2, tg.ctr);
-
-            // 65001 -1× 65000 ⇒ 1 +1
-            // rem 1           ⇒ Σ 2 = 1 +1 +0
+            assert_eq!(vec![DPVD, DEVD, DEXH], codes);
         }
 
         #[test]
-        fn advanced_test11() {
-            let dividend = Row::new_from_usize(60_000);
-            let divisor = Row::new_from_usize(700);
+        fn non_zero_remainder_test_a_1() {
+            let dividend = new_from_num_raw!(60_055);
+            let divisor = new_from_num_raw!(600);
 
-            let mut tg = TestGauges::blank();
-            let remratio = divrem_accelerated(&dividend.row, &divisor.row, &mut tg);
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
 
-            assert_eq!(vec![0, 0, 5], remratio.0);
-            assert_eq!(vec![5, 8], remratio.1);
-
-            assert_eq!(1, tg.w_ctr);
-            assert_eq!(15, tg.ctr);
-
-            // 60000 -8× 7000 ⇒ 8 +1
-            // 4000  -5×  700 ⇒ 5 +1
-            // rem 500        ⇒ Σ 15 = 13 +2 (+0)
+            assert_eq!(vec![5, 5], rem);
+            assert_eq!(vec![0, 0, 1], ratio);
+            assert_eq!(vec![NDVD, RVD, DLBP], codes);
         }
 
         #[test]
-        fn advanced_test12() {
-            let dividend = Row::new_from_usize(13990);
-            let divisor = Row::new_from_usize(130);
+        fn non_zero_remainder_test_a_2() {
+            let dividend = new_from_num_raw!(600_600_055);
+            let divisor = new_from_num_raw!(600);
 
-            let mut tg = TestGauges::blank();
-            let remratio = divrem_accelerated(&dividend.row, &divisor.row, &mut tg);
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
 
-            assert_eq!(vec![0, 8], remratio.0);
-            assert_eq!(vec![7, 0, 1], remratio.1);
-
-            assert_eq!(1, tg.w_ctr);
-            assert_eq!(10, tg.ctr);
-
-            // 13990 -1× 13000 ⇒ 1 +1
-            // 990   -7×   130 ⇒ 7 +1
-            // rem 80          ⇒ Σ 10 = 8 +2 (+0)
-        }
-
-        // explicit escape test, otherwise
-        // would violate mpler_wr_ix > 0 test in function body
-        #[test]
-        fn advanced_test13() {
-            let dividend = Row::new_from_usize(111);
-            let divisor = Row::new_from_usize(12);
-
-            let mut tg = TestGauges::blank();
-            let remratio = divrem_accelerated(&dividend.row, &divisor.row, &mut tg);
-            assert_eq!(DivRemEscCode::Cbu, tg.esc);
-
-            assert_eq!(vec![3], remratio.0);
-            assert_eq!(vec![9], remratio.1);
-
-            assert_eq!(0, tg.w_ctr);
-            assert_eq!(10, tg.ctr);
-
-            // 111 -9× 12 ⇒ 9 +1
-            // rem 3      ⇒ Σ 10 = 9 +1 (+0)
-        }
-
-        // explicit shortcut return test on equal length
-        // lesser
-        #[test]
-        fn advanced_test14() {
-            let dividend = Row::new_from_usize(5040);
-            let divisor = vec![0, 5];
-
-            let mut tg = TestGauges::blank();
-            let remratio = divrem_accelerated(&dividend.row, &divisor, &mut tg);
-            assert_eq!(DivRemEscCode::Lop, tg.esc);
-
-            assert_eq!(vec![0, 4], remratio.0);
-            assert_eq!(vec![0, 0, 1], remratio.1);
-
-            assert_eq!(1, tg.w_ctr);
-            assert_eq!(2, tg.ctr);
-
-            // 5040 -1× 5000 ⇒ 1 +1
-            // rem 40        ⇒ Σ 2 = 1 +1 +0
-        }
-
-        // not shortcut return for equals
-        #[test]
-        fn advanced_test15() {
-            let dividend = Row::new_from_usize(65005);
-            let divisor = vec![5];
-
-            let ratio = Row::new_from_usize(13_001).row;
-
-            let mut tg = TestGauges::blank();
-            let remratio = divrem_accelerated(&dividend.row, &divisor, &mut tg);
-            assert_eq!(DivRemEscCode::Dcf, tg.esc);
-
-            assert_eq!(vec![0], remratio.0);
-            assert_eq!(ratio, remratio.1);
-
-            assert_eq!(2, tg.w_ctr);
-            assert_eq!(8, tg.ctr);
-
-            // 65005 -1× 50000 ⇒ 1 +1
-            // 15005 -3×  5000 ⇒ 3 +1
-            //     5 -1×     5 ⇒ 1 +1
-            // rem 0           ⇒ Σ 8 = 5 +3 (+0)
+            assert_eq!(vec![5, 5], rem);
+            assert_eq!(vec![0, 0, 0, 1, 0, 0, 1], ratio);
+            assert_eq!(vec![NDVD, DEVD, DPVD, RVD, DLBP], codes);
         }
 
         #[test]
-        fn load_test() {
-            let dividend = Row::new_from_u128(u128::MAX);
-            let divisor = Row::new_from_usize(249);
+        fn non_zero_remainder_test_b_1() {
+            let dividend = new_from_num_raw!(655);
+            let divisor = new_from_num_raw!(600);
 
-            let ratio = Row::new_from_u128(1366595851088106278969375933460916511);
-            let remratio =
-                divrem_accelerated(&dividend.row, &divisor.row, &mut TestGauges::blank());
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
 
-            assert_eq!(vec![6, 1, 2], remratio.0);
-            assert_eq!(ratio.row, remratio.1);
+            assert_eq!(vec![5, 5], rem);
+            assert_eq!(vec![1], ratio);
+            assert_eq!(vec![DLBP], codes);
+        }
+
+        #[test]
+        fn non_zero_remainder_test_b_2() {
+            let dividend = new_from_num_raw!(600_655);
+            let divisor = new_from_num_raw!(600);
+
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+
+            assert_eq!(vec![5, 5], rem);
+            assert_eq!(vec![1, 0, 0, 1], ratio);
+            assert_eq!(vec![NDVD, DEVD, DLBP], codes);
+        }
+
+        #[test]
+        fn non_zero_remainder_test_c_1() {
+            let dividend = new_from_num_raw!(599);
+            let divisor = new_from_num_raw!(300);
+
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+
+            assert_eq!(vec![9, 9, 2], rem);
+            assert_eq!(vec![1], ratio);
+
+            assert_eq!(vec![DLBV], codes);
+        }
+
+        #[test]
+        fn non_zero_remainder_test_c_2() {
+            let dividend = new_from_num_raw!(600_599);
+            let divisor = new_from_num_raw!(300);
+
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+
+            assert_eq!(vec![9, 9, 2], rem);
+            assert_eq!(vec![1, 0, 0, 2], ratio);
+
+            assert_eq!(vec![NDVD, DEVD, DLBV], codes);
+        }
+
+        #[test]
+        fn zero_remainder_test_1() {
+            let dividend = new_from_num_raw!(usize::MAX);
+            let divisor = new_from_num_raw!(usize::MAX);
+
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+
+            assert_eq!(vec![0], rem);
+            assert_eq!(vec![1], ratio);
+
+            assert_eq!(vec![DEXH], codes);
+        }
+
+        #[test]
+        fn zero_remainder_test_2() {
+            let dividend = new_from_num_raw!(2);
+            let divisor = new_from_num_raw!(2);
+
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+
+            assert_eq!(vec![0], rem);
+            assert_eq!(vec![1], ratio);
+
+            assert_eq!(vec![DEXH], codes);
+        }
+
+        #[test]
+        fn dividend_portion_computation_a_1() {
+            let dividend = new_from_num_raw!(600);
+            let divisor = new_from_num_raw!(600);
+
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+
+            assert_eq!(vec![0], rem);
+            assert_eq!(vec![1], ratio);
+
+            assert_eq!(vec![DEXH], codes);
+        }
+
+        #[test]
+        fn dividend_portion_computation_a_2() {
+            let dividend = new_from_num_raw!(600);
+            let divisor = new_from_num_raw!(599);
+
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+
+            assert_eq!(vec![1], rem);
+            assert_eq!(vec![1], ratio);
+
+            assert_eq!(vec![DLBP], codes);
+        }
+
+        #[test]
+        fn dividend_portion_computation_a_3() {
+            let dividend = new_from_num_raw!(5990);
+            let divisor = new_from_num_raw!(600);
+
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+
+            assert_eq!(vec![0, 9, 5], rem);
+            assert_eq!(vec![9], ratio);
+
+            assert_eq!(vec![DLBV], codes);
+        }
+
+        #[test]
+        fn dividend_portion_computation_b_1() {
+            let dividend = new_from_num_raw!(600_600);
+            let divisor = new_from_num_raw!(600);
+
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+
+            assert_eq!(vec![0], rem);
+            assert_eq!(vec![1, 0, 0, 1], ratio);
+
+            assert_eq!(vec![NDVD, DEVD, DEXH], codes);
+        }
+
+        #[test]
+        fn dividend_portion_computation_b_2() {
+            let dividend = new_from_num_raw!(600_599);
+            let divisor = new_from_num_raw!(600);
+
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+
+            assert_eq!(vec![9, 9, 5], rem);
+            assert_eq!(vec![0, 0, 0, 1], ratio);
+
+            assert_eq!(vec![NDVD, DEVD, DLBV], codes);
+        }
+
+        #[test]
+        fn dividend_portion_computation_b_3() {
+            let dividend = new_from_num_raw!(6_005_990);
+            let divisor = new_from_num_raw!(600);
+
+            let mut codes = vec![];
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut codes);
+
+            assert_eq!(vec![0, 9, 5], rem);
+            assert_eq!(vec![9, 0, 0, 0, 1], ratio);
+
+            assert_eq!(vec![NDVD, DEVD, DLBV], codes);
+        }
+
+        #[test]
+        fn load_test_1() {
+            let dividend = new_from_num_raw!(u128::MAX);
+            let divisor = new_from_num_raw!(249);
+
+            let proof_ra = new_from_num_raw!(1366595851088106278969375933460916511u128);
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut vec![]);
+
+            assert_eq!(vec![6, 1, 2], rem);
+            assert_eq!(proof_ra, ratio);
+        }
+
+        #[test]
+        fn load_test_2() {
+            let dividend = new_from_num_raw!(u128::MAX);
+            let divisor = new_from_num_raw!(2);
+
+            let proof_ra = new_from_num_raw!(170141183460469231731687303715884105727u128);
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut vec![]);
+
+            assert_eq!(vec![1], rem);
+            assert_eq!(proof_ra, ratio);
+        }
+
+        #[test]
+        fn load_test_3() {
+            let dividend = new_from_num_raw!(u128::MAX);
+            let divisor = new_from_num_raw!(u128::MAX / 2);
+
+            let proof_ra = new_from_num_raw!(2);
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut vec![]);
+
+            assert_eq!(vec![1], rem);
+            assert_eq!(proof_ra, ratio);
+        }
+
+        #[test]
+        fn load_test_4() {
+            let dividend = Row::new_from_str(
+                "340282366920938463463374607431768211455340282366920938463463374607431768211455",
+            )
+            .unwrap()
+            .row;
+            let divisor = new_from_num_raw!(13);
+
+            let proof_ra = Row::new_from_str(
+                "26175566686226035651028815956289862419641560182070841420266413431340905247035",
+            )
+            .unwrap()
+            .row;
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut vec![]);
+
+            assert_eq!(vec![0], rem);
+            assert_eq!(proof_ra, ratio);
+        }
+
+        #[test]
+        fn load_test_5() {
+            let dividend = Row::new_from_str(
+                "340282366920938463463374607431768211455340282366920938463463374607431768211455",
+            )
+            .unwrap()
+            .row;
+            let divisor = new_from_num_raw!(14);
+
+            let proof_ra = Row::new_from_str(
+                "24305883351495604533098186245126300818238591597637209890247383900530840586532",
+            )
+            .unwrap()
+            .row;
+            let (rem, ratio) = divrem_dynamo(&dividend, &divisor, &mut vec![]);
+
+            assert_eq!(vec![7], rem);
+            assert_eq!(proof_ra, ratio);
+        }
+    }
+
+    pub mod dividend_start {
+        use crate::dividend_start;
+
+        #[test]
+        fn basic_test() {
+            let dividend = new_from_num_raw!(333_333_333);
+            let divisor = new_from_num_raw!(333);
+
+            let portion = dividend_start(&dividend, &divisor);
+            assert_eq!(6, portion);
+        }
+
+        #[test]
+        fn place_satisfaction_test_1() {
+            let dividend = new_from_num_raw!(911_111);
+
+            for duo in [(19, 4), (899, 3), (911_10, 1)] {
+                let divisor = new_from_num_raw!(duo.0);
+                let portion = dividend_start(&dividend, &divisor);
+                assert_eq!(duo.1, portion);
+            }
+        }
+
+        #[test]
+        fn place_satisfaction_test_2() {
+            let dividend = new_from_num_raw!(911_111);
+
+            for duo in [(9, 5), (911, 3), (911_11, 1), (911_111, 0)] {
+                let divisor = new_from_num_raw!(duo.0);
+                let portion = dividend_start(&dividend, &divisor);
+                assert_eq!(duo.1, portion);
+            }
+        }
+
+        #[test]
+        fn place_unsatisfaction_test() {
+            let dividend = new_from_num_raw!(809_000);
+
+            for duo in [(90, 3), (81, 3), (9, 4), (80_901, 0), (809_001, 0)] {
+                let divisor = new_from_num_raw!(duo.0);
+                let portion = dividend_start(&dividend, &divisor);
+                assert_eq!(duo.1, portion, "{:?}", duo);
+            }
+        }
+
+        #[test]
+        fn equal_places_indifference_test() {
+            let dividend = new_from_num_raw!(809_000);
+
+            for duo in [(100_000, 0), (809_000, 0), (999_999, 0)] {
+                let divisor = new_from_num_raw!(duo.0);
+                let portion = dividend_start(&dividend, &divisor);
+                assert_eq!(duo.1, portion, "{:?}", duo);
+            }
+        }
+
+        #[test]
+        #[should_panic(expected = "Dividend has less places.")]
+        fn length_precondition_test() {
+            let dividend = new_from_num_raw!(1);
+            let divisor = new_from_num_raw!(11);
+
+            _ = dividend_start(&dividend, &divisor);
         }
     }
 
@@ -5560,7 +5724,7 @@ mod tests_of_units {
                 let (ratio, rem_len) = subtraction_divisional(&mut minrem, &subtrahend);
                 assert_eq!(proof, minrem);
                 assert_eq!(&[0], &*ratio);
-                assert_eq!(1, rem_len);
+                assert_eq!(3, rem_len);
             }
         }
 
