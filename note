@@ -1,4 +1,3 @@
-- validate divrem usage, check with divrem decremental usage
 - validate no division by zero
 - validate division by greater dividend
 - new_from_str_row

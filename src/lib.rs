@@ -851,8 +851,8 @@ pub fn prime_ck(
             ix += 1;
         }
 
-        let rem = division(
-            &sum,
+        let rem = division_dynamo(
+            sum,
             &vec![3],
             #[cfg(test)]
             &mut vec![],
@@ -1758,8 +1758,8 @@ fn heron_sqrt_raw(row: &[u8]) -> RawRow {
         .1;
 
         addition_sum(&cur, &mut rat, 0);
-        let nex = division(
-            &rat,
+        let nex = division_dynamo(
+            rat,
             &two,
             #[cfg(test)]
             &mut vec![],
