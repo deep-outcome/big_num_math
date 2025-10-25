@@ -2151,7 +2151,7 @@ fn addition_two(lh_addend: &[u8], rh_addend: &[u8], sum: &mut RawRow) {
 }
 
 fn subtraction_arithmetical(minuend: &mut RawRow, subtrahend: &[u8]) -> RawRow {
-    let ratio = subtraction_dynamo(
+    let ratio = subtraction(
         minuend,
         subtrahend,
         false,
@@ -2164,7 +2164,7 @@ fn subtraction_arithmetical(minuend: &mut RawRow, subtrahend: &[u8]) -> RawRow {
 }
 
 fn subtraction_divisional(mut minuend: &mut [u8], subtrahend: &[u8]) -> (RawRow, usize) {
-    let ratio = subtraction_dynamo(
+    let ratio = subtraction(
         minuend,
         subtrahend,
         true,
@@ -2185,7 +2185,7 @@ fn subtraction_divisional(mut minuend: &mut [u8], subtrahend: &[u8]) -> (RawRow,
 //
 // NOTE: Support for longer subtrahend implies extended guard condition on
 // correction `inx < subtrahend_len && inx < minuend_len`. See feature 'shorter-dividend-support'.
-fn subtraction_dynamo(
+fn subtraction(
     minuend: &mut [u8],
     subtrahend: &[u8],
     remainder: bool,
@@ -5792,9 +5792,9 @@ mod tests_of_units {
             }
         }
 
-        mod subtraction_dynamo {
+        mod subtraction {
 
-            use crate::subtraction_dynamo;
+            use crate::subtraction;
 
             #[test]
             // after invalid subtraction on remainder, places hold numbers resulting
@@ -5806,7 +5806,7 @@ mod tests_of_units {
             fn overrun_test_1() {
                 let mut ctr = 0;
                 let mut minrem = vec![2, 0, 0, 7, 7];
-                let ratio = subtraction_dynamo(&mut minrem, &vec![7, 7], true, &mut ctr);
+                let ratio = subtraction(&mut minrem, &vec![7, 7], true, &mut ctr);
 
                 assert_eq!(&[2, 0, 9, 9, 9], &*minrem);
                 assert_eq!(&[0, 0, 0, 1], &*ratio);
@@ -5823,7 +5823,7 @@ mod tests_of_units {
             fn overrun_test_2() {
                 let mut ctr = 0;
                 let mut minrem = vec![2, 0, 0, 0, 0];
-                let ratio = subtraction_dynamo(&mut minrem, &vec![7, 7, 3], false, &mut ctr);
+                let ratio = subtraction(&mut minrem, &vec![7, 7, 3], false, &mut ctr);
 
                 assert_eq!(&[2, 0, 0, 9, 9], &*minrem);
                 assert_eq!(&[0], &*ratio);
