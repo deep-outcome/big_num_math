@@ -783,7 +783,10 @@ pub fn divrem(dividend: &PlacesRow, divisor: &PlacesRow) -> Option<(PlacesRow, P
         &mut vec![],
     );
 
-    Some((Row { row: remratio.1 }, Row { row: remratio.0 }))
+    let mut rem = remratio.0;
+    rem.shrink_to_fit();
+
+    Some((Row { row: remratio.1 }, Row { row: rem }))
 }
 
 // x ÷0, illegal
@@ -3535,6 +3538,22 @@ mod tests_of_units {
 
             assert_eq!(ratio, ratrem.0.to_number());
             assert_eq!(remainder, ratrem.1.to_number());
+        }
+
+        #[test]
+        fn shrinking_test() {
+            let dividend =
+                Row::new_from_str("1000000000000000000000000000000000000000000000").unwrap();
+            let divisor = Row::unity();
+
+            let ratrem = divrem(&dividend, &divisor).unwrap();
+
+            assert_eq!(dividend, ratrem.0);
+
+            let rem = ratrem.1;
+            assert_eq!(Row::nought(), rem);
+
+            assert_eq!(true, rem.row.capacity() < dividend.len());
         }
     }
 
