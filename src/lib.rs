@@ -1823,8 +1823,6 @@ fn division_dynamo(
 
         end_len = start_ix + rem_len;
 
-        // devnote: would perfectly work also without
-        // this microoptimalization
         if rem_len == 0 && end_len > 0 {
             // place index
             let mut pix = end_len;
@@ -3702,6 +3700,20 @@ mod tests_of_units {
         }
 
         #[test]
+        fn dividend_lesser_by_value_test_3() {
+            let dividend = new_from_num_raw!(6_010_990);
+            let divisor = new_from_num_raw!(600);
+
+            let mut codes = vec![];
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
+
+            assert_eq!(vec![0, 9, 1], rem);
+            assert_eq!(vec![8, 1, 0, 0, 1], ratio);
+
+            assert_eq!(vec![DEVD, DLBV], codes);
+        }
+
+        #[test]
         fn dividend_full_virtual_division_test_1() {
             let dividend = new_from_num_raw!(65000);
             let divisor = new_from_num_raw!(65);
@@ -3741,6 +3753,20 @@ mod tests_of_units {
             assert_eq!(vec![0, 1, 0, 0, 0, 1], ratio);
 
             assert_eq!(vec![DPVD, DEVD, DFVD, DEXH], codes);
+        }
+
+        #[test]
+        fn dividend_full_virtual_division_test_4() {
+            let dividend = new_from_num_raw!(600_000_000);
+            let divisor = new_from_num_raw!(600);
+
+            let mut codes = vec![];
+            let (rem, ratio) = division(&dividend, &divisor, &mut codes);
+
+            assert_eq!(vec![0], rem);
+            assert_eq!(vec![0, 0, 0, 0, 0, 0, 1], ratio);
+
+            assert_eq!(vec![DFVD, DEXH], codes);
         }
 
         #[test]
