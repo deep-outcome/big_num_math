@@ -81,16 +81,15 @@ mod tests_of_units {
     }
 
     mod try_into_num {
-        use crate::add;
-        use crate::Row;
+        use crate::{addition_sum, unity_raw};
 
         #[test]
         fn basic_test() {
             let num = u128::MAX;
-            let row = Row::new_from_u128(num);
+            let row = new_from_num_raw!(num);
 
             let mut esc = 0;
-            let test = try_into_num!(&row.row, u128, &mut esc);
+            let test = try_into_num!(&row, u128, &mut esc);
             assert_eq!(Some(num), test);
             assert_eq!(0, esc);
         }
@@ -98,11 +97,11 @@ mod tests_of_units {
         #[test]
         fn add_overflow_test() {
             let num = u8::MAX;
-            let mut row = new_from_num!(num);
-            row = add(&row, &Row::unity());
+            let mut row = new_from_num_raw!(num);
+            addition_sum(&unity_raw(), &mut row, 0);
 
             let mut esc = 0;
-            let test = try_into_num!(&row.row, u8, &mut esc);
+            let test = try_into_num!(&row, u8, &mut esc);
             assert_eq!(None, test);
             assert_eq!(3, esc);
         }
@@ -110,10 +109,10 @@ mod tests_of_units {
         #[test]
         fn mul_overflow_test() {
             let num = 300;
-            let row = new_from_num!(num);
+            let row = new_from_num_raw!(num);
 
             let mut esc = 0;
-            let test = try_into_num!(&row.row, u8, &mut esc);
+            let test = try_into_num!(&row, u8, &mut esc);
             assert_eq!(None, test);
             assert_eq!(2, esc);
         }
@@ -121,10 +120,10 @@ mod tests_of_units {
         #[test]
         fn pow_overflow_test() {
             let num = 1000;
-            let row = new_from_num!(num);
+            let row = new_from_num_raw!(num);
 
             let mut esc = 0;
-            let test = try_into_num!(&row.row, u8, &mut esc);
+            let test = try_into_num!(&row, u8, &mut esc);
             assert_eq!(None, test);
             assert_eq!(1, esc);
         }
