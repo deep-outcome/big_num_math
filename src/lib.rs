@@ -1474,7 +1474,7 @@ pub enum PrimeGenStrain {
 /// assert_eq!(proof, all1.as_slice());
 /// ```
 ///
-/// In either case generation is limited by `isize::MAX` bytes. Expect memory reservation twice
+/// In either case generation is limited by [`isize::MAX`] bytes. Expect memory reservation twice
 /// amount of `$size` type byte size per one prime number. For _lim_ strain expect more. Given
 /// by formula `(lim ÷⌊max(1, ㏑(lim))⌋) ⋅1.15`.
 ///
