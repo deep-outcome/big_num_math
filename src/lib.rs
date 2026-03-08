@@ -5856,3 +5856,4 @@ mod tests_of_units {
 // cargo test --features ext-tests3 --release primes_ext2_test
 // cargo test --features ext-tests,shorter-dividend-support --release
 // cargo fmt && cargo test --release
+// cargo bench --test bench
