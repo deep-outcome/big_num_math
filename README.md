@@ -94,7 +94,7 @@ assert_eq!(Some(false), prime_ck(&num, Some(limit)));
 ```rust
 let limit = Duration::from_secs(60);
 let p = || pg!(200_000, PrimeGenStrain::Nth, false, u32, Some(limit));
-assert_eq!(2_750_159, p().uproot_max());
+assert_eq!(Ok(PrimeGenRes::Max(2_750_159)), p());
 ```
 ##### nth  root
 
