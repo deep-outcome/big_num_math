@@ -2,7 +2,7 @@
 
 extern crate test;
 
-use big_num_math::{pg, PrimeGenRes, PrimeGenStrain};
+use big_num_math::{pg, PrimeGenErr, PrimeGenRes, PrimeGenStrain};
 use std::time::{Duration, Instant};
 use test::Bencher;
 
@@ -10,7 +10,7 @@ use test::Bencher;
 fn u64(b: &mut Bencher) {
     b.iter(|| {
         let num = || pg!(20_000, PrimeGenStrain::Nth, false, u64, None);
-        assert_eq!(224_737, num().uproot_max());
+        assert_eq!(Ok(PrimeGenRes::Max(224_737)), num());
     });
 }
 
@@ -18,6 +18,6 @@ fn u64(b: &mut Bencher) {
 fn u32(b: &mut Bencher) {
     b.iter(|| {
         let num = || pg!(20_000, PrimeGenStrain::Nth, false, u32, None);
-        assert_eq!(224_737, num().uproot_max());
+        assert_eq!(Ok(PrimeGenRes::Max(224_737)), num());
     });
 }
