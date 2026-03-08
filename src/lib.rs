@@ -1447,13 +1447,14 @@ pub enum PrimeGenStrain {
 
 /// Flexible prime number generator.
 ///
-/// Beware, macro _returns_ [`PrimeGenRes`]. Thus it can be directly unusable within `fn` body.
+/// Beware, macro _returns_ [`Result<PrimeGenRes, PrimeGenErr>`]. Thus it can be directly unusable within `fn` body.
+/// Check with [`PrimeGenRes`], [`PrimeGenErr`] for details.
 ///
 /// Unity is not cosidered to be prime number.
 ///
 /// 2 strains available:
-/// - nth — generation runs up to nth prime number inclusively.
-/// - lim — generation runs up to limit inclusively.
+/// - [`PrimeGenStrain::Nth`] — generation runs up to nth prime number inclusively.
+/// - [`PrimeGenStrain::Lim`] — generation runs up to limit inclusively.
 ///
 /// Both strains can return only number required or whole row of prime numbers.
 ///
