@@ -1505,7 +1505,7 @@ pub enum PrimeGenStrain {
 /// let num = || { pg!(20_000, PrimeGenStrain::Nth, false, u32, None) };
 /// assert_eq!(Ok(PrimeGenRes::Max(224_737)), num());
 /// ```
-/// `u32` version of sample above will perform better.
+/// `u32` version of sample above will perform better. The gain stems from reduced data set size.
 #[macro_export]
 macro_rules! pg {
     ($input: expr, $pgs: expr, $all: expr, $size:tt, $lim: expr) => {{
@@ -1625,11 +1625,13 @@ macro_rules! pg {
 /// Memory economic version of [`pg`] macro.
 ///
 /// Since `pg_sw`, space wise prime generator, uses less space, it allows
-/// to generate larger prime numbers compared to `pg`.
+/// to generate larger prime numbers compared to [`pg`].
 ///
-/// Memory demands are reduced by one half. `pg` is considered to be time wise implementation.
+/// Memory demands are reduced by one half. [`pg`] is considered to be time wise implementation.
 ///
-/// Check with `pg` for guidelines.
+/// In contrary to [`pg`], this macro cannot significantly gain from proper target type choice.
+///
+/// Check with [`pg`] for guidelines.
 #[macro_export]
 macro_rules! pg_sw {
     ($input: expr, $pgs: expr, $all: expr, $size:tt, $lim: expr) => {{
