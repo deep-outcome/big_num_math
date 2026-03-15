@@ -1401,19 +1401,6 @@ pub enum PrimeGenRes<T> {
     Max(T),
 }
 
-/// Prime number generation error enumeration.
-#[derive(Clone, PartialEq, Debug)]
-pub enum PrimeGenErr {
-    /// Input is greater than target type maximal size. Holds input provided.
-    InputGreaterThanSizeMax(usize),
-    /// Computed value cannot be cast to target type. Holds input provided, `0`, and value to be cast, `1`.
-    ValueGreaterThanSizeMax(usize, usize),
-    /// Aimless input for computation, like `1` for [`PrimeGenClass::Lim`]
-    AimlessInput(usize),
-    /// Time limit exhaustion.
-    TimeframeExhaustion,
-}
-
 impl<T> PrimeGenRes<T> {
     /// Returns `Vec<T>` of `PrimeGenRes::All(Vec<T>)` or _panics_
     /// if not that variant.
@@ -1434,6 +1421,52 @@ impl<T> PrimeGenRes<T> {
 
         panic!("Not `PrimeGenRes::Max(_)` variant.");
     }
+}
+
+/// Helper trait for working with return type of [`pg`] and [`pg_sw`] which
+/// is [`Result<PrimeGenRes, PrimeGenErr>`].
+pub trait PrimeGenResAide<T> {
+    /// Uproots `Vec<T>` of `PrimeGenRes::All(Vec<T>)`.
+    fn uproot_all(self) -> Vec<T>;
+    /// Uproots `T` of `PrimeGenRes::Max(T)`.
+    fn uproot_max(self) -> T;
+}
+
+impl<T> PrimeGenResAide<T> for Result<PrimeGenRes<T>, PrimeGenErr> {
+    /// Wraps call to [`PrimeGenRes::uproot_all()`].
+    ///
+    /// _Panics_ if not `Ok(_)` variant.
+    fn uproot_all(self) -> Vec<T> {
+        if let Ok(r) = self {
+            return r.uproot_all();
+        }
+
+        panic!("Not `Ok(_)` variant.");
+    }
+
+    /// Wraps call to [`PrimeGenRes::uproot_max()`].
+    ///
+    /// _Panics_ if not `Ok(_)` variant.
+    fn uproot_max(self) -> T {
+        if let Ok(r) = self {
+            return r.uproot_max();
+        }
+
+        panic!("Not `Ok(_)` variant.");
+    }
+}
+
+/// Prime number generation error enumeration.
+#[derive(Clone, PartialEq, Debug)]
+pub enum PrimeGenErr {
+    /// Input is greater than target type maximal size. Holds input provided.
+    InputGreaterThanSizeMax(usize),
+    /// Computed value cannot be cast to target type. Holds input provided, `0`, and value to be cast, `1`.
+    ValueGreaterThanSizeMax(usize, usize),
+    /// Aimless input for computation, like `1` for [`PrimeGenClass::Lim`].
+    AimlessInput(usize),
+    /// Time limit exhaustion.
+    TimeframeExhaustion,
 }
 
 /// Prime number generation variants enumeration.
@@ -1459,7 +1492,7 @@ pub enum PrimeGenClass {
 /// Both variants can return only number required or whole row of prime numbers.
 ///
 /// ```
-/// use big_num_math::{pg, PrimeGenClass, PrimeGenRes, PrimeGenErr};
+/// use big_num_math::{pg, PrimeGenClass, PrimeGenRes, PrimeGenErr, PrimeGenResAide};
 /// use std::time::{Instant, Duration};
 ///
 /// let all1 = || { pg!(11, PrimeGenClass::Nth, true, usize, None) };
@@ -1467,8 +1500,8 @@ pub enum PrimeGenClass {
 ///
 /// let proof: [usize; 11] = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31];
 ///
-/// let all1 = all1().unwrap().uproot_all();
-/// let all2 = all2().unwrap().uproot_all();
+/// let all1 = all1().uproot_all();
+/// let all2 = all2().uproot_all();
 ///
 /// assert_eq!(all1, all2);
 /// assert_eq!(proof, all1.as_slice());
@@ -1485,25 +1518,25 @@ pub enum PrimeGenClass {
 /// can require considerable amount of time and be optionally time-limited.
 ///
 /// ```
-/// use big_num_math::{pg, PrimeGenClass, PrimeGenRes, PrimeGenErr};
+/// use big_num_math::{pg, PrimeGenClass, PrimeGenRes, PrimeGenErr, PrimeGenResAide};
 /// use std::time::{Instant, Duration};
 ///
 /// let limit = Duration::from_secs(1);
 /// let result = (|| { pg!(5_000, PrimeGenClass::Nth, false, u128, Some(limit)) })();
 ///
-/// assert_eq!(Ok(PrimeGenRes::Max(48_611)), result);
+/// assert_eq!(48_611, result.uproot_max());
 /// ```
 ///
 /// When confident about outputs, type setting can speed up computation. Use `usize` or wider type in contrary case.
 /// ```
-/// use big_num_math::{pg, PrimeGenClass, PrimeGenRes, PrimeGenErr};
+/// use big_num_math::{pg, PrimeGenClass, PrimeGenRes, PrimeGenErr, PrimeGenResAide};
 /// use std::time::{Instant, Duration};
 ///
 /// let num = || { pg!(20_000, PrimeGenClass::Nth, false, u64, None) };
-/// assert_eq!(Ok(PrimeGenRes::Max(224_737)), num());
+/// assert_eq!(224_737, num().uproot_max());
 ///
 /// let num = || { pg!(20_000, PrimeGenClass::Nth, false, u32, None) };
-/// assert_eq!(Ok(PrimeGenRes::Max(224_737)), num());
+/// assert_eq!(224_737, num().uproot_max());
 /// ```
 /// `u32` version of sample above will perform better. The gain stems from reduced data set size.
 #[macro_export]
@@ -4599,8 +4632,62 @@ mod tests_of_units {
         }
     }
 
+    mod prime_gen_res_aide {
+        use crate::{PrimeGenErr, PrimeGenRes, PrimeGenResAide};
+
+        #[test]
+        fn uproot_all_ok() {
+            let proof = vec![3, 2, 1];
+            let res: Result<PrimeGenRes<usize>, PrimeGenErr> = Ok(PrimeGenRes::All(proof.clone()));
+            let test = res.uproot_all();
+
+            assert_eq!(proof, test);
+        }
+
+        #[test]
+        #[should_panic(expected = "Not `Ok(_)` variant.")]
+        fn uproot_all_err() {
+            let err = PrimeGenErr::TimeframeExhaustion;
+            let res: Result<PrimeGenRes<usize>, PrimeGenErr> = Err(err);
+            _ = res.uproot_all();
+        }
+
+        #[test]
+        #[should_panic(expected = "Not `PrimeGenRes::All(_)` variant.")]
+        fn uproot_all_ok_max() {
+            let max = 17;
+            let res: Result<PrimeGenRes<usize>, PrimeGenErr> = Ok(PrimeGenRes::Max(max));
+            _ = res.uproot_all();
+        }
+
+        #[test]
+        fn uproot_max_ok() {
+            let proof = 17;
+            let res: Result<PrimeGenRes<usize>, PrimeGenErr> = Ok(PrimeGenRes::Max(proof));
+            let test = res.uproot_max();
+
+            assert_eq!(proof, test);
+        }
+
+        #[test]
+        #[should_panic(expected = "Not `Ok(_)` variant.")]
+        fn uproot_max_err() {
+            let err = PrimeGenErr::TimeframeExhaustion;
+            let res: Result<PrimeGenRes<usize>, PrimeGenErr> = Err(err);
+            _ = res.uproot_max();
+        }
+
+        #[test]
+        #[should_panic(expected = "Not `PrimeGenRes::Max(_)` variant.")]
+        fn uproot_max_ok_all() {
+            let all = vec![3, 2, 1];
+            let res: Result<PrimeGenRes<usize>, PrimeGenErr> = Ok(PrimeGenRes::All(all));
+            _ = res.uproot_max();
+        }
+    }
+
     mod pg {
-        use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes};
+        use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes, PrimeGenResAide};
         use std::time::{Duration, Instant};
 
         #[test]
@@ -4609,7 +4696,7 @@ mod tests_of_units {
 
             for rix in 0..15 {
                 let p = || pg!(rix + 1, PrimeGenClass::Nth, false, u8, None);
-                assert_eq!(vals[rix], p().unwrap().uproot_max());
+                assert_eq!(vals[rix], p().uproot_max());
             }
         }
 
@@ -4619,7 +4706,7 @@ mod tests_of_units {
 
             for v in vals {
                 let p = || pg!(v as usize, PrimeGenClass::Lim, false, u8, None);
-                assert_eq!(v, p().unwrap().uproot_max());
+                assert_eq!(v, p().uproot_max());
             }
         }
 
@@ -4635,7 +4722,7 @@ mod tests_of_units {
 
             for rix in 0..20 {
                 let p = || pg!(rix + 801, PrimeGenClass::Nth, false, u16, None);
-                assert_eq!(vals[rix], p().unwrap().uproot_max());
+                assert_eq!(vals[rix], p().uproot_max());
             }
         }
 
@@ -4651,7 +4738,7 @@ mod tests_of_units {
 
             for v in vals {
                 let p = || pg!(v as usize, PrimeGenClass::Lim, false, u16, None);
-                assert_eq!(v, p().unwrap().uproot_max());
+                assert_eq!(v, p().uproot_max());
             }
         }
 
@@ -4661,7 +4748,7 @@ mod tests_of_units {
 
             for v in vals {
                 let p = || pg!(v as usize, PrimeGenClass::Lim, false, u16, None);
-                assert_eq!(65413, p().unwrap().uproot_max());
+                assert_eq!(65413, p().uproot_max());
             }
         }
 
@@ -4741,7 +4828,7 @@ mod tests_of_units {
         }
 
         mod cap {
-            use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes};
+            use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes, PrimeGenResAide};
             use std::time::{Duration, Instant};
 
             #[test]
@@ -4749,20 +4836,20 @@ mod tests_of_units {
                 // 7919 ÷⌊㏑7919⌋ ⋅1.15 ≈ 1138
                 // 7919 is 1000ᵗʰ prime
                 let test = || pg!(7919, PrimeGenClass::Lim, true, usize, None);
-                let test = test().unwrap().uproot_all();
+                let test = test().uproot_all();
                 assert_eq!(true, test.capacity() < 1138);
             }
 
             #[test]
             fn nth_test() {
                 let test = || pg!(1000, PrimeGenClass::Nth, true, usize, None);
-                let test = test().unwrap().uproot_all();
+                let test = test().uproot_all();
                 assert_eq!(1000, test.capacity());
             }
         }
 
         mod all {
-            use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes};
+            use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes, PrimeGenResAide};
             use std::time::{Duration, Instant};
 
             #[test]
@@ -4772,8 +4859,8 @@ mod tests_of_units {
 
                 let proof: [u8; 11] = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31];
 
-                let test1 = test1().unwrap().uproot_all();
-                let test2 = test2().unwrap().uproot_all();
+                let test1 = test1().uproot_all();
+                let test2 = test2().uproot_all();
 
                 assert_eq!(test1, test2);
                 assert_eq!(proof, test1.as_slice());
@@ -4784,8 +4871,8 @@ mod tests_of_units {
                 let test1 = || pg!(1000, PrimeGenClass::Nth, true, u16, None);
                 let test2 = || pg!(7919, PrimeGenClass::Lim, true, u16, None);
 
-                let test1 = test1().unwrap().uproot_all();
-                let test2 = test2().unwrap().uproot_all();
+                let test1 = test1().uproot_all();
+                let test2 = test2().uproot_all();
 
                 assert_eq!(1000, test1.len());
                 assert_eq!(1000, test2.len());
@@ -4809,7 +4896,7 @@ mod tests_of_units {
 
             #[test]
             fn example_1() {
-                use crate::{pg, PrimeGenClass, PrimeGenErr, PrimeGenRes};
+                use crate::{pg, PrimeGenClass, PrimeGenErr, PrimeGenRes, PrimeGenResAide};
                 use std::time::{Duration, Instant};
 
                 let all1 = || pg!(11, PrimeGenClass::Nth, true, usize, None);
@@ -4817,8 +4904,8 @@ mod tests_of_units {
 
                 let proof: [usize; 11] = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31];
 
-                let all1 = all1().unwrap().uproot_all();
-                let all2 = all2().unwrap().uproot_all();
+                let all1 = all1().uproot_all();
+                let all2 = all2().uproot_all();
 
                 assert_eq!(all1, all2);
                 assert_eq!(proof, all1.as_slice());
@@ -4826,31 +4913,31 @@ mod tests_of_units {
 
             #[test]
             fn example_2() {
-                use crate::{pg, PrimeGenClass, PrimeGenErr, PrimeGenRes};
+                use crate::{pg, PrimeGenClass, PrimeGenErr, PrimeGenRes, PrimeGenResAide};
                 use std::time::{Duration, Instant};
 
                 let limit = Duration::from_secs(1);
                 let result = (|| pg!(5_000, PrimeGenClass::Nth, false, u128, Some(limit)))();
 
-                assert_eq!(Ok(PrimeGenRes::Max(48_611)), result);
+                assert_eq!(48_611, result.uproot_max());
             }
 
             #[test]
             fn example_3() {
-                use crate::{pg, PrimeGenClass, PrimeGenErr, PrimeGenRes};
+                use crate::{pg, PrimeGenClass, PrimeGenErr, PrimeGenRes, PrimeGenResAide};
                 use std::time::{Duration, Instant};
 
                 let num = || pg!(20_000, PrimeGenClass::Nth, false, u64, None);
-                assert_eq!(Ok(PrimeGenRes::Max(224_737)), num());
+                assert_eq!(224_737, num().uproot_max());
 
                 let num = || pg!(20_000, PrimeGenClass::Nth, false, u32, None);
-                assert_eq!(Ok(PrimeGenRes::Max(224_737)), num());
+                assert_eq!(224_737, num().uproot_max());
             }
         }
     }
 
     mod pg_sw {
-        use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes};
+        use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes, PrimeGenResAide};
         use std::time::{Duration, Instant};
 
         #[test]
@@ -4859,7 +4946,7 @@ mod tests_of_units {
 
             for rix in 0..15 {
                 let p = || pg_sw!(rix + 1, PrimeGenClass::Nth, false, u8, None);
-                assert_eq!(vals[rix], p().unwrap().uproot_max());
+                assert_eq!(vals[rix], p().uproot_max());
             }
         }
 
@@ -4869,7 +4956,7 @@ mod tests_of_units {
 
             for v in vals {
                 let p = || pg_sw!(v as usize, PrimeGenClass::Lim, false, u8, None);
-                assert_eq!(v, p().unwrap().uproot_max());
+                assert_eq!(v, p().uproot_max());
             }
         }
 
@@ -4885,7 +4972,7 @@ mod tests_of_units {
 
             for rix in 0..20 {
                 let p = || pg_sw!(rix + 801, PrimeGenClass::Nth, false, u16, None);
-                assert_eq!(vals[rix], p().unwrap().uproot_max());
+                assert_eq!(vals[rix], p().uproot_max());
             }
         }
 
@@ -4901,7 +4988,7 @@ mod tests_of_units {
 
             for v in vals {
                 let p = || pg_sw!(v as usize, PrimeGenClass::Lim, false, u16, None);
-                assert_eq!(v, p().unwrap().uproot_max());
+                assert_eq!(v, p().uproot_max());
             }
         }
 
@@ -4911,7 +4998,7 @@ mod tests_of_units {
 
             for v in vals {
                 let p = || pg_sw!(v as usize, PrimeGenClass::Lim, false, u16, None);
-                assert_eq!(65413, p().unwrap().uproot_max());
+                assert_eq!(65413, p().uproot_max());
             }
         }
 
@@ -4989,7 +5076,7 @@ mod tests_of_units {
         }
 
         mod cap {
-            use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes};
+            use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes, PrimeGenResAide};
             use std::time::{Duration, Instant};
 
             #[test]
@@ -4997,20 +5084,20 @@ mod tests_of_units {
                 // 7919 ÷⌊㏑7919⌋ ⋅1.15 ≈ 1138
                 // 7919 is 1000ᵗʰ prime
                 let test = || pg_sw!(7919, PrimeGenClass::Lim, true, usize, None);
-                let test = test().unwrap().uproot_all();
+                let test = test().uproot_all();
                 assert_eq!(1138, test.capacity());
             }
 
             #[test]
             fn nth_test() {
                 let test = || pg_sw!(1000, PrimeGenClass::Nth, true, usize, None);
-                let test = test().unwrap().uproot_all();
+                let test = test().uproot_all();
                 assert_eq!(1000, test.capacity());
             }
         }
 
         mod all {
-            use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes};
+            use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes, PrimeGenResAide};
             use std::time::{Duration, Instant};
 
             #[test]
@@ -5020,8 +5107,8 @@ mod tests_of_units {
 
                 let proof: [u8; 11] = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31];
 
-                let test1 = test1().unwrap().uproot_all();
-                let test2 = test2().unwrap().uproot_all();
+                let test1 = test1().uproot_all();
+                let test2 = test2().uproot_all();
 
                 assert_eq!(test1, test2);
                 assert_eq!(proof, test1.as_slice());
@@ -5032,8 +5119,8 @@ mod tests_of_units {
                 let test1 = || pg_sw!(1000, PrimeGenClass::Nth, true, u16, None);
                 let test2 = || pg_sw!(7919, PrimeGenClass::Lim, true, u16, None);
 
-                let test1 = test1().unwrap().uproot_all();
-                let test2 = test2().unwrap().uproot_all();
+                let test1 = test1().uproot_all();
+                let test2 = test2().uproot_all();
 
                 assert_eq!(1000, test1.len());
                 assert_eq!(1000, test2.len());
@@ -5056,14 +5143,14 @@ mod tests_of_units {
         #[test]
         fn faster_test() {
             let test = || pg_sw!(20_000 as usize, PrimeGenClass::Nth, false, u32, None);
-            let test = test().unwrap().uproot_max();
+            let test = test().uproot_max();
             assert_eq!(224_737, test);
         }
 
         #[test]
         fn slower_test() {
             let test = || pg_sw!(20_000, PrimeGenClass::Nth, false, u64, None);
-            let test = test().unwrap().uproot_max();
+            let test = test().uproot_max();
             assert_eq!(224_737, test);
         }
     }

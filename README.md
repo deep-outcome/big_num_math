@@ -2,7 +2,7 @@
 Library for computations on large numbers.
 
 - development notes: 
-    1. no additional functions planned (still not obviated)
+    1. upcomming functions: greatest common divisor
     2. planned optimizations (memory consumption [half memory requirement])
 - functions only:
     - addition +substraction, 
@@ -69,9 +69,9 @@ assert_eq!(RelDec::Greater((28, 20, 8)), decrel);
 let number_1 = PlacesRow::new_from_u128(3162277660168379331998893544432);
 let number_2 = PlacesRow::new_from_u128(3162277660168379331998893544433);
 
-assert_eq!(Oom::Precise(30), ord_of_mag(&number_1, OomKind::Strict));
-assert_eq!(Oom::Precise(31), ord_of_mag(&number_2, OomKind::Strict));
-assert_eq!(Oom::Precise(30), ord_of_mag(&number_2, OomKind::Loose));
+assert_eq!(Oom::Precise(30), ord_of_mag(&number_1, OomClass::Strict));
+assert_eq!(Oom::Precise(31), ord_of_mag(&number_2, OomClass::Strict));
+assert_eq!(Oom::Precise(30), ord_of_mag(&number_2, OomClass::Loose));
 ```
 
 ##### square root
