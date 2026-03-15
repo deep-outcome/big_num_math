@@ -405,7 +405,7 @@ pub enum OomClass {
     Loose,
 }
 
-/// Order of magnitude enumeration.
+/// Order of magnitude variants enumeration.
 #[derive(Clone, PartialEq, Debug)]
 pub enum Oom {
     /// Order of magnitude is not defined for nought `PlacesRow`.
