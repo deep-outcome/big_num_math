@@ -394,9 +394,9 @@ impl From<usize> for PlacesRow {
 /// Check with `fn` [`ord_of_mag`].
 pub const SQUARE_ROOT_TEN_COMPARATOR: &str = "3162277660168379331998893544432718533719555139325216826857504852792594438639238221344248108379300295187347284152840055148548856030453880014690519596700153903344921657179259940659150153474113339484124085316929577090471576461044369257879062037808609941828371711548406328552999118596824564203326961604691314336128949791890266529543612676178781350061388186278580463683134952478031143769334671973819513185678403231241795402218308045872844614600253577579702828644029024407977896034543989163349222652612067792651676031048436697793756926155720500369894909469421850007358348844643882731109289109042348054235653403907274019786543725939641726001306990000955784463109626790694418336130181302894541703315807731626386395193793704654765220632063686587197822049312426053454111609356979828132452297000798883523759585328579251362964686511497675217123459559238039375625125369855194955325099947038843990336466165470647234999796132343403021857052187836676345789510732982875157945215771652139626324438399018484560935762602";
 
-/// Order of magnitude computational kind.
+/// Order of magnitude computational variants.
 #[derive(Clone, PartialEq, Debug)]
-pub enum OomKind {
+pub enum OomClass {
     /// Uses `√10` for relation.
     ///
     /// Check with [`SQUARE_ROOT_TEN_COMPARATOR`].
@@ -421,7 +421,7 @@ pub enum Oom {
     Approx(usize),
 }
 
-/// Computes order of magnitude for `num` and `kind`.
+/// Computes order of magnitude for `num` and `class`.
 ///
 /// OOM is defined for number _n_ as follows:
 ///
@@ -429,21 +429,21 @@ pub enum Oom {
 ///
 /// Then _i_ is order of magnitude of such number.
 ///
-/// `Strict` kind evaluation is precise up to 1,000 numbers of [`SQUARE_ROOT_TEN_COMPARATOR`].
+/// `Strict` variant evaluation is precise up to 1,000 numbers of [`SQUARE_ROOT_TEN_COMPARATOR`].
 /// Any `num` requiring higher precision is considered to be of higher order. That
 /// means its order of magnitude is arranged equal to its decimal places count
 /// and is reported as `Oom::Approx(usize)`.
 ///
 /// Returns `Oom` enumeration.
-pub fn ord_of_mag(num: &PlacesRow, kind: OomKind) -> Oom {
+pub fn ord_of_mag(num: &PlacesRow, class: OomClass) -> Oom {
     let row = &num.row;
     if is_nought_raw(row) {
         return Oom::Undefined;
     }
 
-    let cmp = match kind {
-        OomKind::Strict => SQUARE_ROOT_TEN_COMPARATOR.chars().map(from_digit).collect(),
-        OomKind::Loose => vec![5],
+    let cmp = match class {
+        OomClass::Strict => SQUARE_ROOT_TEN_COMPARATOR.chars().map(from_digit).collect(),
+        OomClass::Loose => vec![5],
     };
 
     let row_len = row.len();
@@ -479,7 +479,7 @@ pub fn ord_of_mag(num: &PlacesRow, kind: OomKind) -> Oom {
     } else {
         let ord = row_len.cmp(&cmp_len);
         match ord {
-            Ordering::Greater => (false, kind == OomKind::Loose),
+            Ordering::Greater => (false, class == OomClass::Loose),
             Ordering::Less => (true, true),
             _ => (false, true),
         }
@@ -1436,7 +1436,7 @@ impl<T> PrimeGenRes<T> {
     }
 }
 
-/// Prime number generation strain enumeration.
+/// Prime number generation variants enumeration.
 #[derive(Clone, PartialEq, Debug)]
 pub enum PrimeGenClass {
     /// Nth prime number generation.
@@ -1452,11 +1452,11 @@ pub enum PrimeGenClass {
 ///
 /// Unity is not cosidered to be prime number.
 ///
-/// 2 strains available:
+/// 2 variants available:
 /// - [`PrimeGenClass::Nth`] — generation runs up to nth prime number inclusively.
 /// - [`PrimeGenClass::Lim`] — generation runs up to limit inclusively.
 ///
-/// Both strains can return only number required or whole row of prime numbers.
+/// Both variants can return only number required or whole row of prime numbers.
 ///
 /// ```
 /// use big_num_math::{pg, PrimeGenClass, PrimeGenRes, PrimeGenErr};
@@ -1475,7 +1475,7 @@ pub enum PrimeGenClass {
 /// ```
 ///
 /// In either case generation is limited by [`isize::MAX`] bytes. Expect memory reservation twice
-/// amount of `$size` type byte size per one prime number. For [`PrimeGenClass::Lim`] strain expect more. Given
+/// amount of `$size` type byte size per one prime number. For [`PrimeGenClass::Lim`] variant expect more. Given
 /// by formula `(lim ÷⌊max(1, ㏑(lim))⌋) ⋅1.15`.
 ///
 /// Reason above implies that generating further large prime numbers can be impossible. Since direct generation of `PlaceRow`s
@@ -2764,7 +2764,7 @@ mod tests_of_units {
 
     mod ord_of_mag {
 
-        use crate::{ord_of_mag, Oom, OomKind, PlacesRow, Row};
+        use crate::{ord_of_mag, Oom, OomClass, PlacesRow, Row};
 
         const PROOF: &str = "3162277660168379331998893544432718533719555139325216826857504852792594438639238221344248108379300295187347284152840055148548856030453880014690519596700153903344921657179259940659150153474113339484124085316929577090471576461044369257879062037808609941828371711548406328552999118596824564203326961604691314336128949791890266529543612676178781350061388186278580463683134952478031143769334671973819513185678403231241795402218308045872844614600253577579702828644029024407977896034543989163349222652612067792651676031048436697793756926155720500369894909469421850007358348844643882731109289109042348054235653403907274019786543725939641726001306990000955784463109626790694418336130181302894541703315807731626386395193793704654765220632063686587197822049312426053454111609356979828132452297000798883523759585328579251362964686511497675217123459559238039375625125369855194955325099947038843990336466165470647234999796132343403021857052187836676345789510732982875157945215771652139626324438399018484560935762602";
 
@@ -2779,7 +2779,7 @@ mod tests_of_units {
         #[test]
         fn nought_test() {
             let r = Row::nought();
-            let oom = unsafe { core::mem::transmute::<u8, OomKind>(u8::MAX) };
+            let oom = unsafe { core::mem::transmute::<u8, OomClass>(u8::MAX) };
 
             assert_eq!(Oom::Undefined, ord_of_mag(&r, oom));
         }
@@ -2789,15 +2789,15 @@ mod tests_of_units {
             let number_1 = PlacesRow::new_from_u128(3162277660168379331998893544432);
             let number_2 = PlacesRow::new_from_u128(3162277660168379331998893544433);
 
-            assert_eq!(Oom::Precise(30), ord_of_mag(&number_1, OomKind::Strict));
-            assert_eq!(Oom::Precise(31), ord_of_mag(&number_2, OomKind::Strict));
-            assert_eq!(Oom::Precise(30), ord_of_mag(&number_2, OomKind::Loose));
+            assert_eq!(Oom::Precise(30), ord_of_mag(&number_1, OomClass::Strict));
+            assert_eq!(Oom::Precise(31), ord_of_mag(&number_2, OomClass::Strict));
+            assert_eq!(Oom::Precise(30), ord_of_mag(&number_2, OomClass::Loose));
         }
 
         mod strict {
 
             use super::PROOF;
-            use crate::{ord_of_mag, Oom, OomKind::Strict, Row};
+            use crate::{ord_of_mag, Oom, OomClass::Strict, Row};
 
             #[test]
             fn universal_test() {
@@ -2842,7 +2842,7 @@ mod tests_of_units {
         }
 
         mod loose {
-            use crate::{ord_of_mag, Oom, OomKind::Loose, Row};
+            use crate::{ord_of_mag, Oom, OomClass::Loose, Row};
 
             #[test]
             fn universal_test() {
