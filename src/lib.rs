@@ -1408,7 +1408,7 @@ pub enum PrimeGenErr {
     InputGreaterThanSizeMax(usize),
     /// Computed value cannot be cast to target type. Holds input provided, `0`, and value to be cast, `1`.
     ValueGreaterThanSizeMax(usize, usize),
-    /// Aimless input for computation, like `1` for [`PrimeGenStrain::Lim`]
+    /// Aimless input for computation, like `1` for [`PrimeGenClass::Lim`]
     AimlessInput(usize),
     /// Time limit exhaustion.
     TimeframeExhaustion,
@@ -1438,7 +1438,7 @@ impl<T> PrimeGenRes<T> {
 
 /// Prime number generation strain enumeration.
 #[derive(Clone, PartialEq, Debug)]
-pub enum PrimeGenStrain {
+pub enum PrimeGenClass {
     /// Nth prime number generation.
     Nth,
     /// Highest prime number lesser than input or equal to it generation.
@@ -1453,17 +1453,17 @@ pub enum PrimeGenStrain {
 /// Unity is not cosidered to be prime number.
 ///
 /// 2 strains available:
-/// - [`PrimeGenStrain::Nth`] — generation runs up to nth prime number inclusively.
-/// - [`PrimeGenStrain::Lim`] — generation runs up to limit inclusively.
+/// - [`PrimeGenClass::Nth`] — generation runs up to nth prime number inclusively.
+/// - [`PrimeGenClass::Lim`] — generation runs up to limit inclusively.
 ///
 /// Both strains can return only number required or whole row of prime numbers.
 ///
 /// ```
-/// use big_num_math::{pg, PrimeGenStrain, PrimeGenRes, PrimeGenErr};
+/// use big_num_math::{pg, PrimeGenClass, PrimeGenRes, PrimeGenErr};
 /// use std::time::{Instant, Duration};
 ///
-/// let all1 = || { pg!(11, PrimeGenStrain::Nth, true, usize, None) };
-/// let all2 = || { pg!(31, PrimeGenStrain::Lim, true, usize, None) };
+/// let all1 = || { pg!(11, PrimeGenClass::Nth, true, usize, None) };
+/// let all2 = || { pg!(31, PrimeGenClass::Lim, true, usize, None) };
 ///
 /// let proof: [usize; 11] = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31];
 ///
@@ -1475,7 +1475,7 @@ pub enum PrimeGenStrain {
 /// ```
 ///
 /// In either case generation is limited by [`isize::MAX`] bytes. Expect memory reservation twice
-/// amount of `$size` type byte size per one prime number. For _lim_ strain expect more. Given
+/// amount of `$size` type byte size per one prime number. For [`PrimeGenClass::Lim`] strain expect more. Given
 /// by formula `(lim ÷⌊max(1, ㏑(lim))⌋) ⋅1.15`.
 ///
 /// Reason above implies that generating further large prime numbers can be impossible. Since direct generation of `PlaceRow`s
@@ -1485,30 +1485,30 @@ pub enum PrimeGenStrain {
 /// can require considerable amount of time and be optionally time-limited.
 ///
 /// ```
-/// use big_num_math::{pg, PrimeGenStrain, PrimeGenRes, PrimeGenErr};
+/// use big_num_math::{pg, PrimeGenClass, PrimeGenRes, PrimeGenErr};
 /// use std::time::{Instant, Duration};
 ///
 /// let limit = Duration::from_secs(1);
-/// let result = (|| { pg!(5_000, PrimeGenStrain::Nth, false, u128, Some(limit)) })();
+/// let result = (|| { pg!(5_000, PrimeGenClass::Nth, false, u128, Some(limit)) })();
 ///
 /// assert_eq!(Ok(PrimeGenRes::Max(48_611)), result);
 /// ```
 ///
 /// When confident about outputs, type setting can speed up computation. Use `usize` or wider type in contrary case.
 /// ```
-/// use big_num_math::{pg, PrimeGenStrain, PrimeGenRes, PrimeGenErr};
+/// use big_num_math::{pg, PrimeGenClass, PrimeGenRes, PrimeGenErr};
 /// use std::time::{Instant, Duration};
 ///
-/// let num = || { pg!(20_000, PrimeGenStrain::Nth, false, u64, None) };
+/// let num = || { pg!(20_000, PrimeGenClass::Nth, false, u64, None) };
 /// assert_eq!(Ok(PrimeGenRes::Max(224_737)), num());
 ///
-/// let num = || { pg!(20_000, PrimeGenStrain::Nth, false, u32, None) };
+/// let num = || { pg!(20_000, PrimeGenClass::Nth, false, u32, None) };
 /// assert_eq!(Ok(PrimeGenRes::Max(224_737)), num());
 /// ```
 /// `u32` version of sample above will perform better. The gain stems from reduced data set size.
 #[macro_export]
 macro_rules! pg {
-    ($input: expr, $pgs: expr, $all: expr, $size:tt, $lim: expr) => {{
+    ($input: expr, $pgc: expr, $all: expr, $size:tt, $lim: expr) => {{
         if 0 == $input {
             return Err(PrimeGenErr::AimlessInput(0));
         }
@@ -1518,7 +1518,7 @@ macro_rules! pg {
             return Err(PrimeGenErr::InputGreaterThanSizeMax($input));
         }
 
-        let nth = $pgs == PrimeGenStrain::Nth;
+        let nth = $pgc == PrimeGenClass::Nth;
 
         let cap = if nth {
             $input
@@ -1634,7 +1634,7 @@ macro_rules! pg {
 /// Check with [`pg`] for guidelines.
 #[macro_export]
 macro_rules! pg_sw {
-    ($input: expr, $pgs: expr, $all: expr, $size:tt, $lim: expr) => {{
+    ($input: expr, $pgc: expr, $all: expr, $size:tt, $lim: expr) => {{
         if 0 == $input {
             return Err(PrimeGenErr::AimlessInput(0));
         }
@@ -1644,7 +1644,7 @@ macro_rules! pg_sw {
             return Err(PrimeGenErr::InputGreaterThanSizeMax($input));
         }
 
-        let nth = $pgs == PrimeGenStrain::Nth;
+        let nth = $pgc == PrimeGenClass::Nth;
 
         let cap = if nth {
             $input
@@ -4600,7 +4600,7 @@ mod tests_of_units {
     }
 
     mod pg {
-        use crate::{PrimeGenErr, PrimeGenRes, PrimeGenStrain};
+        use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes};
         use std::time::{Duration, Instant};
 
         #[test]
@@ -4608,7 +4608,7 @@ mod tests_of_units {
             let vals: [u8; 15] = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47];
 
             for rix in 0..15 {
-                let p = || pg!(rix + 1, PrimeGenStrain::Nth, false, u8, None);
+                let p = || pg!(rix + 1, PrimeGenClass::Nth, false, u8, None);
                 assert_eq!(vals[rix], p().unwrap().uproot_max());
             }
         }
@@ -4618,7 +4618,7 @@ mod tests_of_units {
             let vals: [u8; 13] = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41];
 
             for v in vals {
-                let p = || pg!(v as usize, PrimeGenStrain::Lim, false, u8, None);
+                let p = || pg!(v as usize, PrimeGenClass::Lim, false, u8, None);
                 assert_eq!(v, p().unwrap().uproot_max());
             }
         }
@@ -4634,7 +4634,7 @@ mod tests_of_units {
             ];
 
             for rix in 0..20 {
-                let p = || pg!(rix + 801, PrimeGenStrain::Nth, false, u16, None);
+                let p = || pg!(rix + 801, PrimeGenClass::Nth, false, u16, None);
                 assert_eq!(vals[rix], p().unwrap().uproot_max());
             }
         }
@@ -4650,7 +4650,7 @@ mod tests_of_units {
             ];
 
             for v in vals {
-                let p = || pg!(v as usize, PrimeGenStrain::Lim, false, u16, None);
+                let p = || pg!(v as usize, PrimeGenClass::Lim, false, u16, None);
                 assert_eq!(v, p().unwrap().uproot_max());
             }
         }
@@ -4660,7 +4660,7 @@ mod tests_of_units {
             let vals: [u16; 2] = [65413, 65418];
 
             for v in vals {
-                let p = || pg!(v as usize, PrimeGenStrain::Lim, false, u16, None);
+                let p = || pg!(v as usize, PrimeGenClass::Lim, false, u16, None);
                 assert_eq!(65413, p().unwrap().uproot_max());
             }
         }
@@ -4670,105 +4670,105 @@ mod tests_of_units {
         // readme sample
         fn large_nth_test() {
             let limit = Duration::from_secs(60);
-            let p = || pg!(200_000, PrimeGenStrain::Nth, false, u32, Some(limit));
+            let p = || pg!(200_000, PrimeGenClass::Nth, false, u32, Some(limit));
             assert_eq!(Ok(PrimeGenRes::Max(2_750_159)), p());
         }
 
         mod timeframe_exhaustion {
-            use crate::{PrimeGenErr, PrimeGenRes, PrimeGenStrain};
+            use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes};
             use std::time::{Duration, Instant};
             #[test]
             fn basic_test() {
                 let lim = Duration::from_secs(1);
-                let res = || pg!(10_000_000, PrimeGenStrain::Nth, false, u128, Some(lim));
+                let res = || pg!(10_000_000, PrimeGenClass::Nth, false, u128, Some(lim));
                 assert_eq!(Err(PrimeGenErr::TimeframeExhaustion), res());
             }
 
             #[test]
             fn two_always_test() {
                 let lim = Duration::ZERO;
-                let res = || pg!(1, PrimeGenStrain::Nth, false, u8, Some(lim));
+                let res = || pg!(1, PrimeGenClass::Nth, false, u8, Some(lim));
                 assert_eq!(Ok(PrimeGenRes::Max(2)), res());
 
                 let lim = Duration::ZERO;
-                let res = || pg!(2, PrimeGenStrain::Lim, false, u8, Some(lim));
+                let res = || pg!(2, PrimeGenClass::Lim, false, u8, Some(lim));
                 assert_eq!(Ok(PrimeGenRes::Max(2)), res());
             }
         }
 
         mod invalid_input {
-            use crate::{PrimeGenErr, PrimeGenRes, PrimeGenStrain};
+            use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes};
             use std::time::{Duration, Instant};
 
             #[test]
             fn invalid_nth_test() {
-                let test = || pg!(0, PrimeGenStrain::Nth, false, u8, None);
+                let test = || pg!(0, PrimeGenClass::Nth, false, u8, None);
                 assert_eq!(Err(PrimeGenErr::AimlessInput(0)), test());
             }
 
             #[test]
             fn invalid_limit_test() {
                 for lim in [0, 1] {
-                    let test = || pg!(lim, PrimeGenStrain::Lim, false, usize, None);
+                    let test = || pg!(lim, PrimeGenClass::Lim, false, usize, None);
                     assert_eq!(Err(PrimeGenErr::AimlessInput(lim)), test());
                 }
             }
 
             #[test]
             fn limit_outside_type_size_test() {
-                let test = || pg!(255, PrimeGenStrain::Lim, false, u8, None);
+                let test = || pg!(255, PrimeGenClass::Lim, false, u8, None);
                 assert_eq!(Ok(PrimeGenRes::Max(251)), test());
 
-                let test = || pg!(256, PrimeGenStrain::Lim, false, u8, None);
+                let test = || pg!(256, PrimeGenClass::Lim, false, u8, None);
                 assert_eq!(Err(PrimeGenErr::InputGreaterThanSizeMax(256)), test());
             }
 
             #[test]
             fn nth_outside_type_size_test() {
-                let test = || pg!(54, PrimeGenStrain::Nth, false, u8, None);
+                let test = || pg!(54, PrimeGenClass::Nth, false, u8, None);
                 assert_eq!(Ok(PrimeGenRes::Max(251)), test());
 
-                let test = || pg!(55, PrimeGenStrain::Nth, false, u8, None);
+                let test = || pg!(55, PrimeGenClass::Nth, false, u8, None);
                 assert_eq!(Err(PrimeGenErr::ValueGreaterThanSizeMax(55, 257)), test());
             }
 
             #[test]
             #[should_panic(expected = "capacity overflow")]
             fn impossible_to_unfit_type_size_test() {
-                let test = || pg!(usize::MAX, PrimeGenStrain::Lim, false, u128, None);
+                let test = || pg!(usize::MAX, PrimeGenClass::Lim, false, u128, None);
                 _ = test();
             }
         }
 
         mod cap {
-            use crate::{PrimeGenErr, PrimeGenRes, PrimeGenStrain};
+            use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes};
             use std::time::{Duration, Instant};
 
             #[test]
             fn lim_test() {
                 // 7919 ÷⌊㏑7919⌋ ⋅1.15 ≈ 1138
                 // 7919 is 1000ᵗʰ prime
-                let test = || pg!(7919, PrimeGenStrain::Lim, true, usize, None);
+                let test = || pg!(7919, PrimeGenClass::Lim, true, usize, None);
                 let test = test().unwrap().uproot_all();
                 assert_eq!(true, test.capacity() < 1138);
             }
 
             #[test]
             fn nth_test() {
-                let test = || pg!(1000, PrimeGenStrain::Nth, true, usize, None);
+                let test = || pg!(1000, PrimeGenClass::Nth, true, usize, None);
                 let test = test().unwrap().uproot_all();
                 assert_eq!(1000, test.capacity());
             }
         }
 
         mod all {
-            use crate::{PrimeGenErr, PrimeGenRes, PrimeGenStrain};
+            use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes};
             use std::time::{Duration, Instant};
 
             #[test]
             fn basic_test() {
-                let test1 = || pg!(11, PrimeGenStrain::Nth, true, u8, None);
-                let test2 = || pg!(31, PrimeGenStrain::Lim, true, u8, None);
+                let test1 = || pg!(11, PrimeGenClass::Nth, true, u8, None);
+                let test2 = || pg!(31, PrimeGenClass::Lim, true, u8, None);
 
                 let proof: [u8; 11] = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31];
 
@@ -4781,8 +4781,8 @@ mod tests_of_units {
 
             #[test]
             fn advanced_test() {
-                let test1 = || pg!(1000, PrimeGenStrain::Nth, true, u16, None);
-                let test2 = || pg!(7919, PrimeGenStrain::Lim, true, u16, None);
+                let test1 = || pg!(1000, PrimeGenClass::Nth, true, u16, None);
+                let test2 = || pg!(7919, PrimeGenClass::Lim, true, u16, None);
 
                 let test1 = test1().unwrap().uproot_all();
                 let test2 = test2().unwrap().uproot_all();
@@ -4809,11 +4809,11 @@ mod tests_of_units {
 
             #[test]
             fn example_1() {
-                use crate::{pg, PrimeGenErr, PrimeGenRes, PrimeGenStrain};
+                use crate::{pg, PrimeGenClass, PrimeGenErr, PrimeGenRes};
                 use std::time::{Duration, Instant};
 
-                let all1 = || pg!(11, PrimeGenStrain::Nth, true, usize, None);
-                let all2 = || pg!(31, PrimeGenStrain::Lim, true, usize, None);
+                let all1 = || pg!(11, PrimeGenClass::Nth, true, usize, None);
+                let all2 = || pg!(31, PrimeGenClass::Lim, true, usize, None);
 
                 let proof: [usize; 11] = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31];
 
@@ -4826,31 +4826,31 @@ mod tests_of_units {
 
             #[test]
             fn example_2() {
-                use crate::{pg, PrimeGenErr, PrimeGenRes, PrimeGenStrain};
+                use crate::{pg, PrimeGenClass, PrimeGenErr, PrimeGenRes};
                 use std::time::{Duration, Instant};
 
                 let limit = Duration::from_secs(1);
-                let result = (|| pg!(5_000, PrimeGenStrain::Nth, false, u128, Some(limit)))();
+                let result = (|| pg!(5_000, PrimeGenClass::Nth, false, u128, Some(limit)))();
 
                 assert_eq!(Ok(PrimeGenRes::Max(48_611)), result);
             }
 
             #[test]
             fn example_3() {
-                use crate::{pg, PrimeGenErr, PrimeGenRes, PrimeGenStrain};
+                use crate::{pg, PrimeGenClass, PrimeGenErr, PrimeGenRes};
                 use std::time::{Duration, Instant};
 
-                let num = || pg!(20_000, PrimeGenStrain::Nth, false, u64, None);
+                let num = || pg!(20_000, PrimeGenClass::Nth, false, u64, None);
                 assert_eq!(Ok(PrimeGenRes::Max(224_737)), num());
 
-                let num = || pg!(20_000, PrimeGenStrain::Nth, false, u32, None);
+                let num = || pg!(20_000, PrimeGenClass::Nth, false, u32, None);
                 assert_eq!(Ok(PrimeGenRes::Max(224_737)), num());
             }
         }
     }
 
     mod pg_sw {
-        use crate::{PrimeGenErr, PrimeGenRes, PrimeGenStrain};
+        use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes};
         use std::time::{Duration, Instant};
 
         #[test]
@@ -4858,7 +4858,7 @@ mod tests_of_units {
             let vals: [u8; 15] = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47];
 
             for rix in 0..15 {
-                let p = || pg_sw!(rix + 1, PrimeGenStrain::Nth, false, u8, None);
+                let p = || pg_sw!(rix + 1, PrimeGenClass::Nth, false, u8, None);
                 assert_eq!(vals[rix], p().unwrap().uproot_max());
             }
         }
@@ -4868,7 +4868,7 @@ mod tests_of_units {
             let vals: [u8; 13] = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41];
 
             for v in vals {
-                let p = || pg_sw!(v as usize, PrimeGenStrain::Lim, false, u8, None);
+                let p = || pg_sw!(v as usize, PrimeGenClass::Lim, false, u8, None);
                 assert_eq!(v, p().unwrap().uproot_max());
             }
         }
@@ -4884,7 +4884,7 @@ mod tests_of_units {
             ];
 
             for rix in 0..20 {
-                let p = || pg_sw!(rix + 801, PrimeGenStrain::Nth, false, u16, None);
+                let p = || pg_sw!(rix + 801, PrimeGenClass::Nth, false, u16, None);
                 assert_eq!(vals[rix], p().unwrap().uproot_max());
             }
         }
@@ -4900,7 +4900,7 @@ mod tests_of_units {
             ];
 
             for v in vals {
-                let p = || pg_sw!(v as usize, PrimeGenStrain::Lim, false, u16, None);
+                let p = || pg_sw!(v as usize, PrimeGenClass::Lim, false, u16, None);
                 assert_eq!(v, p().unwrap().uproot_max());
             }
         }
@@ -4910,7 +4910,7 @@ mod tests_of_units {
             let vals: [u16; 2] = [65413, 65418];
 
             for v in vals {
-                let p = || pg_sw!(v as usize, PrimeGenStrain::Lim, false, u16, None);
+                let p = || pg_sw!(v as usize, PrimeGenClass::Lim, false, u16, None);
                 assert_eq!(65413, p().unwrap().uproot_max());
             }
         }
@@ -4919,104 +4919,104 @@ mod tests_of_units {
         #[cfg(feature = "ext-tests")]
         fn large_nth_test() {
             let limit = Duration::from_secs(80);
-            let p = || pg_sw!(200_000, PrimeGenStrain::Nth, false, u32, Some(limit));
-            assert_eq!(2_750_159, p().uproot_max());
+            let p = || pg_sw!(200_000, PrimeGenClass::Nth, false, u32, Some(limit));
+            assert_eq!(Ok(PrimeGenRes::Max(2_750_159)), p());
         }
 
         mod timeframe_exhaustion {
-            use crate::{PrimeGenErr, PrimeGenRes, PrimeGenStrain};
+            use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes};
             use std::time::{Duration, Instant};
             #[test]
             fn basic_test() {
                 let lim = Duration::from_secs(1);
-                let res = || pg_sw!(10_000_000, PrimeGenStrain::Nth, false, u128, Some(lim));
+                let res = || pg_sw!(10_000_000, PrimeGenClass::Nth, false, u128, Some(lim));
                 assert_eq!(Err(PrimeGenErr::TimeframeExhaustion), res());
             }
 
             #[test]
             fn two_always_test() {
                 let lim = Duration::ZERO;
-                let res = || pg_sw!(1, PrimeGenStrain::Nth, false, u8, Some(lim));
+                let res = || pg_sw!(1, PrimeGenClass::Nth, false, u8, Some(lim));
                 assert_eq!(Ok(PrimeGenRes::Max(2)), res());
 
                 let lim = Duration::ZERO;
-                let res = || pg_sw!(2, PrimeGenStrain::Lim, false, u8, Some(lim));
+                let res = || pg_sw!(2, PrimeGenClass::Lim, false, u8, Some(lim));
                 assert_eq!(Ok(PrimeGenRes::Max(2)), res());
             }
         }
 
         mod invalid_input {
-            use crate::{PrimeGenErr, PrimeGenRes, PrimeGenStrain};
+            use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes};
             use std::time::{Duration, Instant};
 
             #[test]
             fn invalid_nth_test() {
-                let test = || pg_sw!(0, PrimeGenStrain::Nth, false, u8, None);
+                let test = || pg_sw!(0, PrimeGenClass::Nth, false, u8, None);
                 assert_eq!(Err(PrimeGenErr::AimlessInput(0)), test());
             }
 
             #[test]
             fn invalid_limit_test() {
                 for lim in [0, 1] {
-                    let test = || pg_sw!(lim, PrimeGenStrain::Lim, false, usize, None);
+                    let test = || pg_sw!(lim, PrimeGenClass::Lim, false, usize, None);
                     assert_eq!(Err(PrimeGenErr::AimlessInput(lim)), test());
                 }
             }
 
             #[test]
             fn limit_outside_type_size_test() {
-                let test = || pg_sw!(255, PrimeGenStrain::Lim, false, u8, None);
+                let test = || pg_sw!(255, PrimeGenClass::Lim, false, u8, None);
                 assert_eq!(Ok(PrimeGenRes::Max(251)), test());
 
-                let test = || pg_sw!(256, PrimeGenStrain::Lim, false, u8, None);
+                let test = || pg_sw!(256, PrimeGenClass::Lim, false, u8, None);
                 assert_eq!(Err(PrimeGenErr::InputGreaterThanSizeMax(256)), test());
             }
 
             #[test]
             fn nth_outside_type_size_test() {
-                let test = || pg_sw!(54, PrimeGenStrain::Nth, false, u8, None);
+                let test = || pg_sw!(54, PrimeGenClass::Nth, false, u8, None);
                 assert_eq!(Ok(PrimeGenRes::Max(251)), test());
 
-                let test = || pg_sw!(55, PrimeGenStrain::Nth, false, u8, None);
+                let test = || pg_sw!(55, PrimeGenClass::Nth, false, u8, None);
                 assert_eq!(Err(PrimeGenErr::ValueGreaterThanSizeMax(55, 257)), test());
             }
 
             #[test]
             fn impossible_to_unfit_type_size_test() {
-                let test = || pg_sw!(u8::MAX as usize, PrimeGenStrain::Lim, false, u16, None);
+                let test = || pg_sw!(u8::MAX as usize, PrimeGenClass::Lim, false, u16, None);
                 assert_eq!(Ok(PrimeGenRes::Max(251)), test());
             }
         }
 
         mod cap {
-            use crate::{PrimeGenErr, PrimeGenRes, PrimeGenStrain};
+            use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes};
             use std::time::{Duration, Instant};
 
             #[test]
             fn lim_test() {
                 // 7919 ÷⌊㏑7919⌋ ⋅1.15 ≈ 1138
                 // 7919 is 1000ᵗʰ prime
-                let test = || pg_sw!(7919, PrimeGenStrain::Lim, true, usize, None);
+                let test = || pg_sw!(7919, PrimeGenClass::Lim, true, usize, None);
                 let test = test().unwrap().uproot_all();
                 assert_eq!(1138, test.capacity());
             }
 
             #[test]
             fn nth_test() {
-                let test = || pg_sw!(1000, PrimeGenStrain::Nth, true, usize, None);
+                let test = || pg_sw!(1000, PrimeGenClass::Nth, true, usize, None);
                 let test = test().unwrap().uproot_all();
                 assert_eq!(1000, test.capacity());
             }
         }
 
         mod all {
-            use crate::{PrimeGenErr, PrimeGenRes, PrimeGenStrain};
+            use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes};
             use std::time::{Duration, Instant};
 
             #[test]
             fn basic_test() {
-                let test1 = || pg_sw!(11, PrimeGenStrain::Nth, true, u8, None);
-                let test2 = || pg_sw!(31, PrimeGenStrain::Lim, true, u8, None);
+                let test1 = || pg_sw!(11, PrimeGenClass::Nth, true, u8, None);
+                let test2 = || pg_sw!(31, PrimeGenClass::Lim, true, u8, None);
 
                 let proof: [u8; 11] = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31];
 
@@ -5029,8 +5029,8 @@ mod tests_of_units {
 
             #[test]
             fn advanced_test() {
-                let test1 = || pg_sw!(1000, PrimeGenStrain::Nth, true, u16, None);
-                let test2 = || pg_sw!(7919, PrimeGenStrain::Lim, true, u16, None);
+                let test1 = || pg_sw!(1000, PrimeGenClass::Nth, true, u16, None);
+                let test2 = || pg_sw!(7919, PrimeGenClass::Lim, true, u16, None);
 
                 let test1 = test1().unwrap().uproot_all();
                 let test2 = test2().unwrap().uproot_all();
@@ -5055,14 +5055,14 @@ mod tests_of_units {
 
         #[test]
         fn faster_test() {
-            let test = || pg_sw!(20_000 as usize, PrimeGenStrain::Nth, false, u32, None);
+            let test = || pg_sw!(20_000 as usize, PrimeGenClass::Nth, false, u32, None);
             let test = test().unwrap().uproot_max();
             assert_eq!(224_737, test);
         }
 
         #[test]
         fn slower_test() {
-            let test = || pg_sw!(20_000, PrimeGenStrain::Nth, false, u64, None);
+            let test = || pg_sw!(20_000, PrimeGenClass::Nth, false, u64, None);
             let test = test().unwrap().uproot_max();
             assert_eq!(224_737, test);
         }
