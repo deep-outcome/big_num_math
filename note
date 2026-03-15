@@ -1,12 +1,10 @@
+IMPROVEMENTS
+
 easy
- - don't use array in prime_ck (check other array reductions) 
  - stein and eea gcd
 
-fun ideas
+intriguing
     - sin, cos, tg, cotg (Taylor series)
-
-
-IMPROVEMENTS    
 
 tough
     - array of usizes: reduces memory footprint twice per byte (1001=9, 1001 1001 = 9 9), implies direct binary operation to preserve adequate performance
