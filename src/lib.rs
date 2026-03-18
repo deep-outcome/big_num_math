@@ -766,14 +766,29 @@ fn pow_shortcut(base: &[u8], pow: u16) -> Option<RawRow> {
 
 /// Computes `dividend` and `divisor` ratio and remainder.
 ///
-/// Returns tuple with `PlacesRow` ratio and `PlacesRow` remainder in order or `None` when `divisor` is nought.
+/// Returns tuple with `PlacesRow` ratio, `0`, and `PlacesRow` remainder, `1`, or `None` when `divisor` is nought.
 pub fn divrem(dividend: &PlacesRow, divisor: &PlacesRow) -> Option<(PlacesRow, PlacesRow)> {
     let dividend = &dividend.row;
     let divisor = &divisor.row;
 
-    match divrem_shortcut(dividend, divisor) {
-        Some(res) => return res,
-        None => {}
+    let remratio = match divrem_raw(dividend, divisor) {
+        None => return None,
+        Some(rr) => rr,
+    };
+
+    let mut rem = remratio.0;
+    rem.shrink_to_fit();
+
+    let mut rat = remratio.1;
+    rat.shrink_to_fit();
+
+    Some((Row { row: rat }, Row { row: rem }))
+}
+
+fn divrem_raw(dividend: &[u8], divisor: &[u8]) -> Option<(RawRow, RawRow)> {
+    let res = divrem_shortcut(dividend, divisor);
+    if let Some(r) = res {
+        return r;
     }
 
     let remratio = division(
@@ -783,29 +798,22 @@ pub fn divrem(dividend: &PlacesRow, divisor: &PlacesRow) -> Option<(PlacesRow, P
         &mut vec![],
     );
 
-    let mut rem = remratio.0;
-    rem.shrink_to_fit();
-
-    Some((Row { row: remratio.1 }, Row { row: rem }))
+    Some(remratio)
 }
 
 // x ÷0, illegal
 // x ÷1 = x
 // a ÷b = 0Ra, a < b
-fn divrem_shortcut(dividend: &RawRow, divisor: &RawRow) -> Option<Option<(Row, Row)>> {
+fn divrem_shortcut(dividend: &[u8], divisor: &[u8]) -> Option<Option<(RawRow, RawRow)>> {
     if is_nought_raw(divisor) {
         return Some(None);
     }
 
-    let end_clone = || Row {
-        row: dividend.clone(),
-    };
-
     let shortcut = if is_unity_raw(divisor) {
-        (end_clone(), Row::nought())
+        (nought_raw(), Vec::from(dividend))
     } else {
         match rel_raw(dividend, divisor) {
-            Rel::Lesser(_) => (Row::nought(), end_clone()),
+            Rel::Lesser(_) => (Vec::from(dividend), nought_raw()),
             _ => return None,
         }
     };
@@ -1941,7 +1949,7 @@ fn division_dynamo(
     }
 }
 
-// devnote: seemingly can be leveraged for examination of dividend and divisor equality
+// implnote: seemingly can be leveraged for examination of dividend and divisor equality
 // and also has potential to determine remainder; involving extra complexity
 fn dividend_start(end: &[u8], sor: &[u8]) -> usize {
     #[cfg(test)]
@@ -3577,16 +3585,42 @@ mod tests_of_units {
         }
     }
 
+    mod divrem_raw {
+        use crate::{divrem_raw, nought_raw, unity_raw};
+
+        #[test]
+        fn shortcut_test() {
+            let dividend = unity_raw();
+            let divisor = nought_raw();
+
+            let res = divrem_raw(dividend.as_slice(), divisor.as_slice());
+            assert_eq!(None, res);
+        }
+
+        #[test]
+        fn computation_test() {
+            let dividend = new_from_num_raw!(11587);
+            let divisor = new_from_num_raw!(971);
+
+            let res = divrem_raw(dividend.as_slice(), divisor.as_slice());
+
+            let rat = vec![1, 1];
+            let rem = vec![6, 0, 9];
+
+            assert_eq!(Some((rem, rat)), res);
+        }
+    }
+
     mod divrem_shortcut {
-        use crate::{divrem_shortcut, nought_raw, unity_raw, Row};
+        use crate::{divrem_shortcut, nought_raw, unity_raw};
 
         #[test]
         fn nought_divisor_test() {
             let dividend = nought_raw();
             let divisor = nought_raw();
 
-            let ratrem = divrem_shortcut(&dividend, &divisor);
-            assert_eq!(Some(None), ratrem);
+            let remrat = divrem_shortcut(dividend.as_slice(), divisor.as_slice());
+            assert_eq!(Some(None), remrat);
         }
 
         #[test]
@@ -3594,9 +3628,9 @@ mod tests_of_units {
             let dividend = nought_raw();
             let divisor = new_from_num_raw!(4);
 
-            let proof = (Row::nought(), Row::nought());
-            let ratrem = divrem_shortcut(&dividend, &divisor);
-            assert_eq!(Some(Some(proof)), ratrem);
+            let proof = (nought_raw(), nought_raw());
+            let remrat = divrem_shortcut(dividend.as_slice(), divisor.as_slice());
+            assert_eq!(Some(Some(proof)), remrat);
         }
 
         #[test]
@@ -3604,29 +3638,29 @@ mod tests_of_units {
             let dividend = nought_raw();
             let divisor = unity_raw();
 
-            let proof = (Row::nought(), Row::nought());
-            let ratrem = divrem_shortcut(&dividend, &divisor);
-            assert_eq!(Some(Some(proof)), ratrem);
+            let proof = (nought_raw(), nought_raw());
+            let remrat = divrem_shortcut(dividend.as_slice(), divisor.as_slice());
+            assert_eq!(Some(Some(proof)), remrat);
         }
 
         #[test]
         fn unity_divisor_test2() {
-            let dividend = new_from_num!(334_556);
+            let dividend = new_from_num_raw!(334_556);
             let divisor = unity_raw();
 
-            let proof = (dividend.clone(), Row::nought());
-            let ratrem = divrem_shortcut(&dividend.row, &divisor);
-            assert_eq!(Some(Some(proof)), ratrem);
+            let proof = (nought_raw(), dividend.clone());
+            let remrat = divrem_shortcut(dividend.as_slice(), divisor.as_slice());
+            assert_eq!(Some(Some(proof)), remrat);
         }
 
         #[test]
         fn lesser_dividend_test() {
-            let dividend = new_from_num!(0);
+            let dividend = new_from_num_raw!(0);
             let divisor = new_from_num_raw!(1);
 
-            let proof = (Row::nought(), dividend.clone());
-            let ratrem = divrem_shortcut(&dividend.row, &divisor);
-            assert_eq!(Some(Some(proof)), ratrem);
+            let proof = (dividend.clone(), nought_raw());
+            let remrat = divrem_shortcut(dividend.as_slice(), divisor.as_slice());
+            assert_eq!(Some(Some(proof)), remrat);
         }
     }
 
