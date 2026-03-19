@@ -24,7 +24,7 @@ use tests_of_units::root::test_aides::RootTestOuts;
 
 /// Computes `nth` integer root of `radicand`.
 ///
-/// Returns `PlacesRow` with result or `None` for `0`ᵗʰ root.
+/// Returns [`PlacesRow`] with result or [`None`] for `0`ᵗʰ root.
 pub fn root(
     radicand: &PlacesRow,
     nth: u16,

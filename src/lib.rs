@@ -9,7 +9,7 @@ mod nth_root;
 
 pub use nth_root::root;
 
-/// `PlacesRow` represents row of decimal places starting at ones (`0` index).
+/// [`PlacesRow`] represents row of decimal places starting at ones (`0` index).
 #[derive(Clone, PartialEq, Debug)]
 pub struct PlacesRow {
     row: RawRow,
@@ -34,8 +34,8 @@ impl PlacesRow {
     ///
     /// Leading zeros are truncated. Does not change capacity.
     ///
-    /// Returns `PlacesRow` or index where place > `9` was
-    /// encountered. `None` for 0-len `row`.
+    /// Returns [`PlacesRow`] or index where place > `9` was
+    /// encountered. [`None`] for 0-len `row`.
     pub fn new_from_vec(mut row: Vec<u8>) -> Result<Self, Option<usize>> {
         if row.len() == 0 {
             return Err(None);
@@ -88,84 +88,84 @@ impl PlacesRow {
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_u8(&self) -> Option<u8> {
         try_into_num!(&self.row, u8, &mut 0)
     }
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_u16(&self) -> Option<u16> {
         try_into_num!(&self.row, u16, &mut 0)
     }
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_u32(&self) -> Option<u32> {
         try_into_num!(&self.row, u32, &mut 0)
     }
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_u64(&self) -> Option<u64> {
         try_into_num!(&self.row, u64, &mut 0)
     }
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_u128(&self) -> Option<u128> {
         try_into_num!(&self.row, u128, &mut 0)
     }
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_usize(&self) -> Option<usize> {
         try_into_num!(&self.row, usize, &mut 0)
     }
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_i8(&self) -> Option<i8> {
         try_into_num!(&self.row, i8, &mut 0)
     }
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_i16(&self) -> Option<i16> {
         try_into_num!(&self.row, i16, &mut 0)
     }
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_i32(&self) -> Option<i32> {
         try_into_num!(&self.row, i32, &mut 0)
     }
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_i64(&self) -> Option<i64> {
         try_into_num!(&self.row, i64, &mut 0)
     }
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_i128(&self) -> Option<i128> {
         try_into_num!(&self.row, i128, &mut 0)
     }
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_isize(&self) -> Option<isize> {
         try_into_num!(&self.row, isize, &mut 0)
     }
@@ -174,8 +174,8 @@ impl PlacesRow {
     ///
     /// Only digits are allowed in `s`. Leading zeros are omitted.
     ///
-    /// Returns `PlacesRow` or index in `s` where uncovertable `char` was
-    /// encountered. `None` for empty string.
+    /// Returns [`PlacesRow`] or index in `s` where uncovertable [`char`] was
+    /// encountered. [`None`] for empty string.
     pub fn new_from_str(s: &str) -> Result<Self, Option<usize>> {
         let row = new_from_str_raw(s);
         if let Ok(row) = row {
@@ -185,7 +185,7 @@ impl PlacesRow {
         }
     }
 
-    /// Returns `String` representation.
+    /// Returns [`String`] representation.
     pub fn to_number(&self) -> String {
         let row = &self.row;
         let len = row.len();
@@ -199,28 +199,28 @@ impl PlacesRow {
         number
     }
 
-    /// `true` if and only if `PlacesRow` is _unity_ value.
+    /// Returns `true` if and only if [`PlacesRow`] is _unity_ value.
     pub fn is_unity(&self) -> bool {
         is_unity_raw(&self.row)
     }
 
-    /// `true` if and only if `PlacesRow` is _nought_ value.
+    /// Returns `true` if and only if [`PlacesRow`] is _nought_ value.
     pub fn is_nought(&self) -> bool {
         is_nought_raw(&self.row)
     }
 
-    /// Returns unity `PlacesRow`.
+    /// Returns unity [`PlacesRow`].
     pub fn unity() -> PlacesRow {
         Row { row: unity_raw() }
     }
 
-    /// Returns nought `PlacesRow`.
+    /// Returns nought [`PlacesRow`].
     pub fn nought() -> PlacesRow {
         Row { row: nought_raw() }
     }
 
     #[deprecated(since = "2.2.0", note = "Pick `fn nought` instead.")]
-    /// Returns zero `PlacesRow`.
+    /// Returns zero [`PlacesRow`].
     pub fn zero() -> PlacesRow {
         Self::nought()
     }
@@ -348,42 +348,42 @@ use std::cmp::max;
 use std::time::{Duration, Instant};
 
 impl From<u8> for PlacesRow {
-    /// Converts `value` into `PlacesRow`.
+    /// Converts `value` into [`PlacesRow`].
     fn from(value: u8) -> Self {
         Self::new_from_u8(value)
     }
 }
 
 impl From<u16> for PlacesRow {
-    /// Converts `value` into `PlacesRow`.
+    /// Converts `value` into [`PlacesRow`].
     fn from(value: u16) -> Self {
         Self::new_from_u16(value)
     }
 }
 
 impl From<u32> for PlacesRow {
-    /// Converts `value` into `PlacesRow`.
+    /// Converts `value` into [`PlacesRow`].
     fn from(value: u32) -> Self {
         Self::new_from_u32(value)
     }
 }
 
 impl From<u64> for PlacesRow {
-    /// Converts `value` into `PlacesRow`.
+    /// Converts `value` into [`PlacesRow`].
     fn from(value: u64) -> Self {
         Self::new_from_u64(value)
     }
 }
 
 impl From<u128> for PlacesRow {
-    /// Converts `value` into `PlacesRow`.
+    /// Converts `value` into [`PlacesRow`].
     fn from(value: u128) -> Self {
         Self::new_from_u128(value)
     }
 }
 
 impl From<usize> for PlacesRow {
-    /// Converts `value` into `PlacesRow`.
+    /// Converts `value` into [`PlacesRow`].
     fn from(value: usize) -> Self {
         Self::new_from_usize(value)
     }
@@ -391,7 +391,7 @@ impl From<usize> for PlacesRow {
 
 /// Represents 1,000 numbers of √10 ≈ 3.16.
 ///
-/// Check with `fn` [`ord_of_mag`].
+/// Check with [`ord_of_mag`].
 pub const SQUARE_ROOT_TEN_COMPARATOR: &str = "3162277660168379331998893544432718533719555139325216826857504852792594438639238221344248108379300295187347284152840055148548856030453880014690519596700153903344921657179259940659150153474113339484124085316929577090471576461044369257879062037808609941828371711548406328552999118596824564203326961604691314336128949791890266529543612676178781350061388186278580463683134952478031143769334671973819513185678403231241795402218308045872844614600253577579702828644029024407977896034543989163349222652612067792651676031048436697793756926155720500369894909469421850007358348844643882731109289109042348054235653403907274019786543725939641726001306990000955784463109626790694418336130181302894541703315807731626386395193793704654765220632063686587197822049312426053454111609356979828132452297000798883523759585328579251362964686511497675217123459559238039375625125369855194955325099947038843990336466165470647234999796132343403021857052187836676345789510732982875157945215771652139626324438399018484560935762602";
 
 /// Order of magnitude computational variants.
@@ -408,16 +408,16 @@ pub enum OomClass {
 /// Order of magnitude variants enumeration.
 #[derive(Clone, PartialEq, Debug)]
 pub enum Oom {
-    /// Order of magnitude is not defined for nought `PlacesRow`.
+    /// Order of magnitude is not defined for nought [`PlacesRow`].
     Undefined,
     /// Precise _oom_.
     ///
     /// Check with `Approx(usize)` variant.
     Precise(usize),
-    /// Approximated _oom_ is result of operation on `PlacesRow` requiring
-    /// greater precision than provided by `SQUARE_ROOT_TEN_COMPARATOR`.
+    /// Approximated _oom_ is result of operation on [`PlacesRow`] requiring
+    /// greater precision than provided by [`SQUARE_ROOT_TEN_COMPARATOR`].
     ///
-    /// Check with `fn` [`ord_of_mag`].
+    /// Check with [`ord_of_mag`].
     Approx(usize),
 }
 
@@ -429,10 +429,10 @@ pub enum Oom {
 ///
 /// Then _i_ is order of magnitude of such number.
 ///
-/// `Strict` variant evaluation is precise up to 1,000 numbers of [`SQUARE_ROOT_TEN_COMPARATOR`].
+/// [`OomClass::Strict`] variant evaluation is precise up to 1,000 numbers of [`SQUARE_ROOT_TEN_COMPARATOR`].
 /// Any `num` requiring higher precision is considered to be of higher order. That
 /// means its order of magnitude is arranged equal to its decimal places count
-/// and is reported as `Oom::Approx(usize)`.
+/// and is reported as [`Oom::Approx`].
 ///
 /// Returns `Oom` enumeration.
 pub fn ord_of_mag(num: &PlacesRow, class: OomClass) -> Oom {
@@ -515,6 +515,31 @@ pub enum Rel {
     Lesser(Option<DecCnt>),
 }
 
+impl Rel {
+    /// Returns `true` if and only if [`Rel`] is [`Rel::Greater`] variant.
+    pub fn greater(&self) -> bool {
+        if let Rel::Greater(_) = self {
+            return true;
+        }
+
+        false
+    }
+
+    /// Returns `true` if and only if [`Rel`] is [`Rel::Equal`] variant.
+    pub fn equal(&self) -> bool {
+        Rel::Equal == *self
+    }
+
+    /// Returns `true` if and only if [`Rel`] is [`Rel::Lesser`] variant.
+    pub fn lesser(&self) -> bool {
+        if let Rel::Lesser(_) = self {
+            return true;
+        }
+
+        false
+    }
+}
+
 /// Checks relation of `num` to `comparand`.
 ///
 /// Returns `Rel` relation.
@@ -593,7 +618,7 @@ pub enum RelDec {
 
 /// Compares decimal places count of `num` and `comparand`.
 ///
-/// Beware of nought values comparison. `fn deref` allows to view internal
+/// Beware of nought values comparison. [`PlacesRow::deref`] allows to view internal
 /// storage and for nought it has some length, exactly 1, but count would be `0` exactly.
 ///
 /// Returns `RelDec` relation.
@@ -637,7 +662,7 @@ const fn dec_pla_cnt_raw(r: &[u8]) -> usize {
 
 /// Computes `addend1` and `addend2` sum.
 ///
-/// Returns `PlacesRow` with result.
+/// Returns [`PlacesRow`] with result.
 pub fn add(addend1: &PlacesRow, addend2: &PlacesRow) -> PlacesRow {
     let r1 = &addend1.row;
     let r2 = &addend2.row;
@@ -662,7 +687,7 @@ pub fn add(addend1: &PlacesRow, addend2: &PlacesRow) -> PlacesRow {
 
 /// Computes `minuend` and `subtrahend` difference.
 ///
-/// Returns difference `PlacesRow` if `minuend` ≥ `subtrahend`, `None` otherwise.
+/// Returns difference [`PlacesRow`] if `minuend` ≥ `subtrahend`, [`None`] otherwise.
 pub fn sub(minuend: &PlacesRow, subtrahend: &PlacesRow) -> Option<PlacesRow> {
     let minuend = &minuend.row;
     let subtrahend = &subtrahend.row;
@@ -683,7 +708,7 @@ pub fn sub(minuend: &PlacesRow, subtrahend: &PlacesRow) -> Option<PlacesRow> {
 
 /// Computes `factor1` and `factor2` product.
 ///
-/// Returns `PlacesRow` with result.
+/// Returns [`PlacesRow`] with result.
 pub fn mul(factor1: &PlacesRow, factor2: &PlacesRow) -> PlacesRow {
     let factor1 = &factor1.row;
     let factor2 = &factor2.row;
@@ -725,7 +750,7 @@ fn mul_shortcut(factor1: &[u8], factor2: &[u8]) -> Option<RawRow> {
 
 /// Computes `power` of `base`.
 ///
-/// Returns `PlacesRow` with result.
+/// Returns [`PlacesRow`] with result.
 pub fn pow(base: &PlacesRow, power: u16) -> PlacesRow {
     let base = &base.row;
 
@@ -766,7 +791,7 @@ fn pow_shortcut(base: &[u8], pow: u16) -> Option<RawRow> {
 
 /// Computes `dividend` and `divisor` ratio and remainder.
 ///
-/// Returns tuple with `PlacesRow` ratio, `0`, and `PlacesRow` remainder, `1`, or `None` when `divisor` is nought.
+/// Returns tuple with [`PlacesRow`] ratio, `0`, and [`PlacesRow`] remainder, `1`, or [`None`] when `divisor` is nought.
 pub fn divrem(dividend: &PlacesRow, divisor: &PlacesRow) -> Option<(PlacesRow, PlacesRow)> {
     let dividend = &dividend.row;
     let divisor = &divisor.row;
@@ -834,7 +859,7 @@ use tests_of_units::prime_ck::{PrimeCkEscCode, PrimeCkTestGauges};
 /// Optionally, allows for time-limited computation. Early interruption can be insubstantially delayed
 /// due nature of limit verification.
 ///
-/// Returns `None` for computation with exhausted timeframe.
+/// Returns [`None`] for computation with exhausted timeframe.
 pub fn prime_ck(
     num: &PlacesRow,
     lim: Option<Duration>,
@@ -1766,7 +1791,7 @@ macro_rules! pg_sw {
 
 /// Computes integer square root of `num`.
 ///
-/// Returns `PlacesRow` with result.
+/// Returns [`PlacesRow`] with result.
 ///
 /// Uses Heron's method.
 pub fn heron_sqrt(num: &PlacesRow) -> PlacesRow {
@@ -2914,6 +2939,54 @@ mod tests_of_units {
         fn basic_test() {
             let num = Row::new_from_usize(155);
             assert_eq!(Rel::Equal, rel(&num, &num));
+        }
+
+        #[test]
+        fn greater_test() {
+            let dc = Some((0, 0, 0));
+            let vals = [
+                (Rel::Greater(None), true),
+                (Rel::Greater(dc), true),
+                (Rel::Equal, false),
+                (Rel::Lesser(None), false),
+                (Rel::Lesser(dc), false),
+            ];
+
+            for v in vals {
+                assert_eq!(v.1, v.0.greater(), "{:?}", v);
+            }
+        }
+
+        #[test]
+        fn equal_test() {
+            let dc = Some((0, 0, 0));
+            let vals = [
+                (Rel::Greater(None), false),
+                (Rel::Greater(dc), false),
+                (Rel::Equal, true),
+                (Rel::Lesser(None), false),
+                (Rel::Lesser(dc), false),
+            ];
+
+            for v in vals {
+                assert_eq!(v.1, v.0.equal(), "{:?}", v);
+            }
+        }
+
+        #[test]
+        fn lesser_test() {
+            let dc = Some((0, 0, 0));
+            let vals = [
+                (Rel::Greater(None), false),
+                (Rel::Greater(dc), false),
+                (Rel::Equal, false),
+                (Rel::Lesser(None), true),
+                (Rel::Lesser(dc), true),
+            ];
+
+            for v in vals {
+                assert_eq!(v.1, v.0.lesser(), "{:?}", v);
+            }
         }
     }
 
