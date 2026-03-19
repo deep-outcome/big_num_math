@@ -660,6 +660,34 @@ const fn dec_pla_cnt_raw(r: &[u8]) -> usize {
     }
 }
 
+fn gcd_e(r1: &[u8], r2: &[u8]) -> PlacesRow {
+    #[cfg(test)]
+    assert_eq!(false, rel_raw(r1, r2).lesser());
+
+    let mut r1 = r1;
+    let mut r2 = r2;
+
+    let mut rem = RawRow::from(r2);
+    let mut end;
+
+    loop {
+        let remratio = divrem_raw(r1, r2);
+
+        let remratio = unsafe { remratio.unwrap_unchecked() };
+
+        end = rem;
+        rem = remratio.0;
+
+        if is_nought_raw(rem.as_slice()) {
+            break;
+        }
+
+        r1 = end.as_slice();
+        r2 = rem.as_slice();
+    }
+
+    PlacesRow { row: end }
+}
 /// Computes `addend1` and `addend2` sum.
 ///
 /// Returns [`PlacesRow`] with result.
@@ -3128,6 +3156,116 @@ mod tests_of_units {
         fn zero_len_pseudo_test() {
             let zero_len = vec![9; 0];
             assert_eq!(0, dec_pla_cnt_raw(&zero_len));
+        }
+    }
+
+    mod gcd_e {
+        use crate::{gcd_e, Row};
+
+        #[test]
+        fn coprime_primes_test() {
+            // both prime numbers
+            let r1 = new_from_num_raw!(1_299_709);
+            let r2 = new_from_num_raw!(56_999);
+
+            let gcd = gcd_e(r1.as_slice(), r2.as_slice());
+            assert_eq!(Row::unity(), gcd);
+        }
+
+        #[test]
+        fn coprime_odd_test() {
+            let r1 = new_from_num_raw!(2_559_031_471u64); // 150531263ᵖ ⋅17ᵖ
+            let r2 = new_from_num_raw!(1_956_912_061); // 150531697ᵖ ⋅13ᵖ
+
+            let gcd = gcd_e(r1.as_slice(), r2.as_slice());
+            assert_eq!(Row::unity(), gcd);
+        }
+
+        #[test]
+        fn coprime_mixed_a_test() {
+            let r1 = new_from_num_raw!(52_685_751_650_u64); // 150530719ᵖ ⋅350ᶜ
+            let r2 = new_from_num_raw!(52_535_230_703_u64); // 150530747ᵖ ⋅349ᵖ
+
+            let gcd = gcd_e(r1.as_slice(), r2.as_slice());
+            assert_eq!(Row::unity(), gcd);
+        }
+
+        #[test]
+        fn coprime_mixed_b_test() {
+            let r1 = new_from_num_raw!(19_209_934_347_u64); // 56666473ᵖ ⋅113ᵖ ⋅3ᵖ
+            let r2 = new_from_num_raw!(10_993_312_058_u64); // 56666557ᵖ ⋅2ᵖ ⋅97ᵖ
+
+            let gcd = gcd_e(r1.as_slice(), r2.as_slice());
+            assert_eq!(Row::unity(), gcd);
+        }
+
+        #[test]
+        fn not_coprime_mixed_a_test() {
+            let r1 = new_from_num_raw!(37_683_426); // 570961ᵖ ⋅66ᶜ
+            let r2 = new_from_num_raw!(18_804_423); // 569831ᵖ ⋅33ᶜ
+
+            let gcd = gcd_e(r1.as_slice(), r2.as_slice());
+            let proof = new_from_num!(33);
+            assert_eq!(proof, gcd);
+        }
+
+        #[test]
+        fn not_coprime_mixed_b_test() {
+            let r1 = new_from_num_raw!(1_822_623); // 5021ᵖ ⋅33ᶜ ⋅11ᵖ
+            let r2 = new_from_num_raw!(1_650_990); // 5003ᵖ ⋅10ᶜ ⋅33ᶜ
+
+            let gcd = gcd_e(r1.as_slice(), r2.as_slice());
+            let proof = new_from_num!(33);
+            assert_eq!(proof, gcd);
+        }
+
+        #[test]
+        fn not_coprime_extra_test() {
+            let r1 = new_from_num_raw!(55_286_231); // 5021ᵖ ⋅77ᶜ ⋅11ᵖ ⋅13ᵖ
+            let r2 = new_from_num_raw!(7_704_620); // 5003ᵖ ⋅10ᶜ ⋅154ᶜ
+
+            let gcd = gcd_e(r1.as_slice(), r2.as_slice());
+            let proof = new_from_num!(77);
+            assert_eq!(proof, gcd);
+        }
+
+        #[test]
+        fn not_coprime_odd_a_test() {
+            let r1 = new_from_num_raw!(3_150_055_839u64); // 150002659ᵖ ⋅7ᵖ ⋅3ᵖ
+            let r2 = new_from_num_raw!(76_604_397); // 1502047ᵖ ⋅17ᵖ ⋅3ᵖ
+
+            let gcd = gcd_e(r1.as_slice(), r2.as_slice());
+            let proof = new_from_num!(3);
+            assert_eq!(proof, gcd);
+        }
+
+        #[test]
+        fn not_coprime_odd_b_test() {
+            let r1 = new_from_num_raw!(56_991); // 157ᵖ ⋅33ᶜ ⋅11ᵖ
+            let r2 = new_from_num_raw!(49_599); // 167ᵖ ⋅9ᶜ ⋅33ᶜ
+
+            let gcd = gcd_e(r1.as_slice(), r2.as_slice());
+            let proof = new_from_num!(33);
+            assert_eq!(proof, gcd);
+        }
+
+        #[test]
+        fn not_coprime_even_a_test() {
+            let r1 = new_from_num_raw!(549_755_813_888u64); // 2³⁹
+            let r2 = new_from_num_raw!(300_005_318); // 150002659ᵖ ⋅2ᵖ
+
+            let gcd = gcd_e(r1.as_slice(), r2.as_slice());
+            let proof = new_from_num!(2);
+            assert_eq!(proof, gcd);
+        }
+
+        #[test]
+        fn not_coprime_even_b_test() {
+            let r1 = new_from_num_raw!(549_755_813_888u64); // 2³⁹
+            let r2 = new_from_num!(33_554_432); // 2²⁵
+
+            let gcd = gcd_e(r1.as_slice(), r2.row.as_slice());
+            assert_eq!(r2, gcd);
         }
     }
 
