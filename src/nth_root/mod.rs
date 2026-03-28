@@ -137,7 +137,7 @@ fn root_shortcut(rad: &RawRow, deg: u16, #[cfg(test)] skip: bool) -> Option<Plac
     }
 
     return if deg == 1 || is_nought_raw(rad) || is_unity_raw(rad) {
-        Some(PlacesRow { row: rad.clone() })
+        Some(Row { row: rad.clone() })
     } else {
         None
     };
@@ -479,7 +479,7 @@ mod tests_of_units {
             }
         }
 
-        use crate::{PlacesRow, Row};
+        use crate::Row;
 
         use super::super::root;
         use test_aides::RootTestOuts;
@@ -518,7 +518,7 @@ mod tests_of_units {
             let vals = [1, 2, 3, 4, 5, 100, 999];
             let mut outs = RootTestOuts::new();
 
-            let nought = PlacesRow::nought();
+            let nought = Row::nought();
             for &v in vals.iter() {
                 assert_eq!(root(&nought, v, &mut outs, true), Some(nought.clone()));
                 assert_eq!(root(&nought, v, &mut outs, false), Some(nought.clone()));
@@ -530,7 +530,7 @@ mod tests_of_units {
             let vals = [1, 2, 3, 4, 5, 100, 999];
             let mut outs = RootTestOuts::new();
 
-            let unity = PlacesRow::unity();
+            let unity = Row::unity();
             for &v in vals.iter() {
                 assert_eq!(root(&unity, v, &mut outs, true), Some(unity.clone()));
                 assert_eq!(root(&unity, v, &mut outs, false), Some(unity.clone()));
@@ -608,7 +608,7 @@ mod tests_of_units {
             let mut outs = RootTestOuts::new();
             for v in vals {
                 let proof = new_from_num!(v.0);
-                let rad = PlacesRow::new_from_usize(v.2);
+                let rad = Row::new_from_usize(v.2);
 
                 assert_eq!(Some(proof), root(&rad, v.1, &mut outs, false));
             }
@@ -647,8 +647,8 @@ mod tests_of_units {
         fn readme_test() {
             let mut outs = RootTestOuts::new();
 
-            let test = PlacesRow::new_from_usize(99_999_999);
-            let radicand = PlacesRow::new_from_str(
+            let test = Row::new_from_usize(99_999_999);
+            let radicand = Row::new_from_str(
                 "999999910000003599999916000001259999987400000083999999640000000899999999",
             )
             .unwrap();
@@ -730,14 +730,14 @@ mod tests_of_units {
     }
 
     mod root_shortcut {
-        use crate::{nought_raw, unity_raw, PlacesRow, Row};
+        use crate::{nought_raw, unity_raw, Row};
 
         use super::super::root_shortcut;
 
         #[test]
         fn nought_root_test() {
             let nought = nought_raw();
-            let proof = PlacesRow::nought();
+            let proof = Row::nought();
 
             assert_eq!(root_shortcut(&nought, u16::MAX, false), Some(proof));
         }
@@ -745,7 +745,7 @@ mod tests_of_units {
         #[test]
         fn unity_root_test() {
             let unity = unity_raw();
-            let proof = PlacesRow::unity();
+            let proof = Row::unity();
 
             assert_eq!(root_shortcut(&unity, u16::MAX, false), Some(proof));
         }

@@ -2,7 +2,7 @@
 Library for computations on large numbers.
 
 - development notes: 
-    1. upcomming functions: greatest common divisor
+    1. upcomming functions: negative numbers support
     2. planned optimizations (memory consumption [half memory requirement])
 - functions only:
     - addition +substraction, 
@@ -13,6 +13,7 @@ Library for computations on large numbers.
     - integer square root
     - primality check
     - prime number generator (primitive number types only)
+    - greates common divisor
 
 ### Usage Samples
 

@@ -1,7 +1,9 @@
 IMPROVEMENTS
 
 easy
- - stein and eea gcd
+ - stein and eea gcd, add readme sample
+ - negative numbers: add, sub, mul, pow, divrem, gcd_ee 
+ - annul self, annul+annul_raw +unitize
 
 intriguing
     - sin, cos, tg, cotg (Taylor series)

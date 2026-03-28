@@ -686,8 +686,54 @@ fn gcd_e(r1: &[u8], r2: &[u8]) -> PlacesRow {
         r2 = rem.as_slice();
     }
 
-    PlacesRow { row: end }
+    Row { row: end }
 }
+// -a -(-b) = -a +b = b -a
+// a < b => b -a, +
+// a = b => 0, (+)
+// a > b => a -b, -
+//
+// +a -(+b) = +a -b = a -b
+// a < b => b -a, -
+// a = b => 0, (+)
+// a > b => a -b, +
+//
+// -a -(+b) = -a -b = -1(a +b)
+// +a -(-b) = +a +b = a +b
+fn gcd_ee_sub(minuend: &mut BCR, mut subtrahend: BCR) {
+    let m_neg = minuend.0;
+
+    let min = minuend.1.as_mut_slice();
+    let sub = subtrahend.1.as_mut_slice();
+
+    let status = m_neg as u8 + subtrahend.0 as u8;
+    if status & 1 == 0 {
+        
+        minuend.0  = match rel_raw(min, sub) {
+            Rel::Lesser(_) => {
+                _ = subtraction_arithmetical(&mut subtrahend.1, min);
+                minuend.1 = subtrahend.1;
+
+                !m_neg
+            }
+            Rel::Equal => {
+                minuend.1 = nought_raw();
+                false
+            }
+            Rel::Greater(_) => {
+                _ = subtraction_arithmetical(&mut minuend.1, sub);
+                m_neg
+            }
+        };
+    } else {
+        addition_sum(sub, &mut minuend.1, 0)
+    }
+}
+
+fn gcd_stein() -> Row {
+    Row::nought()
+}
+
 /// Computes `addend1` and `addend2` sum.
 ///
 /// Returns [`PlacesRow`] with result.
@@ -742,7 +788,7 @@ pub fn mul(factor1: &PlacesRow, factor2: &PlacesRow) -> PlacesRow {
     let factor2 = &factor2.row;
 
     let row = mul_raw(factor1, factor2, true);
-    PlacesRow { row }
+    Row { row }
 }
 
 fn mul_raw(factor1: &[u8], factor2: &[u8], shrink: bool) -> RawRow {
@@ -1824,7 +1870,7 @@ macro_rules! pg_sw {
 /// Uses Heron's method.
 pub fn heron_sqrt(num: &PlacesRow) -> PlacesRow {
     let row = heron_sqrt_raw(&num.row);
-    PlacesRow { row }
+    Row { row }
 }
 
 fn heron_sqrt_raw(row: &[u8]) -> RawRow {
@@ -3230,6 +3276,15 @@ mod tests_of_units {
         }
 
         #[test]
+        fn not_coprime_divisor_is_gcd() {
+            let r1 = new_from_num_raw!(777_777_777);
+            let r2 = new_from_num!(111_111_111);
+
+            let gcd = gcd_e(r1.as_slice(), r2.row.as_slice());
+            assert_eq!(r2, gcd);
+        }
+
+        #[test]
         fn not_coprime_odd_a_test() {
             let r1 = new_from_num_raw!(3_150_055_839u64); // 150002659ᵖ ⋅7ᵖ ⋅3ᵖ
             let r2 = new_from_num_raw!(76_604_397); // 1502047ᵖ ⋅17ᵖ ⋅3ᵖ
@@ -3266,6 +3321,138 @@ mod tests_of_units {
 
             let gcd = gcd_e(r1.as_slice(), r2.row.as_slice());
             assert_eq!(r2, gcd);
+        }
+    }
+
+    mod gcd_ee_sub {
+
+        // +a -(+b)
+        // -a -(-b)
+        mod minuend_subtrahend_with_congruous_sign {
+            use crate::gcd_ee_sub;
+
+            // a < b
+            #[test]
+            fn absolute_value_lesser() {
+                for sign in [false, true] {
+                    for (m, s) in [(1, 2), (3, 7), (17, 33)] {
+                        let min = new_from_num_raw!(m);
+                        let sub = new_from_num_raw!(s);
+
+                        let mut min = (sign, min);
+                        let sub = (sign, sub);
+
+                        gcd_ee_sub(&mut min, sub);
+
+                        assert_eq!(!sign, min.0);
+                        let proof = new_from_num_raw!(s - m);
+                        assert_eq!(proof, min.1);
+                    }
+                }
+            }
+
+            // a = b
+            #[test]
+            fn absolute_value_equal() {
+                for sign in [false, true] {
+                    for v in [1, 3, 17] {
+                        let num = new_from_num_raw!(v);
+
+                        let mut min = (sign, num.clone());
+                        let sub = (sign, num.clone());
+
+                        gcd_ee_sub(&mut min, sub);
+
+                        assert_eq!(false, min.0);
+                        assert_eq!(vec![0], min.1);
+                    }
+                }
+            }
+
+            // a > b
+            #[test]
+            fn absolute_value_greater() {
+                for sign in [false, true] {
+                    for (m, s) in [(2, 1), (7, 3), (33, 17)] {
+                        let min = new_from_num_raw!(m);
+                        let sub = new_from_num_raw!(s);
+
+                        let mut min = (sign, min);
+                        let sub = (sign, sub);
+
+                        gcd_ee_sub(&mut min, sub);
+
+                        assert_eq!(sign, min.0);
+                        let proof = new_from_num_raw!(m - s);
+                        assert_eq!(proof, min.1);
+                    }
+                }
+            }
+        }
+
+        // +a -(-b)
+        // -a -(+b)
+        mod minuend_subtrahend_with_diverse_sign {
+            use crate::gcd_ee_sub;
+
+            // a < b
+            #[test]
+            fn absolute_value_lesser() {
+                for sign in [false, true] {
+                    for (m, s) in [(1, 2), (3, 7), (17, 33)] {
+                        let min = new_from_num_raw!(m);
+                        let sub = new_from_num_raw!(s);
+
+                        let mut min = (sign, min);
+                        let sub = (!sign, sub);
+
+                        gcd_ee_sub(&mut min, sub);
+
+                        assert_eq!(sign, min.0);
+                        let proof = new_from_num_raw!(m + s);
+                        assert_eq!(proof, min.1);
+                    }
+                }
+            }
+
+            // a = b
+            #[test]
+            fn absolute_value_equal() {
+                for sign in [false, true] {
+                    for v in [1, 3, 17] {
+                        let num = new_from_num_raw!(v);
+
+                        let mut min = (sign, num.clone());
+                        let sub = (!sign, num.clone());
+
+                        gcd_ee_sub(&mut min, sub);
+
+                        assert_eq!(sign, min.0);
+                        let proof = new_from_num_raw!(v * 2);
+                        assert_eq!(proof, min.1);
+                    }
+                }
+            }
+
+            // a > b
+            #[test]
+            fn absolute_value_greater() {
+                for sign in [false, true] {
+                    for (m, s) in [(2, 1), (7, 3), (33, 17)] {
+                        let min = new_from_num_raw!(m);
+                        let sub = new_from_num_raw!(s);
+
+                        let mut min = (sign, min);
+                        let sub = (!sign, sub);
+
+                        gcd_ee_sub(&mut min, sub);
+
+                        assert_eq!(sign, min.0);
+                        let proof = new_from_num_raw!(m + s);
+                        assert_eq!(proof, min.1);
+                    }
+                }
+            }
         }
     }
 
