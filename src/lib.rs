@@ -664,29 +664,32 @@ fn gcd_e(r1: &[u8], r2: &[u8]) -> PlacesRow {
     #[cfg(test)]
     assert_eq!(false, rel_raw(r1, r2).lesser());
 
+
+// Euclid algorithm
+fn gcd_e(r1: &[u8], r2: &[u8]) -> Row {
     let mut r1 = r1;
     let mut r2 = r2;
 
     let mut rem = RawRow::from(r2);
-    let mut end;
+    let mut gcd;
 
     loop {
         let remratio = divrem_raw(r1, r2);
 
         let remratio = unsafe { remratio.unwrap_unchecked() };
 
-        end = rem;
+        gcd = rem;
         rem = remratio.0;
 
         if is_nought_raw(rem.as_slice()) {
             break;
         }
 
-        r1 = end.as_slice();
+        r1 = gcd.as_slice();
         r2 = rem.as_slice();
     }
 
-    Row { row: end }
+    Row { row: gcd }
 }
 // -a -(-b) = -a +b = b -a
 // a < b => b -a, +
@@ -3239,8 +3242,15 @@ mod tests_of_units {
             let r1 = new_from_num_raw!(1_299_709);
             let r2 = new_from_num_raw!(56_999);
 
-            let gcd = gcd_e(r1.as_slice(), r2.as_slice());
-            assert_eq!(Row::unity(), gcd);
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = Row::unity();
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(proof, gcd);
+            }
         }
 
         #[test]
@@ -3248,8 +3258,15 @@ mod tests_of_units {
             let r1 = new_from_num_raw!(2_559_031_471u64); // 150531263ᵖ ⋅17ᵖ
             let r2 = new_from_num_raw!(1_956_912_061); // 150531697ᵖ ⋅13ᵖ
 
-            let gcd = gcd_e(r1.as_slice(), r2.as_slice());
-            assert_eq!(Row::unity(), gcd);
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = Row::unity();
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(proof, gcd);
+            }
         }
 
         #[test]
@@ -3257,8 +3274,15 @@ mod tests_of_units {
             let r1 = new_from_num_raw!(52_685_751_650_u64); // 150530719ᵖ ⋅350ᶜ
             let r2 = new_from_num_raw!(52_535_230_703_u64); // 150530747ᵖ ⋅349ᵖ
 
-            let gcd = gcd_e(r1.as_slice(), r2.as_slice());
-            assert_eq!(Row::unity(), gcd);
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = Row::unity();
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(proof, gcd);
+            }
         }
 
         #[test]
@@ -3266,8 +3290,15 @@ mod tests_of_units {
             let r1 = new_from_num_raw!(19_209_934_347_u64); // 56666473ᵖ ⋅113ᵖ ⋅3ᵖ
             let r2 = new_from_num_raw!(10_993_312_058_u64); // 56666557ᵖ ⋅2ᵖ ⋅97ᵖ
 
-            let gcd = gcd_e(r1.as_slice(), r2.as_slice());
-            assert_eq!(Row::unity(), gcd);
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = Row::unity();
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(proof, gcd);
+            }
         }
 
         #[test]
@@ -3275,9 +3306,15 @@ mod tests_of_units {
             let r1 = new_from_num_raw!(37_683_426); // 570961ᵖ ⋅66ᶜ
             let r2 = new_from_num_raw!(18_804_423); // 569831ᵖ ⋅33ᶜ
 
-            let gcd = gcd_e(r1.as_slice(), r2.as_slice());
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
             let proof = new_from_num!(33);
-            assert_eq!(proof, gcd);
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(proof, gcd);
+            }
         }
 
         #[test]
@@ -3285,9 +3322,15 @@ mod tests_of_units {
             let r1 = new_from_num_raw!(1_822_623); // 5021ᵖ ⋅33ᶜ ⋅11ᵖ
             let r2 = new_from_num_raw!(1_650_990); // 5003ᵖ ⋅10ᶜ ⋅33ᶜ
 
-            let gcd = gcd_e(r1.as_slice(), r2.as_slice());
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
             let proof = new_from_num!(33);
-            assert_eq!(proof, gcd);
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(proof, gcd);
+            }
         }
 
         #[test]
@@ -3295,18 +3338,31 @@ mod tests_of_units {
             let r1 = new_from_num_raw!(55_286_231); // 5021ᵖ ⋅77ᶜ ⋅11ᵖ ⋅13ᵖ
             let r2 = new_from_num_raw!(7_704_620); // 5003ᵖ ⋅10ᶜ ⋅154ᶜ
 
-            let gcd = gcd_e(r1.as_slice(), r2.as_slice());
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
             let proof = new_from_num!(77);
-            assert_eq!(proof, gcd);
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(proof, gcd);
+            }
         }
 
         #[test]
         fn not_coprime_divisor_is_gcd_a() {
             let r1 = new_from_num_raw!(777_777_777);
-            let r2 = new_from_num!(111_111_111);
+            let r2 = new_from_num_raw!(111_111_111);
+            let proof = Row { row: r2.clone() };
 
-            let gcd = gcd_e(r1.as_slice(), r2.row.as_slice());
-            assert_eq!(r2, gcd);
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(proof, gcd);
+            }
         }
 
         #[test]
@@ -3323,9 +3379,15 @@ mod tests_of_units {
             let r1 = new_from_num_raw!(3_150_055_839u64); // 150002659ᵖ ⋅7ᵖ ⋅3ᵖ
             let r2 = new_from_num_raw!(76_604_397); // 1502047ᵖ ⋅17ᵖ ⋅3ᵖ
 
-            let gcd = gcd_e(r1.as_slice(), r2.as_slice());
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
             let proof = new_from_num!(3);
-            assert_eq!(proof, gcd);
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(proof, gcd);
+            }
         }
 
         #[test]
@@ -3333,9 +3395,15 @@ mod tests_of_units {
             let r1 = new_from_num_raw!(56_991); // 157ᵖ ⋅33ᶜ ⋅11ᵖ
             let r2 = new_from_num_raw!(49_599); // 167ᵖ ⋅9ᶜ ⋅33ᶜ
 
-            let gcd = gcd_e(r1.as_slice(), r2.as_slice());
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
             let proof = new_from_num!(33);
-            assert_eq!(proof, gcd);
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(proof, gcd);
+            }
         }
 
         #[test]
@@ -3343,18 +3411,31 @@ mod tests_of_units {
             let r1 = new_from_num_raw!(549_755_813_888u64); // 2³⁹
             let r2 = new_from_num_raw!(300_005_318); // 150002659ᵖ ⋅2ᵖ
 
-            let gcd = gcd_e(r1.as_slice(), r2.as_slice());
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
             let proof = new_from_num!(2);
-            assert_eq!(proof, gcd);
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(proof, gcd);
+            }
         }
 
         #[test]
         fn not_coprime_even_b_test() {
             let r1 = new_from_num_raw!(549_755_813_888u64); // 2³⁹
-            let r2 = new_from_num!(33_554_432); // 2²⁵
+            let r2 = new_from_num_raw!(33_554_432); // 2²⁵
+            let proof = Row { row: r2.clone() };
 
-            let gcd = gcd_e(r1.as_slice(), r2.row.as_slice());
-            assert_eq!(r2, gcd);
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(proof, gcd);
+            }
         }
     }
 
