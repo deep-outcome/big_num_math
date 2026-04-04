@@ -704,12 +704,11 @@ fn gcd_ee_sub(minuend: &mut BCR, mut subtrahend: BCR) {
     let m_neg = minuend.0;
 
     let min = minuend.1.as_mut_slice();
-    let sub = subtrahend.1.as_mut_slice();
+    let sub = subtrahend.1.as_slice();
 
     let status = m_neg as u8 + subtrahend.0 as u8;
     if status & 1 == 0 {
-        
-        minuend.0  = match rel_raw(min, sub) {
+        minuend.0 = match rel_raw(min, sub) {
             Rel::Lesser(_) => {
                 _ = subtraction_arithmetical(&mut subtrahend.1, min);
                 minuend.1 = subtrahend.1;
@@ -2081,8 +2080,27 @@ fn dividend_start(end: &[u8], sor: &[u8]) -> usize {
     start_ix
 }
 
+#[cfg(test)]
+const NOUGHT_MUL_ERR: &str =
+    "Multiplication does not support 0 multiplication with exception for ones.";
 const MUL_DYNAMO_CAP: usize = 1000;
 fn multiplication(mpler: &[u8], mcand: &[u8]) -> RawRow {
+    #[cfg(test)]
+    {
+        assert_eq!(
+            false,
+            is_nought_raw(mpler) && mcand.len() > 1,
+            "{}",
+            NOUGHT_MUL_ERR
+        );
+        assert_eq!(
+            false,
+            is_nought_raw(mcand) && mpler.len() > 1,
+            "{}",
+            NOUGHT_MUL_ERR
+        );
+    }
+
     let mpler_len = mpler.len();
 
     let mut sum = Vec::with_capacity(MUL_DYNAMO_CAP);
@@ -2278,6 +2296,13 @@ fn addition_two(lh_addend: &[u8], rh_addend: &[u8], sum: &mut RawRow) {
 }
 
 fn subtraction_arithmetical(minuend: &mut RawRow, subtrahend: &[u8]) -> RawRow {
+    #[cfg(test)]
+    assert_eq!(
+        false,
+        rel_raw(minuend, subtrahend).lesser(),
+        "Greater subtrahend should not allowed."
+    );
+
     let ratio = subtraction(
         minuend,
         subtrahend,
@@ -3276,12 +3301,21 @@ mod tests_of_units {
         }
 
         #[test]
-        fn not_coprime_divisor_is_gcd() {
+        fn not_coprime_divisor_is_gcd_a() {
             let r1 = new_from_num_raw!(777_777_777);
             let r2 = new_from_num!(111_111_111);
 
             let gcd = gcd_e(r1.as_slice(), r2.row.as_slice());
             assert_eq!(r2, gcd);
+        }
+
+        #[test]
+        fn not_coprime_divisor_is_gcd_b() {
+            let row = new_from_num!(777_777_777);
+            let r = row.row.as_slice();
+
+            let gcd = gcd_e(r, r);
+            assert_eq!(row, gcd);
         }
 
         #[test]
@@ -5858,7 +5892,7 @@ mod tests_of_units {
     }
 
     mod multiplication {
-        use crate::multiplication;
+        use crate::{multiplication, nought_raw};
 
         #[test]
         fn basic_test() {
@@ -5869,8 +5903,12 @@ mod tests_of_units {
             assert_eq!(vec![6, 4], prod);
         }
 
-        #[test]
         // does not support zero multiplication
+        #[test]
+        // panics in cfg(test) only, otherwise test logic must succeed
+        #[should_panic(
+            expected = "Multiplication does not support 0 multiplication with exception for ones."
+        )]
         fn zero_multiplier_test() {
             let mpler = vec![0];
             let mcand = vec![3, 2, 1];
@@ -5896,6 +5934,57 @@ mod tests_of_units {
 
             let prod = multiplication(&mpler, &mcand);
             assert_eq!(proof, prod);
+        }
+
+        #[test]
+        fn zero_multiplied_by_zero() {
+            let zero = nought_raw();
+
+            let prod = multiplication(&zero, &zero);
+            assert_eq!(zero, prod);
+        }
+
+        #[test]
+        fn zero_multiplier_with_ones() {
+            let mpler = nought_raw();
+
+            for n in [1, 9] {
+                let mcand = new_from_num_raw!(n);
+                let prod = multiplication(&mpler, &mcand);
+                assert_eq!(vec![0], prod);
+            }
+        }
+
+        #[test]
+        fn zero_multiplicand_with_ones() {
+            let mcand = nought_raw();
+
+            for n in [1, 9] {
+                let mpler = new_from_num_raw!(n);
+                let prod = multiplication(&mpler, &mcand);
+                assert_eq!(vec![0], prod);
+            }
+        }
+
+        #[test]
+        #[should_panic(
+            expected = "Multiplication does not support 0 multiplication with exception for ones."
+        )]
+        fn zero_multiplier_with_non_ones() {
+            let mpler = nought_raw();
+            let mcand = new_from_num_raw!(10);
+            _ = multiplication(&mpler, &mcand);
+        }
+
+        #[test]
+        #[should_panic(
+            expected = "Multiplication does not support 0 multiplication with exception for ones."
+        )]
+        fn zero_multiplicand_with_non_ones() {
+            let mpler = new_from_num_raw!(10);
+            let mcand = nought_raw();
+
+            _ = multiplication(&mpler, &mcand);
         }
     }
 
@@ -6316,6 +6405,8 @@ mod tests_of_units {
             // [9,9,9] + [2,0,9] = [1,0,9]
             // top place 9 must be preserved
             #[test]
+            #[should_panic(expected = "Greater subtrahend should not allowed.")]
+            // panics in cfg(test) only, otherwise test logic must succeed
             fn top_place_9_preservation_test() {
                 let mindiff = vec![1, 0, 9];
                 let mut proof = mindiff.clone();
@@ -6328,7 +6419,9 @@ mod tests_of_units {
             // [1,1,1] - [3,4,7] = [8,6,3]
             // [8,6,3] + [3,4,7] = [1,1,1]
             // not user scenario, only internal expectation
+            #[should_panic(expected = "Greater subtrahend should not allowed.")]
             #[test]
+            // panics in cfg(test) only, otherwise test logic must succeed
             fn lesser_minuend_test() {
                 let mindiff = vec![1, 1, 1];
                 let mut proof = mindiff.clone();
