@@ -674,9 +674,12 @@ fn gcd_e(r1: &[u8], r2: &[u8]) -> Row {
     let mut gcd;
 
     loop {
-        let remratio = divrem_raw(r1, r2);
-
-        let remratio = unsafe { remratio.unwrap_unchecked() };
+        let remratio = division(
+            r1,
+            r2,
+            #[cfg(test)]
+            &mut Vec::with_capacity(0),
+        );
 
         gcd = rem;
         rem = remratio.0;
@@ -691,6 +694,63 @@ fn gcd_e(r1: &[u8], r2: &[u8]) -> Row {
 
     Row { row: gcd }
 }
+
+// Extended Euclid algorithm
+fn gcd_ee(r1: &[u8], r2: &[u8]) -> (Row, BezoutNumbers) {
+    let mut r1 = r1;
+    let mut r2 = r2;
+
+    let mut gcd;
+    let mut rem = RawRow::from(r2);
+
+    let mut x = (false, nought_raw());
+    let mut y = (false, unity_raw());
+
+    let mut u = (false, unity_raw());
+    let mut v = (false, nought_raw());
+
+    loop {
+        let remratio = division(
+            r1,
+            r2,
+            #[cfg(test)]
+            &mut Vec::with_capacity(0),
+        );
+
+        let rat = remratio.1.as_slice();
+        gcd = rem;
+        rem = remratio.0;
+
+        if is_nought_raw(rem.as_slice()) {
+            break;
+        }
+
+        let xrat = mul_raw(x.1.as_slice(), &rat, false);
+        gcd_ee_sub(&mut u, (x.0, xrat));
+        let mut swap = u;
+        u = x;
+        x = swap;
+
+        let yrat = mul_raw(y.1.as_slice(), &rat, false);
+        gcd_ee_sub(&mut v, (y.0, yrat));
+        swap = v;
+        v = y;
+        y = swap;
+
+        r1 = gcd.as_slice();
+        r2 = rem.as_slice();
+    }
+
+    let x = (x.0, Row { row: x.1 });
+    let y = (y.0, Row { row: y.1 });
+    let bn = BezoutNumbers {
+        num1_coeff: x,
+        num2_coeff: y,
+    };
+
+    (Row { row: gcd }, bn)
+}
+
 // -a -(-b) = -a +b = b -a
 // a < b => b -a, +
 // a = b => 0, (+)
@@ -896,7 +956,7 @@ fn divrem_raw(dividend: &[u8], divisor: &[u8]) -> Option<(RawRow, RawRow)> {
         &dividend,
         &divisor,
         #[cfg(test)]
-        &mut vec![],
+        &mut Vec::with_capacity(0),
     );
 
     Some(remratio)
@@ -976,7 +1036,7 @@ pub fn prime_ck(
             sum,
             &vec![3],
             #[cfg(test)]
-            &mut vec![],
+            &mut Vec::with_capacity(0),
         )
         .0;
 
@@ -1485,7 +1545,7 @@ pub fn prime_ck(
             row,
             &probe,
             #[cfg(test)]
-            &mut vec![],
+            &mut Vec::with_capacity(0),
         )
         .0;
 
@@ -1885,7 +1945,7 @@ fn heron_sqrt_raw(row: &[u8]) -> RawRow {
         row,
         two,
         #[cfg(test)]
-        &mut vec![],
+        &mut Vec::with_capacity(0),
     )
     .1;
 
@@ -1894,7 +1954,7 @@ fn heron_sqrt_raw(row: &[u8]) -> RawRow {
             &row,
             &cur,
             #[cfg(test)]
-            &mut vec![],
+            &mut Vec::with_capacity(0),
         )
         .1;
 
@@ -1903,7 +1963,7 @@ fn heron_sqrt_raw(row: &[u8]) -> RawRow {
             rat,
             &two,
             #[cfg(test)]
-            &mut vec![],
+            &mut Vec::with_capacity(0),
         )
         .1;
 
@@ -1943,7 +2003,7 @@ fn division_dynamo(
     let sor_len = sor.len();
 
     #[cfg(test)]
-    assert_eq!(false, is_nought_raw(sor));
+    assert_eq!(false, is_nought_raw(sor), "Zero division not possible.");
 
     if end_len < sor_len {
         #[cfg(test)]
@@ -3439,6 +3499,7 @@ mod tests_of_units {
         }
     }
 
+    mod gcd_ee {
         use crate::{
             addition_two, gcd_ee, mul_raw, nought_raw, rel_raw, subtraction_arithmetical,
             BezoutNumbers, RawRow, Rel, Row, BCR,
