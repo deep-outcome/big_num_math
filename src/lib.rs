@@ -3324,6 +3324,192 @@ mod tests_of_units {
         }
     }
 
+        use crate::{
+            addition_two, gcd_ee, mul_raw, nought_raw, rel_raw, subtraction_arithmetical,
+            BezoutNumbers, RawRow, Rel, Row, BCR,
+        };
+
+        // -a +(+b) = -a +b = b -a
+        // a < b => b -a, +
+        // a = b => 0, (+)
+        // a > b => a -b, -
+        //
+        // +a +(-b) = +a -b = a -b
+        // a < b => b -a, -
+        // a = b => 0, (+)
+        // a > b => a -b, +
+        //
+        // -a +(-b) = -a -b = -1(a +b)
+        // +a +(+b) = +a +b = a +b
+        fn bcr_add(minuend: &BCR, subtrahend: &BCR) -> (bool, RawRow) {
+            let m_neg = minuend.0;
+
+            let min = minuend.1.as_slice();
+            let sub = subtrahend.1.as_slice();
+
+            let mut res;
+
+            let status = m_neg as u8 + subtrahend.0 as u8;
+            let sign = if status & 1 == 0 {
+                res = Vec::new();
+                addition_two(min, sub, &mut res);
+                minuend.0
+            } else {
+                match rel_raw(min, sub) {
+                    Rel::Lesser(_) => {
+                        res = subtrahend.1.clone();
+                        _ = subtraction_arithmetical(&mut res, min);
+
+                        !m_neg
+                    }
+                    Rel::Equal => {
+                        res = nought_raw();
+                        false
+                    }
+                    Rel::Greater(_) => {
+                        res = minuend.1.clone();
+                        _ = subtraction_arithmetical(&mut res, sub);
+                        m_neg
+                    }
+                }
+            };
+
+            (sign, res)
+        }
+
+        mod bcr_add {
+
+            // -a +(+b)
+            // +a +(-b)
+            mod minuend_subtrahend_with_diverse_sign {
+                use super::super::bcr_add;
+
+                // a < b
+                #[test]
+                fn absolute_value_lesser() {
+                    for sign in [false, true] {
+                        let (m_sig, s_sig) = (sign, !sign);
+
+                        for (m, s) in [(1, 2), (3, 7), (17, 33)] {
+                            let min = new_from_num_raw!(m);
+                            let sub = new_from_num_raw!(s);
+
+                            let min = (m_sig, min);
+                            let sub = (s_sig, sub);
+
+                            let res = bcr_add(&min, &sub);
+
+                            assert_eq!(s_sig, res.0);
+                            let proof = new_from_num_raw!(s - m);
+                            assert_eq!(proof, res.1);
+                        }
+                    }
+                }
+
+                // a = b
+                #[test]
+                fn absolute_value_equal() {
+                    for sign in [false, true] {
+                        for v in [1, 3, 17] {
+                            let num = new_from_num_raw!(v);
+
+                            let min = (sign, num.clone());
+                            let sub = (!sign, num.clone());
+
+                            let res = bcr_add(&min, &sub);
+
+                            assert_eq!(false, res.0);
+                            assert_eq!(vec![0], res.1);
+                        }
+                    }
+                }
+
+                // a > b
+                #[test]
+                fn absolute_value_greater() {
+                    for sign in [false, true] {
+                        for (m, s) in [(2, 1), (7, 3), (33, 17)] {
+                            let min = new_from_num_raw!(m);
+                            let sub = new_from_num_raw!(s);
+
+                            let min = (sign, min);
+                            let sub = (!sign, sub);
+
+                            let res = bcr_add(&min, &sub);
+
+                            assert_eq!(sign, res.0);
+                            let proof = new_from_num_raw!(m - s);
+                            assert_eq!(proof, res.1);
+                        }
+                    }
+                }
+            }
+
+            // -a +(-b)
+            // +a +(+b)
+            mod minuend_subtrahend_with_congruous_sign {
+                use super::super::bcr_add;
+
+                // a < b
+                #[test]
+                fn absolute_value_lesser() {
+                    for sign in [false, true] {
+                        for (m, s) in [(1, 2), (3, 7), (17, 33)] {
+                            let min = new_from_num_raw!(m);
+                            let sub = new_from_num_raw!(s);
+
+                            let min = (sign, min);
+                            let sub = (sign, sub);
+
+                            let res = bcr_add(&min, &sub);
+
+                            assert_eq!(sign, res.0);
+                            let proof = new_from_num_raw!(m + s);
+                            assert_eq!(proof, res.1);
+                        }
+                    }
+                }
+
+                // a = b
+                #[test]
+                fn absolute_value_equal() {
+                    for sign in [false, true] {
+                        for v in [1, 3, 17] {
+                            let num = new_from_num_raw!(v);
+
+                            let min = (sign, num.clone());
+                            let sub = (sign, num.clone());
+
+                            let res = bcr_add(&min, &sub);
+
+                            assert_eq!(sign, res.0);
+                            let proof = new_from_num_raw!(v * 2);
+                            assert_eq!(proof, res.1);
+                        }
+                    }
+                }
+
+                // a > b
+                #[test]
+                fn absolute_value_greater() {
+                    for sign in [false, true] {
+                        for (m, s) in [(2, 1), (7, 3), (33, 17)] {
+                            let min = new_from_num_raw!(m);
+                            let sub = new_from_num_raw!(s);
+
+                            let min = (sign, min);
+                            let sub = (sign, sub);
+
+                            let res = bcr_add(&min, &sub);
+
+                            assert_eq!(sign, res.0);
+                            let proof = new_from_num_raw!(m + s);
+                            assert_eq!(proof, res.1);
+                        }
+                    }
+                }
+            }
+        }
     mod gcd_ee_sub {
 
         // +a -(+b)
