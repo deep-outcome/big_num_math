@@ -3502,7 +3502,7 @@ mod tests_of_units {
     mod gcd_ee {
         use crate::{
             addition_two, gcd_ee, mul_raw, nought_raw, rel_raw, subtraction_arithmetical,
-            BezoutNumbers, RawRow, Rel, Row, BCR,
+            BezoutNumbers, Rel, Row, BCR,
         };
 
         // -a +(+b) = -a +b = b -a
@@ -3517,7 +3517,7 @@ mod tests_of_units {
         //
         // -a +(-b) = -a -b = -1(a +b)
         // +a +(+b) = +a +b = a +b
-        fn bcr_add(minuend: &BCR, subtrahend: &BCR) -> (bool, RawRow) {
+        fn bcr_add(minuend: &BCR, subtrahend: &BCR) -> BCR {
             let m_neg = minuend.0;
 
             let min = minuend.1.as_slice();
@@ -3553,7 +3553,7 @@ mod tests_of_units {
             (sign, res)
         }
 
-        mod bcr_add {
+        mod tests_of_units {
 
             // -a +(+b)
             // +a +(-b)
@@ -3686,6 +3686,335 @@ mod tests_of_units {
                 }
             }
         }
+
+        // at most one of coefficients of Bezout's identity for gcd of 2 non-negative
+        // numbers can be negative
+        // ax +by = GCD
+        // a,b ≥ 0 ⇒ GCD ≥ 0
+        // GCD = 0 ⇒ (a =0 ∧ b =0) [∧ (x =0 ∧ y =0)]
+        // GCD > 0 ⇒ :
+        //  ◦ (a >0 ∧ b >0) ∧ [(x >0 ∧ y <0) ∨ (x <0 ∧ y >0) ∨ (x =0 ∧ y =1) ∨ (x =1 ∧ y =0)]
+        //  ◦ (a =0 ∧ b >0) ∧ (y =1 [∧ x =0])
+        //  ◦ (a >0 ∧ b =0) ∧ (x =1 [∧ y =0])
+        fn validate_coefficients(r1: &[u8], r2: &[u8], gcd_combo: (Row, BezoutNumbers)) {
+            let bn = gcd_combo.1;
+            let c1 = bn.num1_coeff;
+            let c2 = bn.num2_coeff;
+
+            let prod_a = mul_raw(&r1, &c1.1.row, false);
+            let prod_b = mul_raw(&r2, &c2.1.row, false);
+
+            let prod_a = (c1.0, prod_a);
+            let prod_b = (c2.0, prod_b);
+
+            let sum = bcr_add(&prod_a, &prod_b);
+
+            assert_eq!(false, sum.0, "{sum:?}");
+            assert_eq!(gcd_combo.0.row, sum.1);
+        }
+
+        #[test]
+        fn zero_coefficient_test_a() {
+            let coeff_zero = (false, Row::nought());
+            let coeff_one = (false, Row::unity());
+
+            // reverted order is not possible due zero division
+            let r1 = new_from_num_raw!(0);
+            let r1 = r1.as_slice();
+
+            for r in [88, 1] {
+                let r2 = new_from_num_raw!(r);
+                let proof = Row { row: r2.clone() };
+
+                let r2 = r2.as_slice();
+
+                let gcd_combo = gcd_ee(r1, r2);
+                assert_eq!(proof, gcd_combo.0, "{r}");
+
+                let coeffs = &gcd_combo.1;
+                assert_eq!(coeff_zero, coeffs.num1_coeff, "{r}");
+                assert_eq!(coeff_one, coeffs.num2_coeff, "{r}");
+            }
+        }
+
+        #[test]
+        fn zero_coefficient_test_b() {
+            let coeff_zero = (false, Row::nought());
+            let coeff_one = (false, Row::unity());
+
+            for ixes in [(0, 1), (1, 0)] {
+                for r in [[8, 4], [4, 2]] {
+                    let r1 = new_from_num_raw!(r[ixes.0]);
+                    let r2 = new_from_num_raw!(r[ixes.1]);
+                    let proof = new_from_num!(r[1]);
+
+                    let r1 = r1.as_slice();
+                    let r2 = r2.as_slice();
+
+                    let gcd_combo = gcd_ee(r1, r2);
+                    assert_eq!(proof, gcd_combo.0);
+
+                    let proof = if ixes.0 == 0 {
+                        (&coeff_zero, &coeff_one)
+                    } else {
+                        (&coeff_one, &coeff_zero)
+                    };
+
+                    let coeffs = &gcd_combo.1;
+
+                    assert_eq!(proof.0, &coeffs.num1_coeff);
+                    assert_eq!(proof.1, &coeffs.num2_coeff);
+                }
+            }
+        }
+
+        #[test]
+        fn negative_positive_coefficient_pair_test() {
+            let coeff_minus = (true, Row::unity());
+            let coeff_plus = (false, Row::unity());
+
+            for ixes in [(0, 1), (1, 0)] {
+                for r in [[6, 9, 3], [14, 21, 7]] {
+                    let r1 = new_from_num_raw!(r[ixes.0]);
+                    let r2 = new_from_num_raw!(r[ixes.1]);
+                    let proof = new_from_num!(r[2]);
+
+                    let r1 = r1.as_slice();
+                    let r2 = r2.as_slice();
+
+                    let gcd_combo = gcd_ee(r1, r2);
+                    assert_eq!(proof, gcd_combo.0);
+
+                    let proof = if ixes.0 == 0 {
+                        (&coeff_minus, &coeff_plus)
+                    } else {
+                        (&coeff_plus, &coeff_minus)
+                    };
+
+                    let coeffs = &gcd_combo.1;
+
+                    assert_eq!(proof.0, &coeffs.num1_coeff);
+                    assert_eq!(proof.1, &coeffs.num2_coeff);
+                }
+            }
+        }
+
+        #[test]
+        fn coprime_primes_test() {
+            // both prime numbers
+            let r1 = new_from_num_raw!(1_299_709);
+            let r2 = new_from_num_raw!(56_999);
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = Row::unity();
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        fn coprime_odd_test() {
+            let r1 = new_from_num_raw!(2_559_031_471u64); // 150531263ᵖ ⋅17ᵖ
+            let r2 = new_from_num_raw!(1_956_912_061); // 150531697ᵖ ⋅13ᵖ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = Row::unity();
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        fn coprime_mixed_a_test() {
+            let r1 = new_from_num_raw!(52_685_751_650_u64); // 150530719ᵖ ⋅350ᶜ
+            let r2 = new_from_num_raw!(52_535_230_703_u64); // 150530747ᵖ ⋅349ᵖ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = Row::unity();
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        fn coprime_mixed_b_test() {
+            let r1 = new_from_num_raw!(19_209_934_347_u64); // 56666473ᵖ ⋅113ᵖ ⋅3ᵖ
+            let r2 = new_from_num_raw!(10_993_312_058_u64); // 56666557ᵖ ⋅2ᵖ ⋅97ᵖ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = Row::unity();
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        fn not_coprime_mixed_a_test() {
+            let r1 = new_from_num_raw!(37_683_426); // 570961ᵖ ⋅66ᶜ
+            let r2 = new_from_num_raw!(18_804_423); // 569831ᵖ ⋅33ᶜ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = new_from_num!(33);
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        fn not_coprime_mixed_b_test() {
+            let r1 = new_from_num_raw!(1_822_623); // 5021ᵖ ⋅33ᶜ ⋅11ᵖ
+            let r2 = new_from_num_raw!(1_650_990); // 5003ᵖ ⋅10ᶜ ⋅33ᶜ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = new_from_num!(33);
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        fn not_coprime_extra_test() {
+            let r1 = new_from_num_raw!(55_286_231); // 5021ᵖ ⋅77ᶜ ⋅11ᵖ ⋅13ᵖ
+            let r2 = new_from_num_raw!(7_704_620); // 5003ᵖ ⋅10ᶜ ⋅154ᶜ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = new_from_num!(77);
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        fn not_coprime_divisor_is_gcd_a() {
+            let r1 = new_from_num_raw!(777_777_777);
+            let r2 = new_from_num_raw!(111_111_111);
+            let proof = Row { row: r2.clone() };
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        fn not_coprime_divisor_is_gcd_b() {
+            let row = new_from_num!(777_777_777);
+            let r = row.row.as_slice();
+
+            let gcd_combo = gcd_ee(r, r);
+            assert_eq!(row, gcd_combo.0);
+            validate_coefficients(r, r, gcd_combo);
+        }
+
+        #[test]
+        fn not_coprime_odd_a_test() {
+            let r1 = new_from_num_raw!(3_150_055_839u64); // 150002659ᵖ ⋅7ᵖ ⋅3ᵖ
+            let r2 = new_from_num_raw!(76_604_397); // 1502047ᵖ ⋅17ᵖ ⋅3ᵖ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = new_from_num!(3);
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        fn not_coprime_odd_b_test() {
+            let r1 = new_from_num_raw!(56_991); // 157ᵖ ⋅33ᶜ ⋅11ᵖ
+            let r2 = new_from_num_raw!(49_599); // 167ᵖ ⋅9ᶜ ⋅33ᶜ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = new_from_num!(33);
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        fn not_coprime_even_a_test() {
+            let r1 = new_from_num_raw!(549_755_813_888u64); // 2³⁹
+            let r2 = new_from_num_raw!(300_005_318); // 150002659ᵖ ⋅2ᵖ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = new_from_num!(2);
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        fn not_coprime_even_b_test() {
+            let r1 = new_from_num_raw!(549_755_813_888u64); // 2³⁹
+            let r2 = new_from_num_raw!(33_554_432); // 2²⁵
+            let proof = Row { row: r2.clone() };
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+    }
+
     mod gcd_ee_sub {
 
         // +a -(+b)
