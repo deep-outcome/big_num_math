@@ -41,7 +41,7 @@ impl PlacesRow {
             return Err(None);
         }
 
-        let row_len = len_without_leading_raw(&row, 0, 1);
+        let row_len = len_without_leading_raw(row.as_slice(), 0, 1);
 
         let mut ix = 0;
         while ix < row_len {
@@ -90,84 +90,84 @@ impl PlacesRow {
     ///
     /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_u8(&self) -> Option<u8> {
-        try_into_num!(&self.row, u8, &mut 0)
+        try_into_num!(self.row, u8, &mut 0)
     }
 
     /// Convertor method.
     ///
     /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_u16(&self) -> Option<u16> {
-        try_into_num!(&self.row, u16, &mut 0)
+        try_into_num!(self.row, u16, &mut 0)
     }
 
     /// Convertor method.
     ///
     /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_u32(&self) -> Option<u32> {
-        try_into_num!(&self.row, u32, &mut 0)
+        try_into_num!(self.row, u32, &mut 0)
     }
 
     /// Convertor method.
     ///
     /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_u64(&self) -> Option<u64> {
-        try_into_num!(&self.row, u64, &mut 0)
+        try_into_num!(self.row, u64, &mut 0)
     }
 
     /// Convertor method.
     ///
     /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_u128(&self) -> Option<u128> {
-        try_into_num!(&self.row, u128, &mut 0)
+        try_into_num!(self.row, u128, &mut 0)
     }
 
     /// Convertor method.
     ///
     /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_usize(&self) -> Option<usize> {
-        try_into_num!(&self.row, usize, &mut 0)
+        try_into_num!(self.row, usize, &mut 0)
     }
 
     /// Convertor method.
     ///
     /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_i8(&self) -> Option<i8> {
-        try_into_num!(&self.row, i8, &mut 0)
+        try_into_num!(self.row, i8, &mut 0)
     }
 
     /// Convertor method.
     ///
     /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_i16(&self) -> Option<i16> {
-        try_into_num!(&self.row, i16, &mut 0)
+        try_into_num!(self.row, i16, &mut 0)
     }
 
     /// Convertor method.
     ///
     /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_i32(&self) -> Option<i32> {
-        try_into_num!(&self.row, i32, &mut 0)
+        try_into_num!(self.row, i32, &mut 0)
     }
 
     /// Convertor method.
     ///
     /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_i64(&self) -> Option<i64> {
-        try_into_num!(&self.row, i64, &mut 0)
+        try_into_num!(self.row, i64, &mut 0)
     }
 
     /// Convertor method.
     ///
     /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_i128(&self) -> Option<i128> {
-        try_into_num!(&self.row, i128, &mut 0)
+        try_into_num!(self.row, i128, &mut 0)
     }
 
     /// Convertor method.
     ///
     /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_isize(&self) -> Option<isize> {
-        try_into_num!(&self.row, isize, &mut 0)
+        try_into_num!(self.row, isize, &mut 0)
     }
 
     /// Handy ctor for usage with long numbers.
@@ -189,8 +189,7 @@ impl PlacesRow {
     pub fn to_number(&self) -> String {
         let row = &self.row;
         let len = row.len();
-        let mut number = String::new();
-        number.reserve_exact(len);
+        let mut number = String::with_capacity(len);
         for i in row.iter().rev() {
             let digit = to_digit(*i);
             number.push(digit);
@@ -199,14 +198,24 @@ impl PlacesRow {
         number
     }
 
-    /// Returns `true` if and only if [`PlacesRow`] is _unity_ value.
-    pub fn is_unity(&self) -> bool {
-        is_unity_raw(&self.row)
+    /// Returns `true`, if and only if [`PlacesRow`] is _even_ number.
+    pub fn even(&self) -> bool {
+        even_raw(self.row.as_slice())
     }
 
-    /// Returns `true` if and only if [`PlacesRow`] is _nought_ value.
+    /// Returns `true`, if and only if [`PlacesRow`] is _odd_ number.
+    pub fn odd(&self) -> bool {
+        odd_raw(self.row.as_slice())
+    }
+
+    /// Returns `true` if and only if [`PlacesRow`] is _unity_.
+    pub fn is_unity(&self) -> bool {
+        is_unity_raw(self.row.as_slice())
+    }
+
+    /// Returns `true` if and only if [`PlacesRow`] is _nought_.
     pub fn is_nought(&self) -> bool {
-        is_nought_raw(&self.row)
+        is_nought_raw(self.row.as_slice())
     }
 
     /// Returns unity [`PlacesRow`].
@@ -229,7 +238,7 @@ impl PlacesRow {
     ///
     /// Check with [`DecCnt`] for detail on count properties.
     pub fn places(&self) -> usize {
-        dec_pla_cnt_raw(&self.row)
+        dec_pla_cnt_raw(self.row.as_slice())
     }
 }
 
@@ -245,8 +254,7 @@ fn new_from_str_raw(mut s: &str) -> Result<RawRow, Option<usize>> {
     let row = if s_len == 0 {
         nought_raw()
     } else {
-        let mut row = Vec::new();
-        row.reserve_exact(s_len);
+        let mut row = Vec::with_capacity(s_len);
 
         let mut err_inx = s_len_orig;
         for (c, sc) in s.chars().rev().zip(row.spare_capacity_mut()) {
@@ -267,11 +275,11 @@ fn new_from_str_raw(mut s: &str) -> Result<RawRow, Option<usize>> {
 }
 
 fn truncate_leading_raw(row: &mut RawRow, lead: u8, ex_to: usize) {
-    let new_len = len_without_leading_raw(row, lead, ex_to);
+    let new_len = len_without_leading_raw(row.as_slice(), lead, ex_to);
     row.truncate(new_len);
 }
 
-fn len_without_leading_raw(row: &[u8], lead: u8, ex_to: usize) -> usize {
+const fn len_without_leading_raw(row: &[u8], lead: u8, ex_to: usize) -> usize {
     let mut row_len = row.len();
     while row_len > ex_to {
         row_len -= 1;
@@ -282,6 +290,14 @@ fn len_without_leading_raw(row: &[u8], lead: u8, ex_to: usize) -> usize {
     }
 
     row_len
+}
+
+const fn even_raw(row: &[u8]) -> bool {
+    row[0] & 1 == 0
+}
+
+const fn odd_raw(row: &[u8]) -> bool {
+    row[0] & 1 == 1
 }
 
 fn unity_raw() -> RawRow {
@@ -336,10 +352,12 @@ fn to_digit(n: u8) -> char {
     }
 }
 
-impl std::string::ToString for PlacesRow {
+use std::fmt::{Display, Formatter};
+impl Display for PlacesRow {
     /// Returns `String` representation.
-    fn to_string(&self) -> String {
-        self.to_number()
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let string = self.to_number();
+        f.write_str(string.as_str())
     }
 }
 
@@ -436,7 +454,7 @@ pub enum Oom {
 ///
 /// Returns `Oom` enumeration.
 pub fn ord_of_mag(num: &PlacesRow, class: OomClass) -> Oom {
-    let row = &num.row;
+    let row = num.row.as_slice();
     if is_nought_raw(row) {
         return Oom::Undefined;
     }
@@ -517,7 +535,7 @@ pub enum Rel {
 
 impl Rel {
     /// Returns `true` if and only if [`Rel`] is [`Rel::Greater`] variant.
-    pub fn greater(&self) -> bool {
+    pub const fn greater(&self) -> bool {
         if let Rel::Greater(_) = self {
             return true;
         }
@@ -526,17 +544,31 @@ impl Rel {
     }
 
     /// Returns `true` if and only if [`Rel`] is [`Rel::Equal`] variant.
-    pub fn equal(&self) -> bool {
-        Rel::Equal == *self
+    pub const fn equal(&self) -> bool {
+        if let Rel::Equal = self {
+            return true;
+        }
+
+        false
     }
 
     /// Returns `true` if and only if [`Rel`] is [`Rel::Lesser`] variant.
-    pub fn lesser(&self) -> bool {
+    pub const fn lesser(&self) -> bool {
         if let Rel::Lesser(_) = self {
             return true;
         }
 
         false
+    }
+
+    /// Returns `true` if and only if [`Rel`] is [`Rel::Greater`] or [`Rel::Equal`] variant.
+    pub const fn gt_or_eq(&self) -> bool {
+        self.greater() || self.equal()
+    }
+
+    /// Returns `true` if and only if [`Rel`] is [`Rel::Lesser`] or [`Rel::Equal`] variant.
+    pub const fn lt_or_eq(&self) -> bool {
+        self.lesser() || self.equal()
     }
 }
 
@@ -544,8 +576,8 @@ impl Rel {
 ///
 /// Returns `Rel` relation.
 pub fn rel(num: &PlacesRow, comparand: &PlacesRow) -> Rel {
-    let r1 = &num.row;
-    let r2 = &comparand.row;
+    let r1 = num.row.as_slice();
+    let r2 = comparand.row.as_slice();
 
     rel_raw(r1, r2)
 }
@@ -623,8 +655,8 @@ pub enum RelDec {
 ///
 /// Returns `RelDec` relation.
 pub fn rel_dec(num: &PlacesRow, comparand: &PlacesRow) -> RelDec {
-    let r1 = &num.row;
-    let r2 = &comparand.row;
+    let r1 = num.row.as_slice();
+    let r2 = comparand.row.as_slice();
 
     rel_dec_raw(r1, r2)
 }
@@ -643,13 +675,13 @@ const fn rel_dec_raw(r1: &[u8], r2: &[u8]) -> RelDec {
 
     let mut cnts = (r1_cnt, r2_cnt, 0);
 
-    return if r1_cnt > r2_cnt {
+    if r1_cnt > r2_cnt {
         cnts.2 = r1_cnt - r2_cnt;
         RelDec::Greater(cnts)
     } else {
         cnts.2 = r2_cnt - r1_cnt;
         RelDec::Lesser(cnts)
-    };
+    }
 }
 
 const fn dec_pla_cnt_raw(r: &[u8]) -> usize {
@@ -665,8 +697,8 @@ fn gcd_e(r1: &[u8], r2: &[u8]) -> PlacesRow {
     assert_eq!(false, rel_raw(r1, r2).lesser());
 
 
-// Euclid algorithm
-fn gcd_e(r1: &[u8], r2: &[u8]) -> Row {
+// Euclidean algorithm
+fn gcd_e(r1: &[u8], r2: &[u8]) -> RawRow {
     let mut r1 = r1;
     let mut r2 = r2;
 
@@ -692,11 +724,11 @@ fn gcd_e(r1: &[u8], r2: &[u8]) -> Row {
         r2 = rem.as_slice();
     }
 
-    Row { row: gcd }
+    gcd
 }
 
-// Extended Euclid algorithm
-fn gcd_ee(r1: &[u8], r2: &[u8]) -> (Row, BezoutNumbers) {
+// Extended Euclidean algorithm
+fn gcd_ee(r1: &[u8], r2: &[u8]) -> (RawRow, BezoutNumbers) {
     let mut r1 = r1;
     let mut r2 = r2;
 
@@ -717,28 +749,29 @@ fn gcd_ee(r1: &[u8], r2: &[u8]) -> (Row, BezoutNumbers) {
             &mut Vec::with_capacity(0),
         );
 
-        let rat = remratio.1.as_slice();
         gcd = rem;
         rem = remratio.0;
+        let rem = rem.as_slice();
 
-        if is_nought_raw(rem.as_slice()) {
+        if is_nought_raw(rem) {
             break;
         }
 
-        let xrat = mul_raw(x.1.as_slice(), &rat, false);
+        let rat = remratio.1.as_slice();
+        let xrat = mul_raw(x.1.as_slice(), rat, false);
         gcd_ee_sub(&mut u, (x.0, xrat));
         let mut swap = u;
         u = x;
         x = swap;
 
-        let yrat = mul_raw(y.1.as_slice(), &rat, false);
+        let yrat = mul_raw(y.1.as_slice(), rat, false);
         gcd_ee_sub(&mut v, (y.0, yrat));
         swap = v;
         v = y;
         y = swap;
 
         r1 = gcd.as_slice();
-        r2 = rem.as_slice();
+        r2 = rem;
     }
 
     let x = (x.0, Row { row: x.1 });
@@ -748,7 +781,7 @@ fn gcd_ee(r1: &[u8], r2: &[u8]) -> (Row, BezoutNumbers) {
         num2_coeff: y,
     };
 
-    (Row { row: gcd }, bn)
+    (gcd, bn)
 }
 
 // -a -(-b) = -a +b = b -a
@@ -800,15 +833,14 @@ fn gcd_stein() -> Row {
 ///
 /// Returns [`PlacesRow`] with result.
 pub fn add(addend1: &PlacesRow, addend2: &PlacesRow) -> PlacesRow {
-    let r1 = &addend1.row;
-    let r2 = &addend2.row;
+    let r1 = addend1.row.as_slice();
+    let r2 = addend2.row.as_slice();
 
     let max_len = max(r1.len(), r2.len());
 
     // avoids repetitive reallocations
     // +1 stands for contigent new place
-    let mut sum = Vec::new();
-    sum.reserve_exact(max_len + 1);
+    let mut sum = Vec::with_capacity(max_len + 1);
 
     #[cfg(test)]
     let sum_ptr = sum.as_ptr();
@@ -826,16 +858,16 @@ pub fn add(addend1: &PlacesRow, addend2: &PlacesRow) -> PlacesRow {
 /// Returns difference [`PlacesRow`] if `minuend` ≥ `subtrahend`, [`None`] otherwise.
 pub fn sub(minuend: &PlacesRow, subtrahend: &PlacesRow) -> Option<PlacesRow> {
     let minuend = &minuend.row;
-    let subtrahend = &subtrahend.row;
+    let subtrahend = subtrahend.row.as_slice();
 
-    match rel_raw(minuend, subtrahend) {
+    match rel_raw(minuend.as_slice(), subtrahend) {
         Rel::Equal => return Some(Row::nought()),
         Rel::Lesser(_) => return None,
-        _ => {}
+        _ => (),
     };
 
     let mut minuend = minuend.clone();
-    _ = subtraction_arithmetical(&mut minuend, &subtrahend);
+    _ = subtraction_arithmetical(&mut minuend, subtrahend);
 
     minuend.shrink_to_fit();
 
@@ -846,8 +878,8 @@ pub fn sub(minuend: &PlacesRow, subtrahend: &PlacesRow) -> Option<PlacesRow> {
 ///
 /// Returns [`PlacesRow`] with result.
 pub fn mul(factor1: &PlacesRow, factor2: &PlacesRow) -> PlacesRow {
-    let factor1 = &factor1.row;
-    let factor2 = &factor2.row;
+    let factor1 = factor1.row.as_slice();
+    let factor2 = factor2.row.as_slice();
 
     let row = mul_raw(factor1, factor2, true);
     Row { row }
@@ -894,7 +926,7 @@ pub fn pow(base: &PlacesRow, power: u16) -> PlacesRow {
     Row { row }
 }
 
-fn pow_raw(base: &RawRow, pow: u16, shrink: bool) -> RawRow {
+fn pow_raw(base: &[u8], pow: u16, shrink: bool) -> RawRow {
     if let Some(pow) = pow_shortcut(base, pow) {
         return pow;
     }
@@ -929,8 +961,8 @@ fn pow_shortcut(base: &[u8], pow: u16) -> Option<RawRow> {
 ///
 /// Returns tuple with [`PlacesRow`] ratio, `0`, and [`PlacesRow`] remainder, `1`, or [`None`] when `divisor` is nought.
 pub fn divrem(dividend: &PlacesRow, divisor: &PlacesRow) -> Option<(PlacesRow, PlacesRow)> {
-    let dividend = &dividend.row;
-    let divisor = &divisor.row;
+    let dividend = dividend.row.as_slice();
+    let divisor = divisor.row.as_slice();
 
     let remratio = match divrem_raw(dividend, divisor) {
         None => return None,
@@ -953,8 +985,8 @@ fn divrem_raw(dividend: &[u8], divisor: &[u8]) -> Option<(RawRow, RawRow)> {
     }
 
     let remratio = division(
-        &dividend,
-        &divisor,
+        dividend,
+        divisor,
         #[cfg(test)]
         &mut Vec::with_capacity(0),
     );
@@ -964,7 +996,7 @@ fn divrem_raw(dividend: &[u8], divisor: &[u8]) -> Option<(RawRow, RawRow)> {
 
 // x ÷0, illegal
 // x ÷1 = x
-// a ÷b = 0Ra, a < b
+// a ÷b = 0Ra, a ≪ b
 fn divrem_shortcut(dividend: &[u8], divisor: &[u8]) -> Option<Option<(RawRow, RawRow)>> {
     if is_nought_raw(divisor) {
         return Some(None);
@@ -973,8 +1005,8 @@ fn divrem_shortcut(dividend: &[u8], divisor: &[u8]) -> Option<Option<(RawRow, Ra
     let shortcut = if is_unity_raw(divisor) {
         (nought_raw(), Vec::from(dividend))
     } else {
-        match rel_raw(dividend, divisor) {
-            Rel::Lesser(_) => (Vec::from(dividend), nought_raw()),
+        match rel_dec_raw(dividend, divisor) {
+            RelDec::Lesser(_) => (Vec::from(dividend), nought_raw()),
             _ => return None,
         }
     };
@@ -1001,7 +1033,7 @@ pub fn prime_ck(
     lim: Option<Duration>,
     #[cfg(test)] tg: &mut PrimeCkTestGauges,
 ) -> Option<bool> {
-    let row = &num.row;
+    let row = num.row.as_slice();
 
     {
         if is_one_raw(row, 2) || is_one_raw(row, 3) || is_one_raw(row, 5) || is_one_raw(row, 7) {
@@ -1013,7 +1045,7 @@ pub fn prime_ck(
         }
 
         let one = row[0];
-        if one % 2 == 0 || one == 5 || is_unity_raw(&row) {
+        if one % 2 == 0 || one == 5 || is_unity_raw(row) {
             #[cfg(test)]
             {
                 tg.esc = PrimeCkEscCode::Ob;
@@ -1028,19 +1060,19 @@ pub fn prime_ck(
 
         let len = row.len();
         while ix < len {
-            addition_sum(&vec![row[ix]], &mut sum, 0);
+            addition_sum(&[row[ix]], &mut sum, 0);
             ix += 1;
         }
 
         let rem = division_dynamo(
             sum,
-            &vec![3],
+            &[3],
             #[cfg(test)]
             &mut Vec::with_capacity(0),
         )
         .0;
 
-        if is_nought_raw(&rem) {
+        if is_nought_raw(rem.as_slice()) {
             #[cfg(test)]
             {
                 tg.esc = PrimeCkEscCode::Dt;
@@ -1051,11 +1083,12 @@ pub fn prime_ck(
 
     // 1 < a ≤ b < num, num = a ⋅b = √num ⋅√num
     //  ⇒ a=b=√num ∨ a < b ⇒ a < √num ∧ b > √num
-    let sqrt = heron_sqrt_raw(&row);
+    let sqrt = heron_sqrt_raw(row);
+    let sqrt = sqrt.as_slice();
 
     #[cfg(test)]
     {
-        if let Some(n) = try_into_num!(&sqrt, usize, &mut 0) {
+        if let Some(n) = try_into_num!(sqrt, usize, &mut 0) {
             tg.sqrt = n
         }
     }
@@ -1096,16 +1129,17 @@ pub fn prime_ck(
         (false, Duration::ZERO)
     };
 
-    let increment = vec![2];
+    let increment = &[2];
     let mut probe = vec![5];
     loop {
         if limited && limit <= then.elapsed() {
             return None;
         }
 
-        addition_sum(&increment, &mut probe, 0);
+        addition_sum(increment, &mut probe, 0);
+        let probe_slc = probe.as_slice();
 
-        if let Rel::Greater(_) = rel_raw(&probe, &sqrt) {
+        if let Rel::Greater(_) = rel_raw(probe_slc, sqrt) {
             #[cfg(test)]
             {
                 if !tg.check_starts {
@@ -1543,13 +1577,13 @@ pub fn prime_ck(
 
         let rem = division(
             row,
-            &probe,
+            probe_slc,
             #[cfg(test)]
             &mut Vec::with_capacity(0),
         )
         .0;
 
-        if is_nought_raw(&rem) {
+        if is_nought_raw(rem.as_slice()) {
             #[cfg(test)]
             {
                 if !tg.check_starts {
@@ -1736,8 +1770,7 @@ macro_rules! pg {
             (ratio * 1.15) as usize
         };
 
-        let mut aperture = Vec::<($size, $size)>::new();
-        aperture.reserve_exact(cap);
+        let mut aperture = Vec::<($size, $size)>::with_capacity(cap);
 
         aperture.push((2, 0));
 
@@ -1802,8 +1835,7 @@ macro_rules! pg {
         unsafe { aperture.set_len(len) }
 
         if $all {
-            let mut all = Vec::<$size>::new();
-            all.reserve_exact(len);
+            let mut all = Vec::<$size>::with_capacity(len);
 
             let all_buff = all.as_mut_ptr();
             let mut ix = 0;
@@ -1862,8 +1894,7 @@ macro_rules! pg_sw {
             (ratio * 1.15) as usize
         };
 
-        let mut aperture = Vec::<$size>::new();
-        aperture.reserve_exact(cap);
+        let mut aperture = Vec::<$size>::with_capacity(cap);
 
         aperture.push(2);
 
@@ -1931,16 +1962,16 @@ macro_rules! pg_sw {
 ///
 /// Uses Heron's method.
 pub fn heron_sqrt(num: &PlacesRow) -> PlacesRow {
-    let row = heron_sqrt_raw(&num.row);
+    let row = heron_sqrt_raw(num.row.as_slice());
     Row { row }
 }
 
 fn heron_sqrt_raw(row: &[u8]) -> RawRow {
-    if is_unity_raw(&row) || is_nought_raw(&row) {
+    if is_unity_raw(row) || is_nought_raw(row) {
         return row.to_vec();
     }
 
-    let two = &vec![2];
+    let two = &[2];
     let mut cur = division(
         row,
         two,
@@ -1950,24 +1981,26 @@ fn heron_sqrt_raw(row: &[u8]) -> RawRow {
     .1;
 
     loop {
+        let cur_slc = cur.as_slice();
+
         let mut rat = division(
-            &row,
-            &cur,
+            row,
+            cur_slc,
             #[cfg(test)]
             &mut Vec::with_capacity(0),
         )
         .1;
 
-        addition_sum(&cur, &mut rat, 0);
+        addition_sum(cur_slc, &mut rat, 0);
         let nex = division_dynamo(
             rat,
-            &two,
+            two,
             #[cfg(test)]
             &mut Vec::with_capacity(0),
         )
         .1;
 
-        if let Rel::Lesser(_) = rel_raw(&nex, &cur) {
+        if let Rel::Lesser(_) = rel_raw(nex.as_slice(), cur_slc) {
             cur = nex;
         } else {
             break;
@@ -2012,7 +2045,7 @@ fn division_dynamo(
     }
 
     let mut ratio = Vec::with_capacity(50);
-    let mut start_ix = dividend_start(&end, sor);
+    let mut start_ix = dividend_start(end.as_slice(), sor);
 
     'div: loop {
         let (rat, rem_len) = subtraction_divisional(&mut end[start_ix..end_len], sor);
@@ -2170,7 +2203,7 @@ fn multiplication(mpler: &[u8], mcand: &[u8]) -> RawRow {
 
     let mut offset = 0;
     while offset < mpler_len {
-        muladd(mpler[offset], &mcand, &mut sum, offset);
+        muladd(mpler[offset], mcand, &mut sum, offset);
         offset += 1;
     }
 
@@ -2215,7 +2248,7 @@ fn power(base: &[u8], pow: u16) -> RawRow {
         let mcand_len = mcand.len();
         offset = 0;
         while offset < mcand_len {
-            muladd(mcand[offset], &mcand, &mut sum, offset);
+            muladd(mcand[offset], mcand.as_slice(), &mut sum, offset);
             offset += 1;
         }
 
@@ -2224,7 +2257,7 @@ fn power(base: &[u8], pow: u16) -> RawRow {
 
             offset = 0;
             while offset < base_len {
-                muladd(base[offset], &mcand, &mut sum, offset);
+                muladd(base[offset], mcand.as_slice(), &mut sum, offset);
                 offset += 1;
             }
         }
@@ -2241,7 +2274,7 @@ fn power(base: &[u8], pow: u16) -> RawRow {
     sum
 }
 
-fn clear_swap<'a>(mcand: *mut RawRow, i_sum: *mut RawRow) {
+fn clear_swap(mcand: *mut RawRow, i_sum: *mut RawRow) {
     unsafe {
         let mut swap = mcand.read();
         swap.clear();
@@ -2363,11 +2396,11 @@ fn subtraction_arithmetical(minuend: &mut RawRow, subtrahend: &[u8]) -> RawRow {
     assert_eq!(
         false,
         rel_raw(minuend, subtrahend).lesser(),
-        "Greater subtrahend should not allowed."
+        "Greater subtrahend is not allowed."
     );
 
     let ratio = subtraction(
-        minuend,
+        minuend.as_mut_slice(),
         subtrahend,
         false,
         #[cfg(test)]
@@ -2398,7 +2431,7 @@ fn subtraction_divisional(mut minuend: &mut [u8], subtrahend: &[u8]) -> (RawRow,
 /// For difference computation applies precondition minuend ≥ subtrahend.
 /// Returns difference/remainder and ratio in order.
 //
-// NOTE: Support for longer subtrahend implies extended guard condition on
+// implnote: Support for longer subtrahend implies extended guard condition on
 // correction `inx < subtrahend_len && inx < minuend_len`. See feature 'shorter-dividend-support'.
 fn subtraction(
     minuend: &mut [u8],
@@ -2411,6 +2444,7 @@ fn subtraction(
 
     let mut ratio = nought_raw();
     let unity = unity_raw();
+    let unity = unity.as_slice();
 
     let mut takeover;
     let mut inx;
@@ -2461,7 +2495,7 @@ fn subtraction(
             break;
         }
 
-        addition_sum(&unity, &mut ratio, 0);
+        addition_sum(unity, &mut ratio, 0);
 
         if remainder {
             continue;
@@ -2491,14 +2525,16 @@ const fn ones(num: u8, takeover_ref: &mut u8) -> u8 {
 #[cfg(test)]
 mod tests_of_units {
 
-    use crate::RawRow;
+    mod gauge {
 
-    fn unity() -> RawRow {
-        [1].to_vec()
-    }
+        use crate::RawRow;
+        pub fn unity() -> RawRow {
+            [1].to_vec()
+        }
 
-    fn nought() -> RawRow {
-        [0].to_vec()
+        pub fn nought() -> RawRow {
+            [0].to_vec()
+        }
     }
 
     mod placesrow {
@@ -2738,28 +2774,48 @@ mod tests_of_units {
             }
         }
 
-        use super::{nought, unity};
+        #[test]
+        fn even_test() {
+            let p = new_from_num!(2);
+            assert_eq!(true, p.even());
+        }
+
+        #[test]
+        fn odd_test() {
+            let p = new_from_num!(1);
+            assert_eq!(true, p.odd());
+        }
+
+        use super::gauge;
         #[test]
         fn is_unity_test() {
-            let test = Row { row: unity() };
+            let test = Row {
+                row: gauge::unity(),
+            };
             assert_eq!(true, test.is_unity());
         }
 
         #[test]
         fn is_nought_test() {
-            let test = Row { row: nought() };
+            let test = Row {
+                row: gauge::nought(),
+            };
             assert_eq!(true, test.is_nought());
         }
 
         #[test]
         fn unity_test() {
-            let proof = Row { row: unity() };
+            let proof = Row {
+                row: gauge::unity(),
+            };
             assert_eq!(proof, Row::unity());
         }
 
         #[test]
         fn nought_test() {
-            let proof = Row { row: nought() };
+            let proof = Row {
+                row: gauge::nought(),
+            };
             assert_eq!(proof, Row::nought());
         }
 
@@ -2898,25 +2954,44 @@ mod tests_of_units {
         }
     }
 
-    use crate::{is_nought_raw, is_unity_raw, nought_raw, unity_raw};
+    use crate::{even_raw, is_nought_raw, is_unity_raw, nought_raw, odd_raw, unity_raw};
+
+    #[test]
+    fn even_raw_test() {
+        for n in 0..=9 {
+            let p = n % 2 == 0;
+            let n = new_from_num_raw!(n);
+            assert_eq!(p, even_raw(n.as_slice()));
+        }
+    }
+
+    #[test]
+    fn odd_raw_test() {
+        for n in 0..=9 {
+            let p = n % 2 != 0;
+            let n = new_from_num_raw!(n);
+            assert_eq!(p, odd_raw(n.as_slice()));
+        }
+    }
+
     #[test]
     fn unity_raw_test() {
-        assert_eq!(unity(), unity_raw());
+        assert_eq!(gauge::unity(), unity_raw());
     }
 
     #[test]
     fn nought_raw_test() {
-        assert_eq!(nought(), nought_raw());
+        assert_eq!(gauge::nought(), nought_raw());
     }
 
     #[test]
     fn is_unity_raw_test() {
-        assert_eq!(true, is_unity_raw(&unity()));
+        assert_eq!(true, is_unity_raw(&gauge::unity()));
     }
 
     #[test]
     fn is_nought_raw_test() {
-        assert_eq!(true, is_nought_raw(&nought()));
+        assert_eq!(true, is_nought_raw(&gauge::nought()));
     }
 
     mod is_one_raw {
@@ -3150,6 +3225,24 @@ mod tests_of_units {
                 assert_eq!(v.1, v.0.lesser(), "{:?}", v);
             }
         }
+
+        #[test]
+        fn gt_or_eq_test() {
+            for v in [Rel::Greater(None), Rel::Equal] {
+                assert_eq!(true, v.gt_or_eq());
+            }
+
+            assert_eq!(false, Rel::Lesser(None).gt_or_eq());
+        }
+
+        #[test]
+        fn lt_or_eq_test() {
+            for v in [Rel::Lesser(None), Rel::Equal] {
+                assert_eq!(true, v.lt_or_eq());
+            }
+
+            assert_eq!(false, Rel::Greater(None).lt_or_eq());
+        }
     }
 
     mod rel_raw {
@@ -3294,7 +3387,7 @@ mod tests_of_units {
     }
 
     mod gcd_e {
-        use crate::{gcd_e, Row};
+        use crate::{gcd_e, unity_raw};
 
         #[test]
         fn coprime_primes_test() {
@@ -3305,7 +3398,7 @@ mod tests_of_units {
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
 
-            let proof = Row::unity();
+            let proof = unity_raw();
             for duo in [(r1, r2), (r2, r1)] {
                 let gcd = gcd_e(duo.0, duo.1);
 
@@ -3321,7 +3414,7 @@ mod tests_of_units {
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
 
-            let proof = Row::unity();
+            let proof = unity_raw();
             for duo in [(r1, r2), (r2, r1)] {
                 let gcd = gcd_e(duo.0, duo.1);
 
@@ -3337,7 +3430,7 @@ mod tests_of_units {
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
 
-            let proof = Row::unity();
+            let proof = unity_raw();
             for duo in [(r1, r2), (r2, r1)] {
                 let gcd = gcd_e(duo.0, duo.1);
 
@@ -3353,7 +3446,7 @@ mod tests_of_units {
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
 
-            let proof = Row::unity();
+            let proof = unity_raw();
             for duo in [(r1, r2), (r2, r1)] {
                 let gcd = gcd_e(duo.0, duo.1);
 
@@ -3369,7 +3462,7 @@ mod tests_of_units {
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
 
-            let proof = new_from_num!(33);
+            let proof = new_from_num_raw!(33);
             for duo in [(r1, r2), (r2, r1)] {
                 let gcd = gcd_e(duo.0, duo.1);
 
@@ -3385,7 +3478,7 @@ mod tests_of_units {
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
 
-            let proof = new_from_num!(33);
+            let proof = new_from_num_raw!(33);
             for duo in [(r1, r2), (r2, r1)] {
                 let gcd = gcd_e(duo.0, duo.1);
 
@@ -3401,7 +3494,7 @@ mod tests_of_units {
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
 
-            let proof = new_from_num!(77);
+            let proof = new_from_num_raw!(77);
             for duo in [(r1, r2), (r2, r1)] {
                 let gcd = gcd_e(duo.0, duo.1);
 
@@ -3413,7 +3506,6 @@ mod tests_of_units {
         fn not_coprime_divisor_is_gcd_a() {
             let r1 = new_from_num_raw!(777_777_777);
             let r2 = new_from_num_raw!(111_111_111);
-            let proof = Row { row: r2.clone() };
 
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
@@ -3421,14 +3513,14 @@ mod tests_of_units {
             for duo in [(r1, r2), (r2, r1)] {
                 let gcd = gcd_e(duo.0, duo.1);
 
-                assert_eq!(proof, gcd);
+                assert_eq!(r2, gcd);
             }
         }
 
         #[test]
         fn not_coprime_divisor_is_gcd_b() {
-            let row = new_from_num!(777_777_777);
-            let r = row.row.as_slice();
+            let row = new_from_num_raw!(777_777_777);
+            let r = row.as_slice();
 
             let gcd = gcd_e(r, r);
             assert_eq!(row, gcd);
@@ -3442,7 +3534,7 @@ mod tests_of_units {
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
 
-            let proof = new_from_num!(3);
+            let proof = new_from_num_raw!(3);
             for duo in [(r1, r2), (r2, r1)] {
                 let gcd = gcd_e(duo.0, duo.1);
 
@@ -3458,7 +3550,7 @@ mod tests_of_units {
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
 
-            let proof = new_from_num!(33);
+            let proof = new_from_num_raw!(33);
             for duo in [(r1, r2), (r2, r1)] {
                 let gcd = gcd_e(duo.0, duo.1);
 
@@ -3474,7 +3566,7 @@ mod tests_of_units {
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
 
-            let proof = new_from_num!(2);
+            let proof = new_from_num_raw!(2);
             for duo in [(r1, r2), (r2, r1)] {
                 let gcd = gcd_e(duo.0, duo.1);
 
@@ -3486,7 +3578,6 @@ mod tests_of_units {
         fn not_coprime_even_b_test() {
             let r1 = new_from_num_raw!(549_755_813_888u64); // 2³⁹
             let r2 = new_from_num_raw!(33_554_432); // 2²⁵
-            let proof = Row { row: r2.clone() };
 
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
@@ -3494,7 +3585,7 @@ mod tests_of_units {
             for duo in [(r1, r2), (r2, r1)] {
                 let gcd = gcd_e(duo.0, duo.1);
 
-                assert_eq!(proof, gcd);
+                assert_eq!(r2, gcd);
             }
         }
     }
@@ -3502,7 +3593,7 @@ mod tests_of_units {
     mod gcd_ee {
         use crate::{
             addition_two, gcd_ee, mul_raw, nought_raw, rel_raw, subtraction_arithmetical,
-            BezoutNumbers, Rel, Row, BCR,
+            unity_raw, BezoutNumbers, RawRow, Rel, Row, BCR,
         };
 
         // -a +(+b) = -a +b = b -a
@@ -3687,8 +3778,13 @@ mod tests_of_units {
             }
         }
 
-        // at most one of coefficients of Bezout's identity for gcd of 2 non-negative
+        // at most one of coefficients of Bézout's identity for gcd of 2 non-negative
         // numbers can be negative
+        // ax +by = GCD
+        // (a,b): integers, (x,y): coefficients
+        // (a,b) ≤ GCD, 
+        // (a,b) > 0 ⇒ a +b > GCD
+        // (a,b) ≥ 0 ⇒ a +b ≥ GCD
         // ax +by = GCD
         // a,b ≥ 0 ⇒ GCD ≥ 0
         // GCD = 0 ⇒ (a =0 ∧ b =0) [∧ (x =0 ∧ y =0)]
@@ -3696,7 +3792,7 @@ mod tests_of_units {
         //  ◦ (a >0 ∧ b >0) ∧ [(x >0 ∧ y <0) ∨ (x <0 ∧ y >0) ∨ (x =0 ∧ y =1) ∨ (x =1 ∧ y =0)]
         //  ◦ (a =0 ∧ b >0) ∧ (y =1 [∧ x =0])
         //  ◦ (a >0 ∧ b =0) ∧ (x =1 [∧ y =0])
-        fn validate_coefficients(r1: &[u8], r2: &[u8], gcd_combo: (Row, BezoutNumbers)) {
+        fn validate_coefficients(r1: &[u8], r2: &[u8], gcd_combo: (RawRow, BezoutNumbers)) {
             let bn = gcd_combo.1;
             let c1 = bn.num1_coeff;
             let c2 = bn.num2_coeff;
@@ -3710,7 +3806,7 @@ mod tests_of_units {
             let sum = bcr_add(&prod_a, &prod_b);
 
             assert_eq!(false, sum.0, "{sum:?}");
-            assert_eq!(gcd_combo.0.row, sum.1);
+            assert_eq!(gcd_combo.0, sum.1);
         }
 
         #[test]
@@ -3724,12 +3820,11 @@ mod tests_of_units {
 
             for r in [88, 1] {
                 let r2 = new_from_num_raw!(r);
-                let proof = Row { row: r2.clone() };
 
                 let r2 = r2.as_slice();
 
                 let gcd_combo = gcd_ee(r1, r2);
-                assert_eq!(proof, gcd_combo.0, "{r}");
+                assert_eq!(r2, gcd_combo.0, "{r}");
 
                 let coeffs = &gcd_combo.1;
                 assert_eq!(coeff_zero, coeffs.num1_coeff, "{r}");
@@ -3746,7 +3841,7 @@ mod tests_of_units {
                 for r in [[8, 4], [4, 2]] {
                     let r1 = new_from_num_raw!(r[ixes.0]);
                     let r2 = new_from_num_raw!(r[ixes.1]);
-                    let proof = new_from_num!(r[1]);
+                    let proof = new_from_num_raw!(r[1]);
 
                     let r1 = r1.as_slice();
                     let r2 = r2.as_slice();
@@ -3777,7 +3872,7 @@ mod tests_of_units {
                 for r in [[6, 9, 3], [14, 21, 7]] {
                     let r1 = new_from_num_raw!(r[ixes.0]);
                     let r2 = new_from_num_raw!(r[ixes.1]);
-                    let proof = new_from_num!(r[2]);
+                    let proof = new_from_num_raw!(r[2]);
 
                     let r1 = r1.as_slice();
                     let r2 = r2.as_slice();
@@ -3808,7 +3903,7 @@ mod tests_of_units {
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
 
-            let proof = Row::unity();
+            let proof = unity_raw();
             for (r1, r2) in [(r1, r2), (r2, r1)] {
                 let gcd_combo = gcd_ee(r1, r2);
 
@@ -3825,7 +3920,7 @@ mod tests_of_units {
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
 
-            let proof = Row::unity();
+            let proof = unity_raw();
             for (r1, r2) in [(r1, r2), (r2, r1)] {
                 let gcd_combo = gcd_ee(r1, r2);
 
@@ -3842,7 +3937,7 @@ mod tests_of_units {
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
 
-            let proof = Row::unity();
+            let proof = unity_raw();
             for (r1, r2) in [(r1, r2), (r2, r1)] {
                 let gcd_combo = gcd_ee(r1, r2);
 
@@ -3859,7 +3954,7 @@ mod tests_of_units {
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
 
-            let proof = Row::unity();
+            let proof = unity_raw();
             for (r1, r2) in [(r1, r2), (r2, r1)] {
                 let gcd_combo = gcd_ee(r1, r2);
 
@@ -3876,7 +3971,7 @@ mod tests_of_units {
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
 
-            let proof = new_from_num!(33);
+            let proof = new_from_num_raw!(33);
             for (r1, r2) in [(r1, r2), (r2, r1)] {
                 let gcd_combo = gcd_ee(r1, r2);
 
@@ -3893,7 +3988,7 @@ mod tests_of_units {
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
 
-            let proof = new_from_num!(33);
+            let proof = new_from_num_raw!(33);
             for (r1, r2) in [(r1, r2), (r2, r1)] {
                 let gcd_combo = gcd_ee(r1, r2);
 
@@ -3910,7 +4005,7 @@ mod tests_of_units {
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
 
-            let proof = new_from_num!(77);
+            let proof = new_from_num_raw!(77);
             for (r1, r2) in [(r1, r2), (r2, r1)] {
                 let gcd_combo = gcd_ee(r1, r2);
 
@@ -3923,7 +4018,7 @@ mod tests_of_units {
         fn not_coprime_divisor_is_gcd_a() {
             let r1 = new_from_num_raw!(777_777_777);
             let r2 = new_from_num_raw!(111_111_111);
-            let proof = Row { row: r2.clone() };
+            let proof = r2.clone();
 
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
@@ -3938,8 +4033,8 @@ mod tests_of_units {
 
         #[test]
         fn not_coprime_divisor_is_gcd_b() {
-            let row = new_from_num!(777_777_777);
-            let r = row.row.as_slice();
+            let row = new_from_num_raw!(777_777_777);
+            let r = row.as_slice();
 
             let gcd_combo = gcd_ee(r, r);
             assert_eq!(row, gcd_combo.0);
@@ -3954,7 +4049,7 @@ mod tests_of_units {
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
 
-            let proof = new_from_num!(3);
+            let proof = new_from_num_raw!(3);
             for (r1, r2) in [(r1, r2), (r2, r1)] {
                 let gcd_combo = gcd_ee(r1, r2);
 
@@ -3971,7 +4066,7 @@ mod tests_of_units {
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
 
-            let proof = new_from_num!(33);
+            let proof = new_from_num_raw!(33);
             for (r1, r2) in [(r1, r2), (r2, r1)] {
                 let gcd_combo = gcd_ee(r1, r2);
 
@@ -3988,7 +4083,7 @@ mod tests_of_units {
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
 
-            let proof = new_from_num!(2);
+            let proof = new_from_num_raw!(2);
             for (r1, r2) in [(r1, r2), (r2, r1)] {
                 let gcd_combo = gcd_ee(r1, r2);
 
@@ -4001,7 +4096,7 @@ mod tests_of_units {
         fn not_coprime_even_b_test() {
             let r1 = new_from_num_raw!(549_755_813_888u64); // 2³⁹
             let r2 = new_from_num_raw!(33_554_432); // 2²⁵
-            let proof = Row { row: r2.clone() };
+            let proof = r2.clone();
 
             let r1 = r1.as_slice();
             let r2 = r2.as_slice();
@@ -4240,9 +4335,17 @@ mod tests_of_units {
         }
 
         #[test]
-        fn lesser_minuend_test() {
+        fn lesser_minuend_by_value_test() {
             let minuend = new_from_num!(4);
             let subtrahend = new_from_num!(5);
+
+            assert!(sub(&minuend, &subtrahend).is_none());
+        }
+
+        #[test]
+        fn lesser_minuend_by_place_test() {
+            let minuend = new_from_num!(4);
+            let subtrahend = new_from_num!(50);
 
             assert!(sub(&minuend, &subtrahend).is_none());
         }
@@ -4543,12 +4646,12 @@ mod tests_of_units {
     }
 
     mod pow_shortcut {
-        use super::nought;
+        use super::gauge;
         use crate::{nought_raw, pow_shortcut, unity_raw};
 
         #[test]
         fn zero_power_test() {
-            let row = nought();
+            let row = gauge::nought();
             let pow = pow_shortcut(&row, 0);
             assert_eq!(Some(unity_raw()), pow);
         }
@@ -4589,13 +4692,23 @@ mod tests_of_units {
         }
 
         #[test]
-        fn shorter_dividend_test() {
+        fn dividend_lesser_by_value_test() {
+            let dividend = Row::new_from_usize(8);
+            let divisor = Row::new_from_usize(9);
+
+            let ratrem = divrem(&dividend, &divisor);
+            let ratrem = ratrem.unwrap();
+
+            assert_eq!(Row::nought(), ratrem.0);
+            assert_eq!(dividend, ratrem.1);
+        }
+
+        #[test]
+        fn dividend_lesser_by_place_test() {
             let dividend = Row::new_from_usize(99);
             let divisor = Row::new_from_usize(999);
 
             let ratrem = divrem(&dividend, &divisor);
-            assert!(ratrem.is_some());
-
             let ratrem = ratrem.unwrap();
 
             assert_eq!(Row::nought(), ratrem.0);
@@ -4743,13 +4856,22 @@ mod tests_of_units {
         }
 
         #[test]
-        fn lesser_dividend_test() {
-            let dividend = new_from_num_raw!(0);
-            let divisor = new_from_num_raw!(1);
+        fn dividend_lesser_by_place_test() {
+            let dividend = new_from_num_raw!(1);
+            let divisor = new_from_num_raw!(10);
 
             let proof = (dividend.clone(), nought_raw());
             let remrat = divrem_shortcut(dividend.as_slice(), divisor.as_slice());
             assert_eq!(Some(Some(proof)), remrat);
+        }
+
+        #[test]
+        fn dividend_lesser_by_value_test() {
+            let dividend = new_from_num_raw!(1);
+            let divisor = new_from_num_raw!(2);
+
+            let remrat = divrem_shortcut(dividend.as_slice(), divisor.as_slice());
+            assert_eq!(None, remrat);
         }
     }
 
@@ -6876,7 +6998,7 @@ mod tests_of_units {
             // [9,9,9] + [2,0,9] = [1,0,9]
             // top place 9 must be preserved
             #[test]
-            #[should_panic(expected = "Greater subtrahend should not allowed.")]
+            #[should_panic(expected = "Greater subtrahend is not allowed.")]
             // panics in cfg(test) only, otherwise test logic must succeed
             fn top_place_9_preservation_test() {
                 let mindiff = vec![1, 0, 9];
@@ -6890,7 +7012,7 @@ mod tests_of_units {
             // [1,1,1] - [3,4,7] = [8,6,3]
             // [8,6,3] + [3,4,7] = [1,1,1]
             // not user scenario, only internal expectation
-            #[should_panic(expected = "Greater subtrahend should not allowed.")]
+            #[should_panic(expected = "Greater subtrahend is not allowed.")]
             #[test]
             // panics in cfg(test) only, otherwise test logic must succeed
             fn lesser_minuend_test() {
@@ -7127,5 +7249,5 @@ mod tests_of_units {
 // cargo test --features ext-tests2 --release primes_ext_test
 // cargo test --features ext-tests3 --release primes_ext2_test
 // cargo test --features ext-tests,shorter-dividend-support --release
-// cargo fmt && cargo test --release
+// cargo fmt && cargo test --lib
 // cargo bench --test bench

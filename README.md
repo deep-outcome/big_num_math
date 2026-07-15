@@ -1,10 +1,9 @@
 ### BIG NUM MATH
-Library for computations on large numbers.
+Unostentatious library for computations on large numbers. Internally banal, based on long: addition, subtraction, multiplication and division methods.
 
 - development notes: 
     1. upcomming functions: negative numbers support
-    2. planned optimizations (memory consumption [half memory requirement])
-- functions only:
+- functions:
     - addition +substraction, 
     - multiplication +division (with remainder)
     - relation and decimal relation operators
@@ -13,7 +12,8 @@ Library for computations on large numbers.
     - integer square root
     - primality check
     - prime number generator (primitive number types only)
-    - greates common divisor
+    - greatest common divisor
+    - multiplicative modular inverse
 
 ### Usage Samples
 

@@ -89,7 +89,7 @@ mod tests_of_units {
             let row = new_from_num_raw!(num);
 
             let mut esc = 0;
-            let test = try_into_num!(&row, u128, &mut esc);
+            let test = try_into_num!(row, u128, &mut esc);
             assert_eq!(Some(num), test);
             assert_eq!(0, esc);
         }
@@ -101,7 +101,7 @@ mod tests_of_units {
             addition_sum(&unity_raw(), &mut row, 0);
 
             let mut esc = 0;
-            let test = try_into_num!(&row, u8, &mut esc);
+            let test = try_into_num!(row, u8, &mut esc);
             assert_eq!(None, test);
             assert_eq!(3, esc);
         }
@@ -112,7 +112,7 @@ mod tests_of_units {
             let row = new_from_num_raw!(num);
 
             let mut esc = 0;
-            let test = try_into_num!(&row, u8, &mut esc);
+            let test = try_into_num!(row, u8, &mut esc);
             assert_eq!(None, test);
             assert_eq!(2, esc);
         }
@@ -123,7 +123,7 @@ mod tests_of_units {
             let row = new_from_num_raw!(num);
 
             let mut esc = 0;
-            let test = try_into_num!(&row, u8, &mut esc);
+            let test = try_into_num!(row, u8, &mut esc);
             assert_eq!(None, test);
             assert_eq!(1, esc);
         }
