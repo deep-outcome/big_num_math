@@ -695,7 +695,36 @@ const fn dec_pla_cnt_raw(r: &[u8]) -> usize {
 fn gcd_e(r1: &[u8], r2: &[u8]) -> PlacesRow {
     #[cfg(test)]
     assert_eq!(false, rel_raw(r1, r2).lesser());
+#[derive(PartialEq, Debug)]
+enum GcdShortRes {
+    None,
+    Gcd(RawRow),
+    GcdExtended(RawRow, BNR),
+}
 
+fn gcd_shortcut(r1: &[u8], r2: &[u8], class: GcdClass) -> GcdShortRes {
+    let gcd_duo = if is_nought_raw(r1) {
+        (true, r2)
+    } else if is_nought_raw(r2) {
+        (false, r1)
+    } else {
+        return GcdShortRes::None;
+    };
+
+    let gcd = gcd_duo.1.to_vec();
+    match class {
+        GcdClass::Euclid => GcdShortRes::Gcd(gcd),
+        GcdClass::EuclidExtended => {
+            let bnr = if gcd_duo.0 {
+                (bcr_nought(), bcr_unity())
+            } else {
+                (bcr_unity(), bcr_nought())
+            };
+
+            GcdShortRes::GcdExtended(gcd, bnr)
+        }
+    }
+}
 
 // Euclidean algorithm
 fn gcd_e(r1: &[u8], r2: &[u8]) -> RawRow {
@@ -3386,6 +3415,86 @@ mod tests_of_units {
         }
     }
 
+    mod gcd_shortcut {
+
+        use crate::{bcr_nought, bcr_unity, gcd_shortcut, nought_raw, unity_raw};
+        use crate::{
+            GcdClass::{self, *},
+            GcdShortRes::{self, *},
+        };
+
+        #[test]
+        fn zero_left_hand_integer_test() {
+            let r1 = nought_raw();
+            let r2 = new_from_num_raw!(222);
+
+            let nought_c = bcr_nought();
+            let unity_c = bcr_unity();
+
+            let vals = [
+                (Euclid, Gcd(r2.clone())),
+                (EuclidExtended, GcdExtended(r2.clone(), (nought_c, unity_c))),
+            ];
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+            for (c, p) in vals {
+                let gcd = gcd_shortcut(r1, r2, c);
+                assert_eq!(p, gcd);
+            }
+        }
+
+        #[test]
+        fn zero_right_hand_integer_test() {
+            let r1 = new_from_num_raw!(222);
+            let r2 = nought_raw();
+
+            let nought_c = bcr_nought();
+            let unity_c = bcr_unity();
+
+            let vals = [
+                (Euclid, Gcd(r1.clone())),
+                (EuclidExtended, GcdExtended(r1.clone(), (unity_c, nought_c))),
+            ];
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+            for (c, p) in vals {
+                let gcd = gcd_shortcut(r1, r2, c);
+                assert_eq!(p, gcd);
+            }
+        }
+
+        #[test]
+        fn zero_both_integers_test() {
+            let r = nought_raw();
+
+            let nought_c = bcr_nought();
+            let unity_c = bcr_unity();
+
+            let vals = [
+                (Euclid, Gcd(r.clone())),
+                (EuclidExtended, GcdExtended(r.clone(), (nought_c, unity_c))),
+            ];
+
+            let r = r.as_slice();
+            for (c, p) in vals {
+                let gcd = gcd_shortcut(r, r, c);
+                assert_eq!(p, gcd);
+            }
+        }
+
+        #[test]
+        fn non_zero_both_integers_test() {
+            let r = unity_raw();
+            let r = r.as_slice();
+
+            for c in [GcdClass::Euclid, GcdClass::EuclidExtended] {
+                let gcd = gcd_shortcut(r, r, c);
+                assert_eq!(GcdShortRes::None, gcd);
+            }
+        }
+    }
     mod gcd_e {
         use crate::{gcd_e, unity_raw};
 
