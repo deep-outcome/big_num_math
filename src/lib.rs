@@ -9,7 +9,9 @@ mod nth_root;
 
 pub use nth_root::root;
 
-/// [`PlacesRow`] represents row of decimal places starting at ones (`0` index).
+/// [`PlacesRow`] represents row of decimal places.
+///
+/// Places develop from `0` index (ones).
 #[derive(Clone, PartialEq, Debug)]
 pub struct PlacesRow {
     row: RawRow,
@@ -692,9 +694,79 @@ const fn dec_pla_cnt_raw(r: &[u8]) -> usize {
     }
 }
 
-fn gcd_e(r1: &[u8], r2: &[u8]) -> PlacesRow {
-    #[cfg(test)]
-    assert_eq!(false, rel_raw(r1, r2).lesser());
+/// Greatest common divisor computational variants enumeration.
+#[derive(Debug, Clone, PartialEq)]
+pub enum GcdClass {
+    /// Euclidean algorithm variant.
+    Euclid,
+    /// Extended Euclidean algorithm variant.
+    EuclidExtended,
+}
+
+/// Greatest common divisor computation result variants enumeration.
+#[derive(Debug, Clone, PartialEq)]
+pub enum GcdRes {
+    /// Ordinary greatest common divisor result variant.
+    Gcd(PlacesRow),
+    /// Extended greatest common divisor result variant.
+    ///
+    /// `0` — GCD, `1` — Bézout's coefficients
+    GcdExtended(PlacesRow, BezoutNumbers),
+}
+
+/// Bézout's coefficient used by [`BezoutNumbers`].
+///
+/// 'Signed' variant of [`PlacesRow`].
+///
+/// If and only if `0` is equal to [`true`], number is negative.
+pub type BezoutCoeff = (bool, PlacesRow);
+
+/// Raw Bézout's coefficient.
+type BCR = (bool, RawRow);
+type BNR = (BCR, BCR);
+
+fn bcr_nought() -> BCR {
+    (false, nought_raw())
+}
+
+fn bcr_unity() -> BCR {
+    (false, unity_raw())
+}
+
+/// Bézout's identity Bézout's coefficients used by [`gcd`] computation result.
+///
+/// Used in [`GcdRes::GcdExtended`] result variant.
+///
+/// Bézout's coefficients satisfy Bézout's identity
+/// `c₁ ·i₁ +c₂ ·i₂ =gcd(i₁,i₂)`
+/// - `(c₁,c₂)` – coefficients
+/// - `(i₁,i₂)` – integers
+#[derive(Debug, Clone, PartialEq)]
+pub struct BezoutNumbers {
+    n1c: BezoutCoeff,
+    n2c: BezoutCoeff,
+}
+
+impl BezoutNumbers {
+    /// Acquires [`gcd`] `num1` parameter coefficient reference.
+    pub fn num1_coeff(&self) -> &BezoutCoeff {
+        &self.n1c
+    }
+
+    /// Acquires [`gcd`] `num2` parameter coefficient reference.
+    pub fn num2_coeff(&self) -> &BezoutCoeff {
+        &self.n2c
+    }
+}
+
+fn to_bn(bnr: BNR) -> BezoutNumbers {
+    let (c1, c2) = bnr;
+
+    BezoutNumbers {
+        n1c: (c1.0, Row { row: c1.1 }),
+        n2c: (c2.0, Row { row: c2.1 }),
+    }
+}
 #[derive(PartialEq, Debug)]
 enum GcdShortRes {
     None,
@@ -757,7 +829,7 @@ fn gcd_e(r1: &[u8], r2: &[u8]) -> RawRow {
 }
 
 // Extended Euclidean algorithm
-fn gcd_ee(r1: &[u8], r2: &[u8]) -> (RawRow, BezoutNumbers) {
+fn gcd_ee(r1: &[u8], r2: &[u8]) -> (RawRow, BNR) {
     let mut r1 = r1;
     let mut r2 = r2;
 
@@ -803,14 +875,7 @@ fn gcd_ee(r1: &[u8], r2: &[u8]) -> (RawRow, BezoutNumbers) {
         r2 = rem;
     }
 
-    let x = (x.0, Row { row: x.1 });
-    let y = (y.0, Row { row: y.1 });
-    let bn = BezoutNumbers {
-        num1_coeff: x,
-        num2_coeff: y,
-    };
-
-    (gcd, bn)
+    (gcd, (x, y))
 }
 
 // -a -(-b) = -a +b = b -a
@@ -1655,10 +1720,11 @@ impl<T> PrimeGenRes<T> {
     }
 }
 
-/// Helper trait for working with return type of [`pg`] and [`pg_sw`] which
-/// is [`Result<PrimeGenRes, PrimeGenErr>`].
+/// Helper trait for working with return type of [`pg`] and [`pg_sw`].
+///
+/// [`pg`] and [`pg_sw`] return [`Result<PrimeGenRes, PrimeGenErr>`].
 pub trait PrimeGenResAide<T> {
-    /// Uproots `Vec<T>` of `PrimeGenRes::All(Vec<T>)`.
+    /// Uproots [`Vec<T>`] of `PrimeGenRes::All(Vec<T>)`.
     fn uproot_all(self) -> Vec<T>;
     /// Uproots `T` of `PrimeGenRes::Max(T)`.
     fn uproot_max(self) -> T;
@@ -2983,7 +3049,9 @@ mod tests_of_units {
         }
     }
 
-    use crate::{even_raw, is_nought_raw, is_unity_raw, nought_raw, odd_raw, unity_raw};
+    use crate::{
+        even_raw, is_nought_raw, is_unity_raw, nought_raw, odd_raw, unity_raw, BezoutNumbers,
+    };
 
     #[test]
     fn even_raw_test() {
@@ -3415,6 +3483,53 @@ mod tests_of_units {
         }
     }
 
+    use crate::{bcr_nought, bcr_unity};
+    #[test]
+    fn bcr_nought_raw() {
+        let t = bcr_nought();
+        let p = (false, vec![0]);
+
+        assert_eq!(p, t);
+    }
+
+    #[test]
+    fn bcr_unity_raw() {
+        let t = bcr_unity();
+        let p = (false, vec![1]);
+
+        assert_eq!(p, t);
+    }
+
+    #[test]
+    fn bezouts_numbers() {
+        let c1 = (true, new_from_num!(222));
+        let c2 = (false, new_from_num!(666));
+
+        let bn = BezoutNumbers {
+            n1c: c1.clone(),
+            n2c: c2.clone(),
+        };
+
+        assert_eq!(&c1, bn.num1_coeff());
+        assert_eq!(&c2, bn.num2_coeff());
+    }
+
+    use crate::{to_bn, Row};
+    #[test]
+    fn to_bn_test() {
+        let p1 = (true, new_from_num!(111));
+        let p2 = (false, new_from_num!(333));
+
+        for (p1, p2) in [(&p1, &p2), (&p2, &p1)] {
+            let c1 = (p1.0, p1.1.row.clone());
+            let c2 = (p2.0, p2.1.row.clone());
+
+            let bn = to_bn((c1, c2));
+            assert_eq!(&bn.n1c, p1);
+            assert_eq!(&bn.n2c, p2);
+        }
+    }
+
     mod gcd_shortcut {
 
         use crate::{bcr_nought, bcr_unity, gcd_shortcut, nought_raw, unity_raw};
@@ -3495,8 +3610,46 @@ mod tests_of_units {
             }
         }
     }
+
     mod gcd_e {
-        use crate::{gcd_e, unity_raw};
+        use crate::{gcd_e, nought_raw, unity_raw};
+
+        #[test]
+        fn zero_left_hand_integer_test() {
+            for (z, nz) in [(0, 20), (0, 1)] {
+                let r1 = new_from_num_raw!(z);
+                let r2 = new_from_num_raw!(nz);
+                let proof = &r2;
+
+                let r1 = r1.as_slice();
+                let r2 = r2.as_slice();
+
+                let gcd = gcd_e(r1, r2);
+                assert_eq!(proof, &gcd);
+            }
+        }
+
+        #[test]
+        #[should_panic(expected = "Zero division not possible.")]
+        fn zero_right_hand_integer_test() {
+            let r1 = unity_raw();
+            let r2 = nought_raw();
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            _ = gcd_e(r1, r2);
+        }
+
+        #[test]
+        fn equal_integers_test() {
+            let num = new_from_num_raw!(333_333);
+
+            let r = num.as_slice();
+            let gcd = gcd_e(r, r);
+
+            assert_eq!(num, gcd);
+        }
 
         #[test]
         fn coprime_primes_test() {
@@ -3702,7 +3855,7 @@ mod tests_of_units {
     mod gcd_ee {
         use crate::{
             addition_two, gcd_ee, mul_raw, nought_raw, rel_raw, subtraction_arithmetical,
-            unity_raw, BezoutNumbers, RawRow, Rel, Row, BCR,
+            unity_raw, RawRow, Rel, BCR, BNR,
         };
 
         // -a +(+b) = -a +b = b -a
@@ -3891,7 +4044,7 @@ mod tests_of_units {
         // numbers can be negative
         // ax +by = GCD
         // (a,b): integers, (x,y): coefficients
-        // (a,b) ≤ GCD, 
+        // (a,b) ≤ GCD,
         // (a,b) > 0 ⇒ a +b > GCD
         // (a,b) ≥ 0 ⇒ a +b ≥ GCD
         // ax +by = GCD
@@ -3901,13 +4054,13 @@ mod tests_of_units {
         //  ◦ (a >0 ∧ b >0) ∧ [(x >0 ∧ y <0) ∨ (x <0 ∧ y >0) ∨ (x =0 ∧ y =1) ∨ (x =1 ∧ y =0)]
         //  ◦ (a =0 ∧ b >0) ∧ (y =1 [∧ x =0])
         //  ◦ (a >0 ∧ b =0) ∧ (x =1 [∧ y =0])
-        fn validate_coefficients(r1: &[u8], r2: &[u8], gcd_combo: (RawRow, BezoutNumbers)) {
+        fn validate_coefficients(r1: &[u8], r2: &[u8], gcd_combo: (RawRow, BNR)) {
             let bn = gcd_combo.1;
-            let c1 = bn.num1_coeff;
-            let c2 = bn.num2_coeff;
+            let c1 = bn.0;
+            let c2 = bn.1;
 
-            let prod_a = mul_raw(&r1, &c1.1.row, false);
-            let prod_b = mul_raw(&r2, &c2.1.row, false);
+            let prod_a = mul_raw(&r1, &c1.1, false);
+            let prod_b = mul_raw(&r2, &c2.1, false);
 
             let prod_a = (c1.0, prod_a);
             let prod_b = (c2.0, prod_b);
@@ -3919,9 +4072,49 @@ mod tests_of_units {
         }
 
         #[test]
+        fn zero_left_hand_integer_test() {
+            for (z, nz) in [(0, 20), (0, 1)] {
+                let r1 = new_from_num_raw!(z);
+                let r2 = new_from_num_raw!(nz);
+                let proof = &r2;
+
+                let r1 = r1.as_slice();
+                let r2 = r2.as_slice();
+
+                let gcd_combo = gcd_ee(r1, r2);
+                assert_eq!(proof, &gcd_combo.0);
+
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        #[should_panic(expected = "Zero division not possible.")]
+        fn zero_right_hand_integer_test() {
+            let r1 = unity_raw();
+            let r2 = nought_raw();
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            _ = gcd_ee(r1, r2);
+        }
+
+        #[test]
+        fn equal_integers_test() {
+            let num = new_from_num_raw!(333_333);
+
+            let r = num.as_slice();
+            let gcd_combo = gcd_ee(r, r);
+
+            assert_eq!(num, gcd_combo.0);
+            validate_coefficients(r, r, gcd_combo);
+        }
+
+        #[test]
         fn zero_coefficient_test_a() {
-            let coeff_zero = (false, Row::nought());
-            let coeff_one = (false, Row::unity());
+            let coeff_zero = (false, nought_raw());
+            let coeff_one = (false, unity_raw());
 
             // reverted order is not possible due zero division
             let r1 = new_from_num_raw!(0);
@@ -3936,15 +4129,15 @@ mod tests_of_units {
                 assert_eq!(r2, gcd_combo.0, "{r}");
 
                 let coeffs = &gcd_combo.1;
-                assert_eq!(coeff_zero, coeffs.num1_coeff, "{r}");
-                assert_eq!(coeff_one, coeffs.num2_coeff, "{r}");
+                assert_eq!(coeff_zero, coeffs.0, "{r}");
+                assert_eq!(coeff_one, coeffs.1, "{r}");
             }
         }
 
         #[test]
         fn zero_coefficient_test_b() {
-            let coeff_zero = (false, Row::nought());
-            let coeff_one = (false, Row::unity());
+            let coeff_zero = (false, nought_raw());
+            let coeff_one = (false, unity_raw());
 
             for ixes in [(0, 1), (1, 0)] {
                 for r in [[8, 4], [4, 2]] {
@@ -3966,16 +4159,16 @@ mod tests_of_units {
 
                     let coeffs = &gcd_combo.1;
 
-                    assert_eq!(proof.0, &coeffs.num1_coeff);
-                    assert_eq!(proof.1, &coeffs.num2_coeff);
+                    assert_eq!(proof.0, &coeffs.0);
+                    assert_eq!(proof.1, &coeffs.1);
                 }
             }
         }
 
         #[test]
         fn negative_positive_coefficient_pair_test() {
-            let coeff_minus = (true, Row::unity());
-            let coeff_plus = (false, Row::unity());
+            let coeff_minus = (true, unity_raw());
+            let coeff_plus = (false, unity_raw());
 
             for ixes in [(0, 1), (1, 0)] {
                 for r in [[6, 9, 3], [14, 21, 7]] {
@@ -3997,8 +4190,8 @@ mod tests_of_units {
 
                     let coeffs = &gcd_combo.1;
 
-                    assert_eq!(proof.0, &coeffs.num1_coeff);
-                    assert_eq!(proof.1, &coeffs.num2_coeff);
+                    assert_eq!(proof.0, &coeffs.0);
+                    assert_eq!(proof.1, &coeffs.1);
                 }
             }
         }
