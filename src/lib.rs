@@ -454,7 +454,7 @@ pub enum Oom {
 /// means its order of magnitude is arranged equal to its decimal places count
 /// and is reported as [`Oom::Approx`].
 ///
-/// Returns `Oom` enumeration.
+/// Returns [`Oom`] enumeration.
 pub fn ord_of_mag(num: &PlacesRow, class: OomClass) -> Oom {
     let row = num.row.as_slice();
     if is_nought_raw(row) {
@@ -576,7 +576,7 @@ impl Rel {
 
 /// Checks relation of `num` to `comparand`.
 ///
-/// Returns `Rel` relation.
+/// Returns [`Rel`] relation.
 pub fn rel(num: &PlacesRow, comparand: &PlacesRow) -> Rel {
     let r1 = num.row.as_slice();
     let r2 = comparand.row.as_slice();
@@ -655,7 +655,7 @@ pub enum RelDec {
 /// Beware of nought values comparison. [`PlacesRow::deref`] allows to view internal
 /// storage and for nought it has some length, exactly 1, but count would be `0` exactly.
 ///
-/// Returns `RelDec` relation.
+/// Returns [`RelDec`] relation.
 pub fn rel_dec(num: &PlacesRow, comparand: &PlacesRow) -> RelDec {
     let r1 = num.row.as_slice();
     let r2 = comparand.row.as_slice();
@@ -700,7 +700,7 @@ pub enum GcdClass {
     /// Euclidean algorithm variant.
     Euclid,
     /// Extended Euclidean algorithm variant.
-    EuclidExtended,
+    EuclidExt,
 }
 
 /// Greatest common divisor computation result variants enumeration.
@@ -711,7 +711,30 @@ pub enum GcdRes {
     /// Extended greatest common divisor result variant.
     ///
     /// `0` — GCD, `1` — Bézout's coefficients
-    GcdExtended(PlacesRow, BezoutNumbers),
+    GcdExt(PlacesRow, BezoutNumbers),
+}
+
+impl GcdRes {
+    /// Returns [`PlacesRow`] of `Gcd(PlacesRow)` or _panics_
+    /// if not that variant.
+    pub fn uproot_gcd(self) -> PlacesRow {
+        if let GcdRes::Gcd(r) = self {
+            r
+        } else {
+            panic!("Not `GcdRes::Gcd(_)` variant.");
+        }
+    }
+
+    /// Returns `(PlacesRow, BezoutNumbers)` of
+    /// `GcdExt(PlacesRow, BezoutNumbers)`
+    /// or _panics_ if not that variant.
+    pub fn uproot_gcd_ext(self) -> (PlacesRow, BezoutNumbers) {
+        if let GcdRes::GcdExt(r, bn) = self {
+            (r, bn)
+        } else {
+            panic!("Not `GcdRes::GcdExt(_)` variant.");
+        }
+    }
 }
 
 /// Bézout's coefficient used by [`BezoutNumbers`].
@@ -735,7 +758,7 @@ fn bcr_unity() -> BCR {
 
 /// Bézout's identity Bézout's coefficients used by [`gcd`] computation result.
 ///
-/// Used in [`GcdRes::GcdExtended`] result variant.
+/// Used in [`GcdRes::GcdExt`] result variant.
 ///
 /// Bézout's coefficients satisfy Bézout's identity
 /// `c₁ ·i₁ +c₂ ·i₂ =gcd(i₁,i₂)`
@@ -771,7 +794,7 @@ fn to_bn(bnr: BNR) -> BezoutNumbers {
 enum GcdShortRes {
     None,
     Gcd(RawRow),
-    GcdExtended(RawRow, BNR),
+    GcdExt(RawRow, BNR),
 }
 
 fn gcd_shortcut(r1: &[u8], r2: &[u8], class: GcdClass) -> GcdShortRes {
@@ -786,14 +809,14 @@ fn gcd_shortcut(r1: &[u8], r2: &[u8], class: GcdClass) -> GcdShortRes {
     let gcd = gcd_duo.1.to_vec();
     match class {
         GcdClass::Euclid => GcdShortRes::Gcd(gcd),
-        GcdClass::EuclidExtended => {
+        GcdClass::EuclidExt => {
             let bnr = if gcd_duo.0 {
                 (bcr_nought(), bcr_unity())
             } else {
                 (bcr_unity(), bcr_nought())
             };
 
-            GcdShortRes::GcdExtended(gcd, bnr)
+            GcdShortRes::GcdExt(gcd, bnr)
         }
     }
 }
@@ -1699,7 +1722,7 @@ pub enum PrimeGenRes<T> {
 }
 
 impl<T> PrimeGenRes<T> {
-    /// Returns `Vec<T>` of `PrimeGenRes::All(Vec<T>)` or _panics_
+    /// Returns [`Vec<T>`] of `PrimeGenRes::All(Vec<T>)` or _panics_
     /// if not that variant.
     pub fn uproot_all(self) -> Vec<T> {
         if let PrimeGenRes::All(all) = self {
@@ -3415,9 +3438,15 @@ mod tests_of_units {
         fn readme_sample_test() {
             let number    = Row::new_from_str("1489754132134687989463132131").unwrap();
             let comparand = Row::new_from_str(        "48645698946456531371").unwrap();
+            
+            let number_places = number.places();
+            let comparand_places = comparand.places();
+            let difference = number_places - comparand_places;
+            
             let decrel = rel_dec(&number, &comparand);
-
-            assert_eq!(RelDec::Greater((28, 20, 8)), decrel);
+            
+            let places_details = (number_places, comparand_places, difference);
+            assert_eq!(RelDec::Greater(places_details), decrel);
         }
     }
 
@@ -3483,9 +3512,55 @@ mod tests_of_units {
         }
     }
 
+    mod gcd_res {
+
+        use crate::{BezoutNumbers, GcdRes, Row};
+
+        #[test]
+        fn uproot_gcd_okay_test() {
+            let test = GcdRes::Gcd(Row::nought());
+            let test = test.uproot_gcd();
+
+            assert_eq!(Row::nought(), test);
+        }
+
+        #[test]
+        #[should_panic(expected = "Not `GcdRes::Gcd(_)` variant.")]
+        fn uproot_gcd_err_test() {
+            let bn = BezoutNumbers {
+                n1c: (false, Row::nought()),
+                n2c: (false, Row::nought()),
+            };
+
+            let test = GcdRes::GcdExt(Row::nought(), bn);
+            _ = test.uproot_gcd();
+        }
+
+        #[test]
+        fn uproot_gcd_ext_okay_test() {
+            let bn = BezoutNumbers {
+                n1c: (false, Row::nought()),
+                n2c: (false, Row::nought()),
+            };
+
+            let test = GcdRes::GcdExt(Row::nought(), bn.clone());
+            let test = test.uproot_gcd_ext();
+
+            let p = (Row::nought(), bn);
+            assert_eq!(p, test);
+        }
+
+        #[test]
+        #[should_panic(expected = "Not `GcdRes::GcdExt(_)` variant.")]
+        fn uproot_gcd_ext_err_test() {
+            let test = GcdRes::Gcd(Row::nought());
+            _ = test.uproot_gcd_ext();
+        }
+    }
+
     use crate::{bcr_nought, bcr_unity};
     #[test]
-    fn bcr_nought_raw() {
+    fn bcr_nought_test() {
         let t = bcr_nought();
         let p = (false, vec![0]);
 
@@ -3493,7 +3568,7 @@ mod tests_of_units {
     }
 
     #[test]
-    fn bcr_unity_raw() {
+    fn bcr_unity_test() {
         let t = bcr_unity();
         let p = (false, vec![1]);
 
@@ -3501,7 +3576,7 @@ mod tests_of_units {
     }
 
     #[test]
-    fn bezouts_numbers() {
+    fn bezouts_numbers_test() {
         let c1 = (true, new_from_num!(222));
         let c2 = (false, new_from_num!(666));
 
@@ -3548,7 +3623,7 @@ mod tests_of_units {
 
             let vals = [
                 (Euclid, Gcd(r2.clone())),
-                (EuclidExtended, GcdExtended(r2.clone(), (nought_c, unity_c))),
+                (EuclidExt, GcdExt(r2.clone(), (nought_c, unity_c))),
             ];
 
             let r1 = r1.as_slice();
@@ -3569,7 +3644,7 @@ mod tests_of_units {
 
             let vals = [
                 (Euclid, Gcd(r1.clone())),
-                (EuclidExtended, GcdExtended(r1.clone(), (unity_c, nought_c))),
+                (EuclidExt, GcdExt(r1.clone(), (unity_c, nought_c))),
             ];
 
             let r1 = r1.as_slice();
@@ -3589,7 +3664,7 @@ mod tests_of_units {
 
             let vals = [
                 (Euclid, Gcd(r.clone())),
-                (EuclidExtended, GcdExtended(r.clone(), (nought_c, unity_c))),
+                (EuclidExt, GcdExt(r.clone(), (nought_c, unity_c))),
             ];
 
             let r = r.as_slice();
@@ -3604,7 +3679,7 @@ mod tests_of_units {
             let r = unity_raw();
             let r = r.as_slice();
 
-            for c in [GcdClass::Euclid, GcdClass::EuclidExtended] {
+            for c in [GcdClass::Euclid, GcdClass::EuclidExt] {
                 let gcd = gcd_shortcut(r, r, c);
                 assert_eq!(GcdShortRes::None, gcd);
             }
@@ -3765,7 +3840,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn not_coprime_divisor_is_gcd_a() {
+        fn not_coprime_divisor_is_gcd_test_a() {
             let r1 = new_from_num_raw!(777_777_777);
             let r2 = new_from_num_raw!(111_111_111);
 
@@ -3780,7 +3855,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn not_coprime_divisor_is_gcd_b() {
+        fn not_coprime_divisor_is_gcd_test_b() {
             let row = new_from_num_raw!(777_777_777);
             let r = row.as_slice();
 
@@ -3915,7 +3990,7 @@ mod tests_of_units {
 
                 // a < b
                 #[test]
-                fn absolute_value_lesser() {
+                fn absolute_value_lesser_test() {
                     for sign in [false, true] {
                         let (m_sig, s_sig) = (sign, !sign);
 
@@ -3937,7 +4012,7 @@ mod tests_of_units {
 
                 // a = b
                 #[test]
-                fn absolute_value_equal() {
+                fn absolute_value_equal_test() {
                     for sign in [false, true] {
                         for v in [1, 3, 17] {
                             let num = new_from_num_raw!(v);
@@ -3955,7 +4030,7 @@ mod tests_of_units {
 
                 // a > b
                 #[test]
-                fn absolute_value_greater() {
+                fn absolute_value_greater_test() {
                     for sign in [false, true] {
                         for (m, s) in [(2, 1), (7, 3), (33, 17)] {
                             let min = new_from_num_raw!(m);
@@ -3981,7 +4056,7 @@ mod tests_of_units {
 
                 // a < b
                 #[test]
-                fn absolute_value_lesser() {
+                fn absolute_value_lesser_test() {
                     for sign in [false, true] {
                         for (m, s) in [(1, 2), (3, 7), (17, 33)] {
                             let min = new_from_num_raw!(m);
@@ -4001,7 +4076,7 @@ mod tests_of_units {
 
                 // a = b
                 #[test]
-                fn absolute_value_equal() {
+                fn absolute_value_equal_test() {
                     for sign in [false, true] {
                         for v in [1, 3, 17] {
                             let num = new_from_num_raw!(v);
@@ -4020,7 +4095,7 @@ mod tests_of_units {
 
                 // a > b
                 #[test]
-                fn absolute_value_greater() {
+                fn absolute_value_greater_test() {
                     for sign in [false, true] {
                         for (m, s) in [(2, 1), (7, 3), (33, 17)] {
                             let min = new_from_num_raw!(m);
@@ -4317,7 +4392,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn not_coprime_divisor_is_gcd_a() {
+        fn not_coprime_divisor_is_gcd_test_a() {
             let r1 = new_from_num_raw!(777_777_777);
             let r2 = new_from_num_raw!(111_111_111);
             let proof = r2.clone();
@@ -4334,7 +4409,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn not_coprime_divisor_is_gcd_b() {
+        fn not_coprime_divisor_is_gcd_test_b() {
             let row = new_from_num_raw!(777_777_777);
             let r = row.as_slice();
 
@@ -4421,7 +4496,7 @@ mod tests_of_units {
 
             // a < b
             #[test]
-            fn absolute_value_lesser() {
+            fn absolute_value_lesser_test() {
                 for sign in [false, true] {
                     for (m, s) in [(1, 2), (3, 7), (17, 33)] {
                         let min = new_from_num_raw!(m);
@@ -4441,7 +4516,7 @@ mod tests_of_units {
 
             // a = b
             #[test]
-            fn absolute_value_equal() {
+            fn absolute_value_equal_test() {
                 for sign in [false, true] {
                     for v in [1, 3, 17] {
                         let num = new_from_num_raw!(v);
@@ -4459,7 +4534,7 @@ mod tests_of_units {
 
             // a > b
             #[test]
-            fn absolute_value_greater() {
+            fn absolute_value_greater_test() {
                 for sign in [false, true] {
                     for (m, s) in [(2, 1), (7, 3), (33, 17)] {
                         let min = new_from_num_raw!(m);
@@ -4485,7 +4560,7 @@ mod tests_of_units {
 
             // a < b
             #[test]
-            fn absolute_value_lesser() {
+            fn absolute_value_lesser_test() {
                 for sign in [false, true] {
                     for (m, s) in [(1, 2), (3, 7), (17, 33)] {
                         let min = new_from_num_raw!(m);
@@ -4505,7 +4580,7 @@ mod tests_of_units {
 
             // a = b
             #[test]
-            fn absolute_value_equal() {
+            fn absolute_value_equal_test() {
                 for sign in [false, true] {
                     for v in [1, 3, 17] {
                         let num = new_from_num_raw!(v);
@@ -4524,7 +4599,7 @@ mod tests_of_units {
 
             // a > b
             #[test]
-            fn absolute_value_greater() {
+            fn absolute_value_greater_test() {
                 for sign in [false, true] {
                     for (m, s) in [(2, 1), (7, 3), (33, 17)] {
                         let min = new_from_num_raw!(m);
@@ -5546,7 +5621,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn dividend_portion_computation_a_1() {
+        fn dividend_portion_computation_test_a_1() {
             let dividend = new_from_num_raw!(600);
             let divisor = new_from_num_raw!(600);
 
@@ -5560,7 +5635,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn dividend_portion_computation_a_2() {
+        fn dividend_portion_computation_test_a_2() {
             let dividend = new_from_num_raw!(600);
             let divisor = new_from_num_raw!(599);
 
@@ -5574,7 +5649,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn dividend_portion_computation_a_3() {
+        fn dividend_portion_computation_test_a_3() {
             let dividend = new_from_num_raw!(5990);
             let divisor = new_from_num_raw!(600);
 
@@ -5588,7 +5663,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn dividend_portion_computation_b_1() {
+        fn dividend_portion_computation_test_b_1() {
             let dividend = new_from_num_raw!(600_600);
             let divisor = new_from_num_raw!(600);
 
@@ -5602,7 +5677,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn dividend_portion_computation_b_2() {
+        fn dividend_portion_computation_test_b_2() {
             let dividend = new_from_num_raw!(600_599);
             let divisor = new_from_num_raw!(600);
 
@@ -5616,7 +5691,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn dividend_portion_computation_b_3() {
+        fn dividend_portion_computation_test_b_3() {
             let dividend = new_from_num_raw!(6_005_990);
             let divisor = new_from_num_raw!(600);
 
@@ -6183,7 +6258,7 @@ mod tests_of_units {
         use crate::{PrimeGenErr, PrimeGenRes, PrimeGenResAide};
 
         #[test]
-        fn uproot_all_ok() {
+        fn uproot_all_ok_test() {
             let proof = vec![3, 2, 1];
             let res: Result<PrimeGenRes<usize>, PrimeGenErr> = Ok(PrimeGenRes::All(proof.clone()));
             let test = res.uproot_all();
@@ -6193,7 +6268,7 @@ mod tests_of_units {
 
         #[test]
         #[should_panic(expected = "Not `Ok(_)` variant.")]
-        fn uproot_all_err() {
+        fn uproot_all_err_test() {
             let err = PrimeGenErr::TimeframeExhaustion;
             let res: Result<PrimeGenRes<usize>, PrimeGenErr> = Err(err);
             _ = res.uproot_all();
@@ -6201,14 +6276,14 @@ mod tests_of_units {
 
         #[test]
         #[should_panic(expected = "Not `PrimeGenRes::All(_)` variant.")]
-        fn uproot_all_ok_max() {
+        fn uproot_all_ok_max_test() {
             let max = 17;
             let res: Result<PrimeGenRes<usize>, PrimeGenErr> = Ok(PrimeGenRes::Max(max));
             _ = res.uproot_all();
         }
 
         #[test]
-        fn uproot_max_ok() {
+        fn uproot_max_ok_test() {
             let proof = 17;
             let res: Result<PrimeGenRes<usize>, PrimeGenErr> = Ok(PrimeGenRes::Max(proof));
             let test = res.uproot_max();
@@ -6218,7 +6293,7 @@ mod tests_of_units {
 
         #[test]
         #[should_panic(expected = "Not `Ok(_)` variant.")]
-        fn uproot_max_err() {
+        fn uproot_max_err_test() {
             let err = PrimeGenErr::TimeframeExhaustion;
             let res: Result<PrimeGenRes<usize>, PrimeGenErr> = Err(err);
             _ = res.uproot_max();
@@ -6226,7 +6301,7 @@ mod tests_of_units {
 
         #[test]
         #[should_panic(expected = "Not `PrimeGenRes::Max(_)` variant.")]
-        fn uproot_max_ok_all() {
+        fn uproot_max_ok_all_test() {
             let all = vec![3, 2, 1];
             let res: Result<PrimeGenRes<usize>, PrimeGenErr> = Ok(PrimeGenRes::All(all));
             _ = res.uproot_max();
@@ -6832,7 +6907,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn zero_multiplied_by_zero() {
+        fn zero_multiplied_by_zero_test() {
             let zero = nought_raw();
 
             let prod = multiplication(&zero, &zero);
@@ -6840,7 +6915,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn zero_multiplier_with_ones() {
+        fn zero_multiplier_with_ones_test() {
             let mpler = nought_raw();
 
             for n in [1, 9] {
@@ -6851,7 +6926,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn zero_multiplicand_with_ones() {
+        fn zero_multiplicand_with_ones_test() {
             let mcand = nought_raw();
 
             for n in [1, 9] {
@@ -6865,7 +6940,7 @@ mod tests_of_units {
         #[should_panic(
             expected = "Multiplication does not support 0 multiplication with exception for ones."
         )]
-        fn zero_multiplier_with_non_ones() {
+        fn zero_multiplier_with_non_ones_test() {
             let mpler = nought_raw();
             let mcand = new_from_num_raw!(10);
             _ = multiplication(&mpler, &mcand);
@@ -6875,7 +6950,7 @@ mod tests_of_units {
         #[should_panic(
             expected = "Multiplication does not support 0 multiplication with exception for ones."
         )]
-        fn zero_multiplicand_with_non_ones() {
+        fn zero_multiplicand_with_non_ones_test() {
             let mpler = new_from_num_raw!(10);
             let mcand = nought_raw();
 
