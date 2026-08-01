@@ -1,7 +1,7 @@
 ### BIG NUM MATH
 Unostentatious library for computations on large numbers.
 
-Internally banal, based on long form arithmetics methods of: addition, subtraction, multiplication and division.
+Internally banal, based on long form arithmetic methods of: addition, subtraction, multiplication and division.
 
 - upcomming functions: 
     - multiplicative modular inverse
