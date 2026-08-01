@@ -1,10 +1,27 @@
 IMPROVEMENTS
 
 easy
- - stein and eea gcd
+ - eea gcd, add readme sample
+ - mmi
+ - DecCnt with computing diff (no precomputation)
+ - negative numbers: add, sub, mul, pow, divrem, gcd_ee 
+ - annul self, annul+annul_raw +unitize
 
 intriguing
     - sin, cos, tg, cotg (Taylor series)
 
 tough
-    - array of usizes: reduces memory footprint twice per byte (1001=9, 1001 1001 = 9 9), implies direct binary operation to preserve adequate performance
+    - use one byte for holding 2 numbers:
+        - could it be ever a benefit?
+        - matching performace of one number per byte could be difficult
+        
+        
+EFFECTIVE INT (BIG NUM MATH 2)
+
+- add bitshift operations
+- add stein + extended stein gcds
+- add modular inversion gcd
+
+
+short description
+- effective integer data type — holding numbers in series of words instead of byte series, e.g. assuming word size 64 bit, 4 words wide effective integer is effectively 'Int256' data type

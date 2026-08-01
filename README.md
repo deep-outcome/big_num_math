@@ -1,10 +1,9 @@
 ### BIG NUM MATH
-Library for computations on large numbers.
+Unostentatious library for computations on large numbers. Internally banal, based on long: addition, subtraction, multiplication and division methods.
 
 - development notes: 
-    1. upcomming functions: greatest common divisor
-    2. planned optimizations (memory consumption [half memory requirement])
-- functions only:
+    1. upcomming functions: multiplicative modular inverse, negative numbers support
+- functions:
     - addition +substraction, 
     - multiplication +division (with remainder)
     - relation and decimal relation operators
@@ -13,6 +12,7 @@ Library for computations on large numbers.
     - integer square root
     - primality check
     - prime number generator (primitive number types only)
+    - greatest common divisor +extended greatest common divisor
 
 ### Usage Samples
 
@@ -58,9 +58,15 @@ assert_eq!(remainder, ratrem.1);
 ```rust
 let number    = Row::new_from_str("1489754132134687989463132131").unwrap();
 let comparand = Row::new_from_str(        "48645698946456531371").unwrap();
+
+let number_places = number.places();
+let comparand_places = comparand.places();
+let difference = number_places - comparand_places;
+
 let decrel = rel_dec(&number, &comparand);
 
-assert_eq!(RelDec::Greater((28, 20, 8)), decrel);
+let places_details = (number_places, comparand_places, difference);
+assert_eq!(RelDec::Greater(places_details), decrel);
 ```
 
 ##### order of magnitude
@@ -93,7 +99,7 @@ assert_eq!(Some(false), prime_ck(&num, Some(limit)));
 
 ```rust
 let limit = Duration::from_secs(60);
-let p = || pg!(200_000, PrimeGenStrain::Nth, false, u32, Some(limit));
+let p = || pg!(200_000, PrimeGenClass::Nth, false, u32, Some(limit));
 assert_eq!(Ok(PrimeGenRes::Max(2_750_159)), p());
 ```
 ##### nth  root
@@ -105,4 +111,15 @@ let radicand = PlacesRow::new_from_str(
 )
 .unwrap();
 assert_eq!(Some(test), root(&radicand, 9));
+```
+
+##### greatest common divisor
+
+```rust
+let num1 = PlacesRow::new_from_u128(u128::MAX / 5);
+let num2 = PlacesRow::new_from_u64(u64::MAX / 5);
+let proof = PlacesRow::new_from_str("3689348814741910323").unwrap();
+
+let gcd = gcd(&num1, &num2, GcdClass::Euclid);
+assert_eq!(proof, gcd.uproot_gcd());
 ```

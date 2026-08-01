@@ -24,7 +24,7 @@ use tests_of_units::root::test_aides::RootTestOuts;
 
 /// Computes `nth` integer root of `radicand`.
 ///
-/// Returns `PlacesRow` with result or `None` for `0`ᵗʰ root.
+/// Returns [`PlacesRow`] with result or [`None`] for `0`ᵗʰ root.
 pub fn root(
     radicand: &PlacesRow,
     nth: u16,
@@ -35,7 +35,7 @@ pub fn root(
         return None;
     }
 
-    let rad = &radicand.row;
+    let rad = radicand.row.as_slice();
 
     if let Some(res) = root_shortcut(
         rad,
@@ -46,14 +46,16 @@ pub fn root(
         return Some(res);
     }
 
-    let base = &vec![0, 1];
+    let base = &[0, 1];
     let unity = unity_raw();
+    let unity = unity.as_slice();
 
     // n -1
     let nth_less = nth - 1;
 
     // Bⁿ⁻¹
-    let bdpl = &pow_raw(base, nth_less, false);
+    let bdpl = pow_raw(base, nth_less, false);
+    let bdpl = bdpl.as_slice();
 
     // decadic base powered by degree
     // base degree power
@@ -62,13 +64,14 @@ pub fn root(
 
     // degree base degree less power
     // nBⁿ⁻¹
-    let dbdlp = multiplication(&new_from_num_raw!(nth), bdpl);
+    let dbdlp = multiplication(new_from_num_raw!(nth).as_slice(), bdpl);
+    let dbdlp = dbdlp.as_slice();
 
     #[cfg(test)]
     {
         outs.bdp = bdp.clone();
         outs.nth_less = nth_less;
-        outs.dbdlp = dbdlp.clone();
+        outs.dbdlp = dbdlp.to_vec();
     }
 
     // root/radix
@@ -86,19 +89,19 @@ pub fn root(
         // operatives
         // y', r'
         let (orax, orem) = next(
-            &rax,
-            &rem,
+            rax.as_slice(),
+            rem.as_slice(),
             &bdp,
-            &alpha,
+            alpha,
             nth,
             nth_less,
-            &dbdlp,
-            &unity,
+            dbdlp,
+            unity,
             #[cfg(test)]
             &mut NextTestOuts::new(),
         );
 
-        let orax_pow = pow_raw(&orax, nth, false);
+        let orax_pow = pow_raw(orax.as_slice(), nth, false);
 
         let rel = rel_raw(&orax_pow, rad);
         if let Rel::Greater(_) = rel {
@@ -130,62 +133,66 @@ pub fn root(
 /// n >0, ⁿ√0 =0
 /// n >0, ⁿ√1 =1
 /// ¹√x =x
-fn root_shortcut(rad: &RawRow, deg: u16, #[cfg(test)] skip: bool) -> Option<PlacesRow> {
+fn root_shortcut(rad: &[u8], deg: u16, #[cfg(test)] skip: bool) -> Option<PlacesRow> {
     #[cfg(test)]
     if skip {
         return None;
     }
 
-    return if deg == 1 || is_nought_raw(rad) || is_unity_raw(rad) {
-        Some(PlacesRow { row: rad.clone() })
+    if deg == 1 || is_nought_raw(rad) || is_unity_raw(rad) {
+        Some(Row { row: rad.to_vec() })
     } else {
         None
-    };
+    }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn next(
-    rax: &RawRow,     // y
-    rem: &RawRow,     // r
+    rax: &[u8],       // y
+    rem: &[u8],       // r
     bdp: &RawRow,     // Bⁿ
     alpha: &[u8],     // α
     degree: u16,      // n
     degree_less: u16, // n -1
-    dbdlp: &RawRow,   // nBⁿ⁻¹
-    unity: &RawRow,   // 1
+    dbdlp: &[u8],     // nBⁿ⁻¹
+    unity: &[u8],     // 1
 
     #[cfg(test)] outs: &mut NextTestOuts,
 ) -> (RawRow, RawRow) {
     // yⁿ⁻¹
-    let rax_pow_less = pow_raw(&rax, degree_less, false);
+    let rax_pow_less = pow_raw(rax, degree_less, false);
+    let rax_pow_less = rax_pow_less.as_slice();
 
     // Bⁿyⁿ, subtrahend
-    let sub = mul_raw(bdp, multiplication(&rax_pow_less, &rax).as_slice(), false);
+    let sub = mul_raw(bdp, multiplication(rax_pow_less, rax).as_slice(), false);
+    let sub = sub.as_slice();
 
     let wrax_cap = rax.len() + 1;
-    let mut wrax = Vec::new();
-    wrax.reserve_exact(wrax_cap);
+    let mut wrax = Vec::with_capacity(wrax_cap);
     wrax.push(0);
 
     // By, widen rax
-    if is_nought_raw(&rax) == false {
+    if is_nought_raw(rax) == false {
         // y' =By +β, β =0
 
         unsafe {
             wrax.set_len(wrax_cap);
         };
 
-        wrax[1..].copy_from_slice(&rax);
+        wrax[1..].copy_from_slice(rax);
     }
 
     // Bⁿr +α, limit
     let mut lim = mul_raw(bdp, rem, false);
     addition_sum(alpha, &mut lim, 0);
 
+    let lim_slc = lim.as_slice();
+
     // let make initial guess, if possible
     let (betag, beta) = if let Some(g) = guess(
-        &rax_pow_less,
+        rax_pow_less,
         dbdlp,
-        &lim,
+        lim_slc,
         #[cfg(test)]
         &mut outs.div,
         #[cfg(test)]
@@ -193,20 +200,28 @@ fn next(
     ) {
         (true, g)
     } else {
-        (false, unity.clone())
+        (false, unity.to_vec())
     };
 
     #[cfg(test)]
     {
         outs.wrax = wrax.clone();
-        outs.rax_pow_less = rax_pow_less.clone();
-        outs.sub = sub.clone();
+        outs.rax_pow_less = rax_pow_less.to_vec();
+        outs.sub = sub.to_vec();
         outs.lim = lim.clone();
         outs.beta = beta.clone();
         outs.betag = Some(betag);
     }
 
-    let inc_res = incr(&wrax, &beta, unity, degree, &sub, &lim, betag);
+    let inc_res = incr(
+        wrax.as_slice(),
+        beta.as_slice(),
+        unity,
+        degree,
+        sub,
+        lim_slc,
+        betag,
+    );
 
     // (By +β)ⁿ -Bⁿyⁿ
     let (rax, max) = match inc_res {
@@ -225,14 +240,14 @@ fn next(
             #[cfg(test)]
             set_cr(&mut outs.decr);
 
-            let m = decr(&mut or, unity, degree, &sub, &lim);
+            let m = decr(&mut or, unity, degree, sub, lim_slc);
 
             (or, m)
         }
     };
 
     // r' =(Bⁿr +α) -((By +β)ⁿ -Bⁿyⁿ)
-    _ = subtraction_arithmetical(&mut lim, &max);
+    _ = subtraction_arithmetical(&mut lim, max.as_slice());
 
     return (rax, lim);
 
@@ -243,13 +258,13 @@ fn next(
 }
 
 fn guess(
-    rax_pow_less: &RawRow, // yⁿ⁻¹
-    dbdlp: &RawRow,        // nBⁿ⁻¹
-    lim: &RawRow,          // Bⁿr +α
+    rax_pow_less: &[u8], // yⁿ⁻¹
+    dbdlp: &[u8],        // nBⁿ⁻¹
+    lim: &[u8],          // Bⁿr +α
     #[cfg(test)] div_out: &mut RawRow,
     #[cfg(test)] g_out: &mut RawRow,
 ) -> Option<RawRow> {
-    if !is_nought_raw(rax_pow_less.as_slice()) {
+    if !is_nought_raw(rax_pow_less) {
         // nBⁿ⁻¹ ·yⁿ⁻¹
         let div = multiplication(dbdlp, rax_pow_less);
 
@@ -287,13 +302,13 @@ enum IncRes {
     Attainment((RawRow, RawRow)),
 }
 
-fn incr<'a>(
-    wrax: &RawRow,
-    beta: &RawRow,
-    unity: &RawRow,
+fn incr(
+    wrax: &[u8],
+    beta: &[u8],
+    unity: &[u8],
     degree: u16,
-    sub: &RawRow,
-    lim: &RawRow,
+    sub: &[u8],
+    lim: &[u8],
     betag: bool,
 ) -> IncRes {
     // seeking largest beta that
@@ -306,20 +321,20 @@ fn incr<'a>(
     let mut orax = Vec::with_capacity(max_len + 1);
     // o stands for operative
     // y' =By +β
-    addition_two(beta, &wrax, &mut orax);
+    addition_two(beta, wrax, &mut orax);
     let mut init_fail = true;
 
     let mut max = Vec::with_capacity(0);
 
     loop {
         // (By +β)ⁿ
-        let mut omax = pow_raw(&orax, degree, false);
+        let mut omax = pow_raw(orax.as_slice(), degree, false);
 
         // (By +β)ⁿ -Bⁿyⁿ
         _ = subtraction_arithmetical(&mut omax, sub);
 
         // (By +β)ⁿ -Bⁿyⁿ ≤ Bⁿr +α
-        let rel = rel_raw(&omax, lim);
+        let rel = rel_raw(omax.as_slice(), lim);
         if let Rel::Greater(_) = rel {
             if init_fail {
                 return if betag {
@@ -348,20 +363,20 @@ fn incr<'a>(
 
 // do not decrement beta and add to wrax each iteration
 // add first than decrement orax
-fn decr(orax: &mut RawRow, unity: &RawRow, degree: u16, sub: &RawRow, lim: &RawRow) -> RawRow {
+fn decr(orax: &mut RawRow, unity: &[u8], degree: u16, sub: &[u8], lim: &[u8]) -> RawRow {
     // seeking largest beta that
     // (By +β)ⁿ -Bⁿyⁿ ≤ Bⁿr +α
     loop {
         _ = subtraction_arithmetical(orax, unity);
 
         // (By +β)ⁿ
-        let mut omax = pow_raw(&orax, degree, false);
+        let mut omax = pow_raw(orax, degree, false);
 
         // (By +β)ⁿ -Bⁿyⁿ
         _ = subtraction_arithmetical(&mut omax, sub);
 
         // (By +β)ⁿ -Bⁿyⁿ ≤ Bⁿr +α
-        if let Rel::Greater(_) = rel_raw(&omax, lim) {
+        if let Rel::Greater(_) = rel_raw(omax.as_slice(), lim) {
             continue;
         }
 
@@ -479,7 +494,7 @@ mod tests_of_units {
             }
         }
 
-        use crate::{PlacesRow, Row};
+        use crate::Row;
 
         use super::super::root;
         use test_aides::RootTestOuts;
@@ -518,7 +533,7 @@ mod tests_of_units {
             let vals = [1, 2, 3, 4, 5, 100, 999];
             let mut outs = RootTestOuts::new();
 
-            let nought = PlacesRow::nought();
+            let nought = Row::nought();
             for &v in vals.iter() {
                 assert_eq!(root(&nought, v, &mut outs, true), Some(nought.clone()));
                 assert_eq!(root(&nought, v, &mut outs, false), Some(nought.clone()));
@@ -530,7 +545,7 @@ mod tests_of_units {
             let vals = [1, 2, 3, 4, 5, 100, 999];
             let mut outs = RootTestOuts::new();
 
-            let unity = PlacesRow::unity();
+            let unity = Row::unity();
             for &v in vals.iter() {
                 assert_eq!(root(&unity, v, &mut outs, true), Some(unity.clone()));
                 assert_eq!(root(&unity, v, &mut outs, false), Some(unity.clone()));
@@ -608,7 +623,7 @@ mod tests_of_units {
             let mut outs = RootTestOuts::new();
             for v in vals {
                 let proof = new_from_num!(v.0);
-                let rad = PlacesRow::new_from_usize(v.2);
+                let rad = Row::new_from_usize(v.2);
 
                 assert_eq!(Some(proof), root(&rad, v.1, &mut outs, false));
             }
@@ -623,14 +638,14 @@ mod tests_of_units {
                 (9, 3, 999),                // ≈ 9.997
                 (9, 2, 99),                 // ≈ 9.95
                 (99, 2, 9999),              // ≈ 99.995
-                (21, 3, 9999),              // ≈ 21.5            
+                (21, 3, 9999),              // ≈ 21.5
                 (20, 4, 173_479),           // ≈ 20.41
-                (2, 17, 16_777_215),        // ≈ 2.661            
-                (3, 13, 33_554_431),        // ≈ 3.79            
+                (2, 17, 16_777_215),        // ≈ 2.661
+                (3, 13, 33_554_431),        // ≈ 3.79
                 (31629, 2, 1_000_400_400),  // ≈ 31629.11
-                (45, 5, 200_300_010),       // ≈ 45.7                                
+                (45, 5, 200_300_010),       // ≈ 45.7
                 (5, 12, 900_900_009),       // ≈ 5.575
-                (2, 26, 90_900_009),        // ≈ 2.02                                     
+                (2, 26, 90_900_009),        // ≈ 2.02
             ];
 
             let mut outs = RootTestOuts::new();
@@ -647,8 +662,8 @@ mod tests_of_units {
         fn readme_test() {
             let mut outs = RootTestOuts::new();
 
-            let test = PlacesRow::new_from_usize(99_999_999);
-            let radicand = PlacesRow::new_from_str(
+            let test = Row::new_from_usize(99_999_999);
+            let radicand = Row::new_from_str(
                 "999999910000003599999916000001259999987400000083999999640000000899999999",
             )
             .unwrap();
@@ -730,14 +745,14 @@ mod tests_of_units {
     }
 
     mod root_shortcut {
-        use crate::{nought_raw, unity_raw, PlacesRow, Row};
+        use crate::{nought_raw, unity_raw, Row};
 
         use super::super::root_shortcut;
 
         #[test]
         fn nought_root_test() {
             let nought = nought_raw();
-            let proof = PlacesRow::nought();
+            let proof = Row::nought();
 
             assert_eq!(root_shortcut(&nought, u16::MAX, false), Some(proof));
         }
@@ -745,7 +760,7 @@ mod tests_of_units {
         #[test]
         fn unity_root_test() {
             let unity = unity_raw();
-            let proof = PlacesRow::unity();
+            let proof = Row::unity();
 
             assert_eq!(root_shortcut(&unity, u16::MAX, false), Some(proof));
         }

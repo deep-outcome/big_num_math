@@ -9,7 +9,9 @@ mod nth_root;
 
 pub use nth_root::root;
 
-/// `PlacesRow` represents row of decimal places starting at ones (`0` index).
+/// [`PlacesRow`] represents row of decimal places.
+///
+/// Places develop from `0` index (ones).
 #[derive(Clone, PartialEq, Debug)]
 pub struct PlacesRow {
     row: RawRow,
@@ -34,14 +36,14 @@ impl PlacesRow {
     ///
     /// Leading zeros are truncated. Does not change capacity.
     ///
-    /// Returns `PlacesRow` or index where place > `9` was
-    /// encountered. `None` for 0-len `row`.
+    /// Returns [`PlacesRow`] or index where place > `9` was
+    /// encountered. [`None`] for 0-len `row`.
     pub fn new_from_vec(mut row: Vec<u8>) -> Result<Self, Option<usize>> {
         if row.len() == 0 {
             return Err(None);
         }
 
-        let row_len = len_without_leading_raw(&row, 0, 1);
+        let row_len = len_without_leading_raw(row.as_slice(), 0, 1);
 
         let mut ix = 0;
         while ix < row_len {
@@ -88,94 +90,94 @@ impl PlacesRow {
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_u8(&self) -> Option<u8> {
-        try_into_num!(&self.row, u8, &mut 0)
+        try_into_num!(self.row, u8, &mut 0)
     }
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_u16(&self) -> Option<u16> {
-        try_into_num!(&self.row, u16, &mut 0)
+        try_into_num!(self.row, u16, &mut 0)
     }
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_u32(&self) -> Option<u32> {
-        try_into_num!(&self.row, u32, &mut 0)
+        try_into_num!(self.row, u32, &mut 0)
     }
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_u64(&self) -> Option<u64> {
-        try_into_num!(&self.row, u64, &mut 0)
+        try_into_num!(self.row, u64, &mut 0)
     }
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_u128(&self) -> Option<u128> {
-        try_into_num!(&self.row, u128, &mut 0)
+        try_into_num!(self.row, u128, &mut 0)
     }
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_usize(&self) -> Option<usize> {
-        try_into_num!(&self.row, usize, &mut 0)
+        try_into_num!(self.row, usize, &mut 0)
     }
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_i8(&self) -> Option<i8> {
-        try_into_num!(&self.row, i8, &mut 0)
+        try_into_num!(self.row, i8, &mut 0)
     }
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_i16(&self) -> Option<i16> {
-        try_into_num!(&self.row, i16, &mut 0)
+        try_into_num!(self.row, i16, &mut 0)
     }
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_i32(&self) -> Option<i32> {
-        try_into_num!(&self.row, i32, &mut 0)
+        try_into_num!(self.row, i32, &mut 0)
     }
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_i64(&self) -> Option<i64> {
-        try_into_num!(&self.row, i64, &mut 0)
+        try_into_num!(self.row, i64, &mut 0)
     }
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_i128(&self) -> Option<i128> {
-        try_into_num!(&self.row, i128, &mut 0)
+        try_into_num!(self.row, i128, &mut 0)
     }
 
     /// Convertor method.
     ///
-    /// Returns `None` if `PlacesRow` cannot fit into target type.
+    /// Returns [`None`] if [`PlacesRow`] cannot fit into target type.
     pub fn try_into_isize(&self) -> Option<isize> {
-        try_into_num!(&self.row, isize, &mut 0)
+        try_into_num!(self.row, isize, &mut 0)
     }
 
     /// Handy ctor for usage with long numbers.
     ///
     /// Only digits are allowed in `s`. Leading zeros are omitted.
     ///
-    /// Returns `PlacesRow` or index in `s` where uncovertable `char` was
-    /// encountered. `None` for empty string.
+    /// Returns [`PlacesRow`] or index in `s` where uncovertable [`char`] was
+    /// encountered. [`None`] for empty string.
     pub fn new_from_str(s: &str) -> Result<Self, Option<usize>> {
         let row = new_from_str_raw(s);
         if let Ok(row) = row {
@@ -185,12 +187,11 @@ impl PlacesRow {
         }
     }
 
-    /// Returns `String` representation.
+    /// Returns [`String`] representation.
     pub fn to_number(&self) -> String {
         let row = &self.row;
         let len = row.len();
-        let mut number = String::new();
-        number.reserve_exact(len);
+        let mut number = String::with_capacity(len);
         for i in row.iter().rev() {
             let digit = to_digit(*i);
             number.push(digit);
@@ -199,28 +200,38 @@ impl PlacesRow {
         number
     }
 
-    /// `true` if and only if `PlacesRow` is _unity_ value.
+    /// Returns `true`, if and only if [`PlacesRow`] is _even_ number.
+    pub fn even(&self) -> bool {
+        even_raw(self.row.as_slice())
+    }
+
+    /// Returns `true`, if and only if [`PlacesRow`] is _odd_ number.
+    pub fn odd(&self) -> bool {
+        odd_raw(self.row.as_slice())
+    }
+
+    /// Returns `true` if and only if [`PlacesRow`] is _unity_.
     pub fn is_unity(&self) -> bool {
-        is_unity_raw(&self.row)
+        is_unity_raw(self.row.as_slice())
     }
 
-    /// `true` if and only if `PlacesRow` is _nought_ value.
+    /// Returns `true` if and only if [`PlacesRow`] is _nought_.
     pub fn is_nought(&self) -> bool {
-        is_nought_raw(&self.row)
+        is_nought_raw(self.row.as_slice())
     }
 
-    /// Returns unity `PlacesRow`.
+    /// Returns unity [`PlacesRow`].
     pub fn unity() -> PlacesRow {
         Row { row: unity_raw() }
     }
 
-    /// Returns nought `PlacesRow`.
+    /// Returns nought [`PlacesRow`].
     pub fn nought() -> PlacesRow {
         Row { row: nought_raw() }
     }
 
     #[deprecated(since = "2.2.0", note = "Pick `fn nought` instead.")]
-    /// Returns zero `PlacesRow`.
+    /// Returns zero [`PlacesRow`].
     pub fn zero() -> PlacesRow {
         Self::nought()
     }
@@ -229,7 +240,7 @@ impl PlacesRow {
     ///
     /// Check with [`DecCnt`] for detail on count properties.
     pub fn places(&self) -> usize {
-        dec_pla_cnt_raw(&self.row)
+        dec_pla_cnt_raw(self.row.as_slice())
     }
 }
 
@@ -245,8 +256,7 @@ fn new_from_str_raw(mut s: &str) -> Result<RawRow, Option<usize>> {
     let row = if s_len == 0 {
         nought_raw()
     } else {
-        let mut row = Vec::new();
-        row.reserve_exact(s_len);
+        let mut row = Vec::with_capacity(s_len);
 
         let mut err_inx = s_len_orig;
         for (c, sc) in s.chars().rev().zip(row.spare_capacity_mut()) {
@@ -267,11 +277,11 @@ fn new_from_str_raw(mut s: &str) -> Result<RawRow, Option<usize>> {
 }
 
 fn truncate_leading_raw(row: &mut RawRow, lead: u8, ex_to: usize) {
-    let new_len = len_without_leading_raw(row, lead, ex_to);
+    let new_len = len_without_leading_raw(row.as_slice(), lead, ex_to);
     row.truncate(new_len);
 }
 
-fn len_without_leading_raw(row: &[u8], lead: u8, ex_to: usize) -> usize {
+const fn len_without_leading_raw(row: &[u8], lead: u8, ex_to: usize) -> usize {
     let mut row_len = row.len();
     while row_len > ex_to {
         row_len -= 1;
@@ -282,6 +292,14 @@ fn len_without_leading_raw(row: &[u8], lead: u8, ex_to: usize) -> usize {
     }
 
     row_len
+}
+
+const fn even_raw(row: &[u8]) -> bool {
+    row[0] & 1 == 0
+}
+
+const fn odd_raw(row: &[u8]) -> bool {
+    row[0] & 1 == 1
 }
 
 fn unity_raw() -> RawRow {
@@ -336,10 +354,12 @@ fn to_digit(n: u8) -> char {
     }
 }
 
-impl std::string::ToString for PlacesRow {
+use std::fmt::{Display, Formatter};
+impl Display for PlacesRow {
     /// Returns `String` representation.
-    fn to_string(&self) -> String {
-        self.to_number()
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let string = self.to_number();
+        f.write_str(string.as_str())
     }
 }
 
@@ -348,42 +368,42 @@ use std::cmp::max;
 use std::time::{Duration, Instant};
 
 impl From<u8> for PlacesRow {
-    /// Converts `value` into `PlacesRow`.
+    /// Converts `value` into [`PlacesRow`].
     fn from(value: u8) -> Self {
         Self::new_from_u8(value)
     }
 }
 
 impl From<u16> for PlacesRow {
-    /// Converts `value` into `PlacesRow`.
+    /// Converts `value` into [`PlacesRow`].
     fn from(value: u16) -> Self {
         Self::new_from_u16(value)
     }
 }
 
 impl From<u32> for PlacesRow {
-    /// Converts `value` into `PlacesRow`.
+    /// Converts `value` into [`PlacesRow`].
     fn from(value: u32) -> Self {
         Self::new_from_u32(value)
     }
 }
 
 impl From<u64> for PlacesRow {
-    /// Converts `value` into `PlacesRow`.
+    /// Converts `value` into [`PlacesRow`].
     fn from(value: u64) -> Self {
         Self::new_from_u64(value)
     }
 }
 
 impl From<u128> for PlacesRow {
-    /// Converts `value` into `PlacesRow`.
+    /// Converts `value` into [`PlacesRow`].
     fn from(value: u128) -> Self {
         Self::new_from_u128(value)
     }
 }
 
 impl From<usize> for PlacesRow {
-    /// Converts `value` into `PlacesRow`.
+    /// Converts `value` into [`PlacesRow`].
     fn from(value: usize) -> Self {
         Self::new_from_usize(value)
     }
@@ -391,7 +411,7 @@ impl From<usize> for PlacesRow {
 
 /// Represents 1,000 numbers of √10 ≈ 3.16.
 ///
-/// Check with `fn` [`ord_of_mag`].
+/// Check with [`ord_of_mag`].
 pub const SQUARE_ROOT_TEN_COMPARATOR: &str = "3162277660168379331998893544432718533719555139325216826857504852792594438639238221344248108379300295187347284152840055148548856030453880014690519596700153903344921657179259940659150153474113339484124085316929577090471576461044369257879062037808609941828371711548406328552999118596824564203326961604691314336128949791890266529543612676178781350061388186278580463683134952478031143769334671973819513185678403231241795402218308045872844614600253577579702828644029024407977896034543989163349222652612067792651676031048436697793756926155720500369894909469421850007358348844643882731109289109042348054235653403907274019786543725939641726001306990000955784463109626790694418336130181302894541703315807731626386395193793704654765220632063686587197822049312426053454111609356979828132452297000798883523759585328579251362964686511497675217123459559238039375625125369855194955325099947038843990336466165470647234999796132343403021857052187836676345789510732982875157945215771652139626324438399018484560935762602";
 
 /// Order of magnitude computational variants.
@@ -408,16 +428,16 @@ pub enum OomClass {
 /// Order of magnitude variants enumeration.
 #[derive(Clone, PartialEq, Debug)]
 pub enum Oom {
-    /// Order of magnitude is not defined for nought `PlacesRow`.
+    /// Order of magnitude is not defined for nought [`PlacesRow`].
     Undefined,
     /// Precise _oom_.
     ///
     /// Check with `Approx(usize)` variant.
     Precise(usize),
-    /// Approximated _oom_ is result of operation on `PlacesRow` requiring
-    /// greater precision than provided by `SQUARE_ROOT_TEN_COMPARATOR`.
+    /// Approximated _oom_ is result of operation on [`PlacesRow`] requiring
+    /// greater precision than provided by [`SQUARE_ROOT_TEN_COMPARATOR`].
     ///
-    /// Check with `fn` [`ord_of_mag`].
+    /// Check with [`ord_of_mag`].
     Approx(usize),
 }
 
@@ -429,14 +449,14 @@ pub enum Oom {
 ///
 /// Then _i_ is order of magnitude of such number.
 ///
-/// `Strict` variant evaluation is precise up to 1,000 numbers of [`SQUARE_ROOT_TEN_COMPARATOR`].
+/// [`OomClass::Strict`] variant evaluation is precise up to 1,000 numbers of [`SQUARE_ROOT_TEN_COMPARATOR`].
 /// Any `num` requiring higher precision is considered to be of higher order. That
 /// means its order of magnitude is arranged equal to its decimal places count
-/// and is reported as `Oom::Approx(usize)`.
+/// and is reported as [`Oom::Approx`].
 ///
-/// Returns `Oom` enumeration.
+/// Returns [`Oom`] enumeration.
 pub fn ord_of_mag(num: &PlacesRow, class: OomClass) -> Oom {
-    let row = &num.row;
+    let row = num.row.as_slice();
     if is_nought_raw(row) {
         return Oom::Undefined;
     }
@@ -515,12 +535,51 @@ pub enum Rel {
     Lesser(Option<DecCnt>),
 }
 
+impl Rel {
+    /// Returns `true` if and only if [`Rel`] is [`Rel::Greater`] variant.
+    pub const fn greater(&self) -> bool {
+        if let Rel::Greater(_) = self {
+            return true;
+        }
+
+        false
+    }
+
+    /// Returns `true` if and only if [`Rel`] is [`Rel::Equal`] variant.
+    pub const fn equal(&self) -> bool {
+        if let Rel::Equal = self {
+            return true;
+        }
+
+        false
+    }
+
+    /// Returns `true` if and only if [`Rel`] is [`Rel::Lesser`] variant.
+    pub const fn lesser(&self) -> bool {
+        if let Rel::Lesser(_) = self {
+            return true;
+        }
+
+        false
+    }
+
+    /// Returns `true` if and only if [`Rel`] is [`Rel::Greater`] or [`Rel::Equal`] variant.
+    pub const fn gt_or_eq(&self) -> bool {
+        self.greater() || self.equal()
+    }
+
+    /// Returns `true` if and only if [`Rel`] is [`Rel::Lesser`] or [`Rel::Equal`] variant.
+    pub const fn lt_or_eq(&self) -> bool {
+        self.lesser() || self.equal()
+    }
+}
+
 /// Checks relation of `num` to `comparand`.
 ///
-/// Returns `Rel` relation.
+/// Returns [`Rel`] relation.
 pub fn rel(num: &PlacesRow, comparand: &PlacesRow) -> Rel {
-    let r1 = &num.row;
-    let r2 = &comparand.row;
+    let r1 = num.row.as_slice();
+    let r2 = comparand.row.as_slice();
 
     rel_raw(r1, r2)
 }
@@ -593,13 +652,13 @@ pub enum RelDec {
 
 /// Compares decimal places count of `num` and `comparand`.
 ///
-/// Beware of nought values comparison. `fn deref` allows to view internal
+/// Beware of nought values comparison. [`PlacesRow::deref`] allows to view internal
 /// storage and for nought it has some length, exactly 1, but count would be `0` exactly.
 ///
-/// Returns `RelDec` relation.
+/// Returns [`RelDec`] relation.
 pub fn rel_dec(num: &PlacesRow, comparand: &PlacesRow) -> RelDec {
-    let r1 = &num.row;
-    let r2 = &comparand.row;
+    let r1 = num.row.as_slice();
+    let r2 = comparand.row.as_slice();
 
     rel_dec_raw(r1, r2)
 }
@@ -618,13 +677,13 @@ const fn rel_dec_raw(r1: &[u8], r2: &[u8]) -> RelDec {
 
     let mut cnts = (r1_cnt, r2_cnt, 0);
 
-    return if r1_cnt > r2_cnt {
+    if r1_cnt > r2_cnt {
         cnts.2 = r1_cnt - r2_cnt;
         RelDec::Greater(cnts)
     } else {
         cnts.2 = r2_cnt - r1_cnt;
         RelDec::Lesser(cnts)
-    };
+    }
 }
 
 const fn dec_pla_cnt_raw(r: &[u8]) -> usize {
@@ -635,19 +694,303 @@ const fn dec_pla_cnt_raw(r: &[u8]) -> usize {
     }
 }
 
+/// Greatest common divisor computational variants enumeration.
+#[derive(Debug, Clone, PartialEq)]
+pub enum GcdClass {
+    /// Euclidean algorithm variant.
+    Euclid,
+    /// Extended Euclidean algorithm variant.
+    EuclidExt,
+}
+
+/// Greatest common divisor computation result variants enumeration.
+#[derive(Debug, Clone, PartialEq)]
+pub enum GcdRes {
+    /// Ordinary greatest common divisor result variant.
+    Gcd(PlacesRow),
+    /// Extended greatest common divisor result variant.
+    ///
+    /// `0` — GCD, `1` — Bézout's coefficients
+    GcdExt(PlacesRow, BezoutNumbers),
+}
+
+impl GcdRes {
+    /// Returns [`PlacesRow`] of `Gcd(PlacesRow)` or _panics_
+    /// if not that variant.
+    pub fn uproot_gcd(self) -> PlacesRow {
+        if let GcdRes::Gcd(r) = self {
+            r
+        } else {
+            panic!("Not `GcdRes::Gcd(_)` variant.");
+        }
+    }
+
+    /// Returns `(PlacesRow, BezoutNumbers)` of
+    /// `GcdExt(PlacesRow, BezoutNumbers)`
+    /// or _panics_ if not that variant.
+    pub fn uproot_gcd_ext(self) -> (PlacesRow, BezoutNumbers) {
+        if let GcdRes::GcdExt(r, bn) = self {
+            (r, bn)
+        } else {
+            panic!("Not `GcdRes::GcdExt(_)` variant.");
+        }
+    }
+}
+
+/// Bézout's coefficient used by [`BezoutNumbers`].
+///
+/// 'Signed' variant of [`PlacesRow`].
+///
+/// If and only if `0` is equal to [`true`], number is negative.
+pub type BezoutCoeff = (bool, PlacesRow);
+
+/// Raw Bézout's coefficient.
+type BCR = (bool, RawRow);
+type BNR = (BCR, BCR);
+
+fn bcr_nought() -> BCR {
+    (false, nought_raw())
+}
+
+fn bcr_unity() -> BCR {
+    (false, unity_raw())
+}
+
+/// Bézout's identity Bézout's coefficients used by [`gcd`] computation result.
+///
+/// Used in [`GcdRes::GcdExt`] result variant.
+///
+/// Bézout's coefficients satisfy Bézout's identity
+/// `c₁ ·i₁ +c₂ ·i₂ =gcd(i₁,i₂)`
+/// - `(c₁,c₂)` – coefficients
+/// - `(i₁,i₂)` – integers
+#[derive(Debug, Clone, PartialEq)]
+pub struct BezoutNumbers {
+    n1c: BezoutCoeff,
+    n2c: BezoutCoeff,
+}
+
+impl BezoutNumbers {
+    /// Acquires [`gcd`] `num1` parameter coefficient reference.
+    pub const fn num1_coeff(&self) -> &BezoutCoeff {
+        &self.n1c
+    }
+
+    /// Acquires [`gcd`] `num2` parameter coefficient reference.
+    pub const fn num2_coeff(&self) -> &BezoutCoeff {
+        &self.n2c
+    }
+}
+
+fn to_bn(bnr: BNR) -> BezoutNumbers {
+    let (c1, c2) = bnr;
+
+    BezoutNumbers {
+        n1c: (c1.0, Row { row: c1.1 }),
+        n2c: (c2.0, Row { row: c2.1 }),
+    }
+}
+
+/// Computes greatest common divisor of `num1` and `num2`.
+///
+/// Returns [`GcdRes`] variant corresponding to `class` parameter
+/// by mapping declared in table below.
+///
+/// |            Class        |         Result     |
+/// |-------------------------|--------------------|
+/// | [`GcdClass::Euclid`]    | [`GcdRes::Gcd`]    |
+/// | [`GcdClass::EuclidExt`] | [`GcdRes::GcdExt`] |
+pub fn gcd(num1: &PlacesRow, num2: &PlacesRow, class: GcdClass) -> GcdRes {
+    let r1 = num1.row.as_slice();
+    let r2 = num2.row.as_slice();
+
+    return match gcd_shortcut(r1, r2, class.clone()) {
+        GcdShortRes::Gcd(row) => GcdRes::Gcd(Row { row }),
+        GcdShortRes::GcdExt(row, bn) => gcd_ext(row, bn),
+        GcdShortRes::None => match class {
+            GcdClass::Euclid => {
+                let row = gcd_e(r1, r2);
+                GcdRes::Gcd(Row { row })
+            }
+            GcdClass::EuclidExt => {
+                let (row, bn) = gcd_ee(r1, r2);
+                gcd_ext(row, bn)
+            }
+        },
+    };
+
+    fn gcd_ext(r: RawRow, bnr: BNR) -> GcdRes {
+        let gcd = Row { row: r };
+        let bn = to_bn(bnr);
+
+        GcdRes::GcdExt(gcd, bn)
+    }
+}
+
+#[derive(PartialEq, Debug)]
+enum GcdShortRes {
+    None,
+    Gcd(RawRow),
+    GcdExt(RawRow, BNR),
+}
+
+fn gcd_shortcut(r1: &[u8], r2: &[u8], class: GcdClass) -> GcdShortRes {
+    let gcd_duo = if is_nought_raw(r1) {
+        (true, r2)
+    } else if is_nought_raw(r2) {
+        (false, r1)
+    } else {
+        return GcdShortRes::None;
+    };
+
+    let gcd = gcd_duo.1.to_vec();
+    match class {
+        GcdClass::Euclid => GcdShortRes::Gcd(gcd),
+        GcdClass::EuclidExt => {
+            let bnr = if gcd_duo.0 {
+                (bcr_nought(), bcr_unity())
+            } else {
+                (bcr_unity(), bcr_nought())
+            };
+
+            GcdShortRes::GcdExt(gcd, bnr)
+        }
+    }
+}
+
+// Euclidean algorithm
+fn gcd_e(r1: &[u8], r2: &[u8]) -> RawRow {
+    let mut r1 = r1;
+    let mut r2 = r2;
+
+    let mut rem = RawRow::from(r2);
+    let mut gcd;
+
+    loop {
+        let remratio = division(
+            r1,
+            r2,
+            #[cfg(test)]
+            &mut Vec::with_capacity(0),
+        );
+
+        gcd = rem;
+        rem = remratio.0;
+
+        if is_nought_raw(rem.as_slice()) {
+            break;
+        }
+
+        r1 = gcd.as_slice();
+        r2 = rem.as_slice();
+    }
+
+    gcd
+}
+
+// Extended Euclidean algorithm
+fn gcd_ee(r1: &[u8], r2: &[u8]) -> (RawRow, BNR) {
+    let mut r1 = r1;
+    let mut r2 = r2;
+
+    let mut gcd;
+    let mut rem = RawRow::from(r2);
+
+    let mut x = (false, nought_raw());
+    let mut y = (false, unity_raw());
+
+    let mut u = (false, unity_raw());
+    let mut v = (false, nought_raw());
+
+    loop {
+        let remratio = division(
+            r1,
+            r2,
+            #[cfg(test)]
+            &mut Vec::with_capacity(0),
+        );
+
+        gcd = rem;
+        rem = remratio.0;
+        let rem = rem.as_slice();
+
+        if is_nought_raw(rem) {
+            break;
+        }
+
+        let rat = remratio.1.as_slice();
+        let xrat = mul_raw(x.1.as_slice(), rat, false);
+        gcd_ee_sub(&mut u, (x.0, xrat));
+        let mut swap = u;
+        u = x;
+        x = swap;
+
+        let yrat = mul_raw(y.1.as_slice(), rat, false);
+        gcd_ee_sub(&mut v, (y.0, yrat));
+        swap = v;
+        v = y;
+        y = swap;
+
+        r1 = gcd.as_slice();
+        r2 = rem;
+    }
+
+    (gcd, (x, y))
+}
+
+// -a -(-b) = -a +b = b -a
+// a < b => b -a, +
+// a = b => 0, (+)
+// a > b => a -b, -
+//
+// +a -(+b) = +a -b = a -b
+// a < b => b -a, -
+// a = b => 0, (+)
+// a > b => a -b, +
+//
+// -a -(+b) = -a -b = -1(a +b)
+// +a -(-b) = +a +b = a +b
+fn  gcd_ee_sub(minuend: &mut BCR, mut subtrahend: BCR) {
+    let m_neg = minuend.0;
+
+    let min = minuend.1.as_mut_slice();
+    let sub = subtrahend.1.as_slice();
+
+    let status = m_neg as u8 + subtrahend.0 as u8;
+    if status & 1 == 0 {
+        minuend.0 = match rel_raw(min, sub) {
+            Rel::Lesser(_) => {
+                _ = subtraction_arithmetical(&mut subtrahend.1, min);
+                minuend.1 = subtrahend.1;
+
+                !m_neg
+            }
+            Rel::Equal => {
+                minuend.1 = nought_raw();
+                false
+            }
+            Rel::Greater(_) => {
+                _ = subtraction_arithmetical(&mut minuend.1, sub);
+                m_neg
+            }
+        };
+    } else {
+        addition_sum(sub, &mut minuend.1, 0)
+    }
+}
+
 /// Computes `addend1` and `addend2` sum.
 ///
-/// Returns `PlacesRow` with result.
+/// Returns [`PlacesRow`] with result.
 pub fn add(addend1: &PlacesRow, addend2: &PlacesRow) -> PlacesRow {
-    let r1 = &addend1.row;
-    let r2 = &addend2.row;
+    let r1 = addend1.row.as_slice();
+    let r2 = addend2.row.as_slice();
 
     let max_len = max(r1.len(), r2.len());
 
     // avoids repetitive reallocations
     // +1 stands for contigent new place
-    let mut sum = Vec::new();
-    sum.reserve_exact(max_len + 1);
+    let mut sum = Vec::with_capacity(max_len + 1);
 
     #[cfg(test)]
     let sum_ptr = sum.as_ptr();
@@ -662,19 +1005,19 @@ pub fn add(addend1: &PlacesRow, addend2: &PlacesRow) -> PlacesRow {
 
 /// Computes `minuend` and `subtrahend` difference.
 ///
-/// Returns difference `PlacesRow` if `minuend` ≥ `subtrahend`, `None` otherwise.
+/// Returns difference [`PlacesRow`] if `minuend` ≥ `subtrahend`, [`None`] otherwise.
 pub fn sub(minuend: &PlacesRow, subtrahend: &PlacesRow) -> Option<PlacesRow> {
     let minuend = &minuend.row;
-    let subtrahend = &subtrahend.row;
+    let subtrahend = subtrahend.row.as_slice();
 
-    match rel_raw(minuend, subtrahend) {
+    match rel_raw(minuend.as_slice(), subtrahend) {
         Rel::Equal => return Some(Row::nought()),
         Rel::Lesser(_) => return None,
-        _ => {}
+        _ => (),
     };
 
     let mut minuend = minuend.clone();
-    _ = subtraction_arithmetical(&mut minuend, &subtrahend);
+    _ = subtraction_arithmetical(&mut minuend, subtrahend);
 
     minuend.shrink_to_fit();
 
@@ -683,13 +1026,13 @@ pub fn sub(minuend: &PlacesRow, subtrahend: &PlacesRow) -> Option<PlacesRow> {
 
 /// Computes `factor1` and `factor2` product.
 ///
-/// Returns `PlacesRow` with result.
+/// Returns [`PlacesRow`] with result.
 pub fn mul(factor1: &PlacesRow, factor2: &PlacesRow) -> PlacesRow {
-    let factor1 = &factor1.row;
-    let factor2 = &factor2.row;
+    let factor1 = factor1.row.as_slice();
+    let factor2 = factor2.row.as_slice();
 
     let row = mul_raw(factor1, factor2, true);
-    PlacesRow { row }
+    Row { row }
 }
 
 fn mul_raw(factor1: &[u8], factor2: &[u8], shrink: bool) -> RawRow {
@@ -725,7 +1068,7 @@ fn mul_shortcut(factor1: &[u8], factor2: &[u8]) -> Option<RawRow> {
 
 /// Computes `power` of `base`.
 ///
-/// Returns `PlacesRow` with result.
+/// Returns [`PlacesRow`] with result.
 pub fn pow(base: &PlacesRow, power: u16) -> PlacesRow {
     let base = &base.row;
 
@@ -733,7 +1076,7 @@ pub fn pow(base: &PlacesRow, power: u16) -> PlacesRow {
     Row { row }
 }
 
-fn pow_raw(base: &RawRow, pow: u16, shrink: bool) -> RawRow {
+fn pow_raw(base: &[u8], pow: u16, shrink: bool) -> RawRow {
     if let Some(pow) = pow_shortcut(base, pow) {
         return pow;
     }
@@ -766,46 +1109,54 @@ fn pow_shortcut(base: &[u8], pow: u16) -> Option<RawRow> {
 
 /// Computes `dividend` and `divisor` ratio and remainder.
 ///
-/// Returns tuple with `PlacesRow` ratio and `PlacesRow` remainder in order or `None` when `divisor` is nought.
+/// Returns tuple with [`PlacesRow`] ratio, `0`, and [`PlacesRow`] remainder, `1`, or [`None`] when `divisor` is nought.
 pub fn divrem(dividend: &PlacesRow, divisor: &PlacesRow) -> Option<(PlacesRow, PlacesRow)> {
-    let dividend = &dividend.row;
-    let divisor = &divisor.row;
+    let dividend = dividend.row.as_slice();
+    let divisor = divisor.row.as_slice();
 
-    match divrem_shortcut(dividend, divisor) {
-        Some(res) => return res,
-        None => {}
-    }
-
-    let remratio = division(
-        &dividend,
-        &divisor,
-        #[cfg(test)]
-        &mut vec![],
-    );
+    let remratio = match divrem_raw(dividend, divisor) {
+        None => return None,
+        Some(rr) => rr,
+    };
 
     let mut rem = remratio.0;
     rem.shrink_to_fit();
 
-    Some((Row { row: remratio.1 }, Row { row: rem }))
+    let mut rat = remratio.1;
+    rat.shrink_to_fit();
+
+    Some((Row { row: rat }, Row { row: rem }))
+}
+
+fn divrem_raw(dividend: &[u8], divisor: &[u8]) -> Option<(RawRow, RawRow)> {
+    let res = divrem_shortcut(dividend, divisor);
+    if let Some(r) = res {
+        return r;
+    }
+
+    let remratio = division(
+        dividend,
+        divisor,
+        #[cfg(test)]
+        &mut Vec::with_capacity(0),
+    );
+
+    Some(remratio)
 }
 
 // x ÷0, illegal
 // x ÷1 = x
-// a ÷b = 0Ra, a < b
-fn divrem_shortcut(dividend: &RawRow, divisor: &RawRow) -> Option<Option<(Row, Row)>> {
+// a ÷b = 0Ra, a ≪ b
+fn divrem_shortcut(dividend: &[u8], divisor: &[u8]) -> Option<Option<(RawRow, RawRow)>> {
     if is_nought_raw(divisor) {
         return Some(None);
     }
 
-    let end_clone = || Row {
-        row: dividend.clone(),
-    };
-
     let shortcut = if is_unity_raw(divisor) {
-        (end_clone(), Row::nought())
+        (nought_raw(), Vec::from(dividend))
     } else {
-        match rel_raw(dividend, divisor) {
-            Rel::Lesser(_) => (Row::nought(), end_clone()),
+        match rel_dec_raw(dividend, divisor) {
+            RelDec::Lesser(_) => (Vec::from(dividend), nought_raw()),
             _ => return None,
         }
     };
@@ -826,13 +1177,13 @@ use tests_of_units::prime_ck::{PrimeCkEscCode, PrimeCkTestGauges};
 /// Optionally, allows for time-limited computation. Early interruption can be insubstantially delayed
 /// due nature of limit verification.
 ///
-/// Returns `None` for computation with exhausted timeframe.
+/// Returns [`None`] for computation with exhausted timeframe.
 pub fn prime_ck(
     num: &PlacesRow,
     lim: Option<Duration>,
     #[cfg(test)] tg: &mut PrimeCkTestGauges,
 ) -> Option<bool> {
-    let row = &num.row;
+    let row = num.row.as_slice();
 
     {
         if is_one_raw(row, 2) || is_one_raw(row, 3) || is_one_raw(row, 5) || is_one_raw(row, 7) {
@@ -844,7 +1195,7 @@ pub fn prime_ck(
         }
 
         let one = row[0];
-        if one % 2 == 0 || one == 5 || is_unity_raw(&row) {
+        if one % 2 == 0 || one == 5 || is_unity_raw(row) {
             #[cfg(test)]
             {
                 tg.esc = PrimeCkEscCode::Ob;
@@ -859,19 +1210,19 @@ pub fn prime_ck(
 
         let len = row.len();
         while ix < len {
-            addition_sum(&vec![row[ix]], &mut sum, 0);
+            addition_sum(&[row[ix]], &mut sum, 0);
             ix += 1;
         }
 
         let rem = division_dynamo(
             sum,
-            &vec![3],
+            &[3],
             #[cfg(test)]
-            &mut vec![],
+            &mut Vec::with_capacity(0),
         )
         .0;
 
-        if is_nought_raw(&rem) {
+        if is_nought_raw(rem.as_slice()) {
             #[cfg(test)]
             {
                 tg.esc = PrimeCkEscCode::Dt;
@@ -882,11 +1233,12 @@ pub fn prime_ck(
 
     // 1 < a ≤ b < num, num = a ⋅b = √num ⋅√num
     //  ⇒ a=b=√num ∨ a < b ⇒ a < √num ∧ b > √num
-    let sqrt = heron_sqrt_raw(&row);
+    let sqrt = heron_sqrt_raw(row);
+    let sqrt = sqrt.as_slice();
 
     #[cfg(test)]
     {
-        if let Some(n) = try_into_num!(&sqrt, usize, &mut 0) {
+        if let Some(n) = try_into_num!(sqrt, usize, &mut 0) {
             tg.sqrt = n
         }
     }
@@ -927,16 +1279,17 @@ pub fn prime_ck(
         (false, Duration::ZERO)
     };
 
-    let increment = vec![2];
+    let increment = &[2];
     let mut probe = vec![5];
     loop {
         if limited && limit <= then.elapsed() {
             return None;
         }
 
-        addition_sum(&increment, &mut probe, 0);
+        addition_sum(increment, &mut probe, 0);
+        let probe_slc = probe.as_slice();
 
-        if let Rel::Greater(_) = rel_raw(&probe, &sqrt) {
+        if let Rel::Greater(_) = rel_raw(probe_slc, sqrt) {
             #[cfg(test)]
             {
                 if !tg.check_starts {
@@ -1374,13 +1727,13 @@ pub fn prime_ck(
 
         let rem = division(
             row,
-            &probe,
+            probe_slc,
             #[cfg(test)]
-            &mut vec![],
+            &mut Vec::with_capacity(0),
         )
         .0;
 
-        if is_nought_raw(&rem) {
+        if is_nought_raw(rem.as_slice()) {
             #[cfg(test)]
             {
                 if !tg.check_starts {
@@ -1402,7 +1755,7 @@ pub enum PrimeGenRes<T> {
 }
 
 impl<T> PrimeGenRes<T> {
-    /// Returns `Vec<T>` of `PrimeGenRes::All(Vec<T>)` or _panics_
+    /// Returns [`Vec<T>`] of `PrimeGenRes::All(Vec<T>)` or _panics_
     /// if not that variant.
     pub fn uproot_all(self) -> Vec<T> {
         if let PrimeGenRes::All(all) = self {
@@ -1423,10 +1776,11 @@ impl<T> PrimeGenRes<T> {
     }
 }
 
-/// Helper trait for working with return type of [`pg`] and [`pg_sw`] which
-/// is [`Result<PrimeGenRes, PrimeGenErr>`].
+/// Helper trait for working with return type of [`pg`] and [`pg_sw`].
+///
+/// [`pg`] and [`pg_sw`] return [`Result<PrimeGenRes, PrimeGenErr>`].
 pub trait PrimeGenResAide<T> {
-    /// Uproots `Vec<T>` of `PrimeGenRes::All(Vec<T>)`.
+    /// Uproots [`Vec<T>`] of `PrimeGenRes::All(Vec<T>)`.
     fn uproot_all(self) -> Vec<T>;
     /// Uproots `T` of `PrimeGenRes::Max(T)`.
     fn uproot_max(self) -> T;
@@ -1567,8 +1921,7 @@ macro_rules! pg {
             (ratio * 1.15) as usize
         };
 
-        let mut aperture = Vec::<($size, $size)>::new();
-        aperture.reserve_exact(cap);
+        let mut aperture = Vec::<($size, $size)>::with_capacity(cap);
 
         aperture.push((2, 0));
 
@@ -1633,8 +1986,7 @@ macro_rules! pg {
         unsafe { aperture.set_len(len) }
 
         if $all {
-            let mut all = Vec::<$size>::new();
-            all.reserve_exact(len);
+            let mut all = Vec::<$size>::with_capacity(len);
 
             let all_buff = all.as_mut_ptr();
             let mut ix = 0;
@@ -1693,8 +2045,7 @@ macro_rules! pg_sw {
             (ratio * 1.15) as usize
         };
 
-        let mut aperture = Vec::<$size>::new();
-        aperture.reserve_exact(cap);
+        let mut aperture = Vec::<$size>::with_capacity(cap);
 
         aperture.push(2);
 
@@ -1758,47 +2109,49 @@ macro_rules! pg_sw {
 
 /// Computes integer square root of `num`.
 ///
-/// Returns `PlacesRow` with result.
+/// Returns [`PlacesRow`] with result.
 ///
 /// Uses Heron's method.
 pub fn heron_sqrt(num: &PlacesRow) -> PlacesRow {
-    let row = heron_sqrt_raw(&num.row);
-    PlacesRow { row }
+    let row = heron_sqrt_raw(num.row.as_slice());
+    Row { row }
 }
 
 fn heron_sqrt_raw(row: &[u8]) -> RawRow {
-    if is_unity_raw(&row) || is_nought_raw(&row) {
+    if is_unity_raw(row) || is_nought_raw(row) {
         return row.to_vec();
     }
 
-    let two = &vec![2];
+    let two = &[2];
     let mut cur = division(
         row,
         two,
         #[cfg(test)]
-        &mut vec![],
+        &mut Vec::with_capacity(0),
     )
     .1;
 
     loop {
+        let cur_slc = cur.as_slice();
+
         let mut rat = division(
-            &row,
-            &cur,
+            row,
+            cur_slc,
             #[cfg(test)]
-            &mut vec![],
+            &mut Vec::with_capacity(0),
         )
         .1;
 
-        addition_sum(&cur, &mut rat, 0);
+        addition_sum(cur_slc, &mut rat, 0);
         let nex = division_dynamo(
             rat,
-            &two,
+            two,
             #[cfg(test)]
-            &mut vec![],
+            &mut Vec::with_capacity(0),
         )
         .1;
 
-        if let Rel::Lesser(_) = rel_raw(&nex, &cur) {
+        if let Rel::Lesser(_) = rel_raw(nex.as_slice(), cur_slc) {
             cur = nex;
         } else {
             break;
@@ -1834,7 +2187,7 @@ fn division_dynamo(
     let sor_len = sor.len();
 
     #[cfg(test)]
-    assert_eq!(false, is_nought_raw(sor));
+    assert_eq!(false, is_nought_raw(sor), "Zero division not possible.");
 
     if end_len < sor_len {
         #[cfg(test)]
@@ -1843,7 +2196,7 @@ fn division_dynamo(
     }
 
     let mut ratio = Vec::with_capacity(50);
-    let mut start_ix = dividend_start(&end, sor);
+    let mut start_ix = dividend_start(end.as_slice(), sor);
 
     'div: loop {
         let (rat, rem_len) = subtraction_divisional(&mut end[start_ix..end_len], sor);
@@ -1941,7 +2294,7 @@ fn division_dynamo(
     }
 }
 
-// devnote: seemingly can be leveraged for examination of dividend and divisor equality
+// implnote: seemingly can be leveraged for examination of dividend and divisor equality
 // and also has potential to determine remainder; involving extra complexity
 fn dividend_start(end: &[u8], sor: &[u8]) -> usize {
     #[cfg(test)]
@@ -1974,15 +2327,34 @@ fn dividend_start(end: &[u8], sor: &[u8]) -> usize {
     start_ix
 }
 
+#[cfg(test)]
+const NOUGHT_MUL_ERR: &str =
+    "Multiplication does not support 0 multiplication with exception for ones.";
 const MUL_DYNAMO_CAP: usize = 1000;
 fn multiplication(mpler: &[u8], mcand: &[u8]) -> RawRow {
+    #[cfg(test)]
+    {
+        assert_eq!(
+            false,
+            is_nought_raw(mpler) && mcand.len() > 1,
+            "{}",
+            NOUGHT_MUL_ERR
+        );
+        assert_eq!(
+            false,
+            is_nought_raw(mcand) && mpler.len() > 1,
+            "{}",
+            NOUGHT_MUL_ERR
+        );
+    }
+
     let mpler_len = mpler.len();
 
     let mut sum = Vec::with_capacity(MUL_DYNAMO_CAP);
 
     let mut offset = 0;
     while offset < mpler_len {
-        muladd(mpler[offset], &mcand, &mut sum, offset);
+        muladd(mpler[offset], mcand, &mut sum, offset);
         offset += 1;
     }
 
@@ -2027,7 +2399,7 @@ fn power(base: &[u8], pow: u16) -> RawRow {
         let mcand_len = mcand.len();
         offset = 0;
         while offset < mcand_len {
-            muladd(mcand[offset], &mcand, &mut sum, offset);
+            muladd(mcand[offset], mcand.as_slice(), &mut sum, offset);
             offset += 1;
         }
 
@@ -2036,7 +2408,7 @@ fn power(base: &[u8], pow: u16) -> RawRow {
 
             offset = 0;
             while offset < base_len {
-                muladd(base[offset], &mcand, &mut sum, offset);
+                muladd(base[offset], mcand.as_slice(), &mut sum, offset);
                 offset += 1;
             }
         }
@@ -2053,7 +2425,7 @@ fn power(base: &[u8], pow: u16) -> RawRow {
     sum
 }
 
-fn clear_swap<'a>(mcand: *mut RawRow, i_sum: *mut RawRow) {
+fn clear_swap(mcand: *mut RawRow, i_sum: *mut RawRow) {
     unsafe {
         let mut swap = mcand.read();
         swap.clear();
@@ -2171,8 +2543,15 @@ fn addition_two(lh_addend: &[u8], rh_addend: &[u8], sum: &mut RawRow) {
 }
 
 fn subtraction_arithmetical(minuend: &mut RawRow, subtrahend: &[u8]) -> RawRow {
+    #[cfg(test)]
+    assert_eq!(
+        false,
+        rel_raw(minuend, subtrahend).lesser(),
+        "Greater subtrahend is not allowed."
+    );
+
     let ratio = subtraction(
-        minuend,
+        minuend.as_mut_slice(),
         subtrahend,
         false,
         #[cfg(test)]
@@ -2203,7 +2582,7 @@ fn subtraction_divisional(mut minuend: &mut [u8], subtrahend: &[u8]) -> (RawRow,
 /// For difference computation applies precondition minuend ≥ subtrahend.
 /// Returns difference/remainder and ratio in order.
 //
-// NOTE: Support for longer subtrahend implies extended guard condition on
+// implnote: Support for longer subtrahend implies extended guard condition on
 // correction `inx < subtrahend_len && inx < minuend_len`. See feature 'shorter-dividend-support'.
 fn subtraction(
     minuend: &mut [u8],
@@ -2216,6 +2595,7 @@ fn subtraction(
 
     let mut ratio = nought_raw();
     let unity = unity_raw();
+    let unity = unity.as_slice();
 
     let mut takeover;
     let mut inx;
@@ -2266,7 +2646,7 @@ fn subtraction(
             break;
         }
 
-        addition_sum(&unity, &mut ratio, 0);
+        addition_sum(unity, &mut ratio, 0);
 
         if remainder {
             continue;
@@ -2296,14 +2676,16 @@ const fn ones(num: u8, takeover_ref: &mut u8) -> u8 {
 #[cfg(test)]
 mod tests_of_units {
 
-    use crate::RawRow;
+    mod gauge {
 
-    fn unity() -> RawRow {
-        [1].to_vec()
-    }
+        use crate::RawRow;
+        pub fn unity() -> RawRow {
+            [1].to_vec()
+        }
 
-    fn nought() -> RawRow {
-        [0].to_vec()
+        pub fn nought() -> RawRow {
+            [0].to_vec()
+        }
     }
 
     mod placesrow {
@@ -2543,28 +2925,48 @@ mod tests_of_units {
             }
         }
 
-        use super::{nought, unity};
+        #[test]
+        fn even_test() {
+            let p = new_from_num!(2);
+            assert_eq!(true, p.even());
+        }
+
+        #[test]
+        fn odd_test() {
+            let p = new_from_num!(1);
+            assert_eq!(true, p.odd());
+        }
+
+        use super::gauge;
         #[test]
         fn is_unity_test() {
-            let test = Row { row: unity() };
+            let test = Row {
+                row: gauge::unity(),
+            };
             assert_eq!(true, test.is_unity());
         }
 
         #[test]
         fn is_nought_test() {
-            let test = Row { row: nought() };
+            let test = Row {
+                row: gauge::nought(),
+            };
             assert_eq!(true, test.is_nought());
         }
 
         #[test]
         fn unity_test() {
-            let proof = Row { row: unity() };
+            let proof = Row {
+                row: gauge::unity(),
+            };
             assert_eq!(proof, Row::unity());
         }
 
         #[test]
         fn nought_test() {
-            let proof = Row { row: nought() };
+            let proof = Row {
+                row: gauge::nought(),
+            };
             assert_eq!(proof, Row::nought());
         }
 
@@ -2703,25 +3105,46 @@ mod tests_of_units {
         }
     }
 
-    use crate::{is_nought_raw, is_unity_raw, nought_raw, unity_raw};
+    use crate::{
+        even_raw, is_nought_raw, is_unity_raw, nought_raw, odd_raw, unity_raw, BezoutNumbers,
+    };
+
+    #[test]
+    fn even_raw_test() {
+        for n in 0..=9 {
+            let p = n % 2 == 0;
+            let n = new_from_num_raw!(n);
+            assert_eq!(p, even_raw(n.as_slice()));
+        }
+    }
+
+    #[test]
+    fn odd_raw_test() {
+        for n in 0..=9 {
+            let p = n % 2 != 0;
+            let n = new_from_num_raw!(n);
+            assert_eq!(p, odd_raw(n.as_slice()));
+        }
+    }
+
     #[test]
     fn unity_raw_test() {
-        assert_eq!(unity(), unity_raw());
+        assert_eq!(gauge::unity(), unity_raw());
     }
 
     #[test]
     fn nought_raw_test() {
-        assert_eq!(nought(), nought_raw());
+        assert_eq!(gauge::nought(), nought_raw());
     }
 
     #[test]
     fn is_unity_raw_test() {
-        assert_eq!(true, is_unity_raw(&unity()));
+        assert_eq!(true, is_unity_raw(&gauge::unity()));
     }
 
     #[test]
     fn is_nought_raw_test() {
-        assert_eq!(true, is_nought_raw(&nought()));
+        assert_eq!(true, is_nought_raw(&gauge::nought()));
     }
 
     mod is_one_raw {
@@ -2907,6 +3330,72 @@ mod tests_of_units {
             let num = Row::new_from_usize(155);
             assert_eq!(Rel::Equal, rel(&num, &num));
         }
+
+        #[test]
+        fn greater_test() {
+            let dc = Some((0, 0, 0));
+            let vals = [
+                (Rel::Greater(None), true),
+                (Rel::Greater(dc), true),
+                (Rel::Equal, false),
+                (Rel::Lesser(None), false),
+                (Rel::Lesser(dc), false),
+            ];
+
+            for v in vals {
+                assert_eq!(v.1, v.0.greater(), "{:?}", v);
+            }
+        }
+
+        #[test]
+        fn equal_test() {
+            let dc = Some((0, 0, 0));
+            let vals = [
+                (Rel::Greater(None), false),
+                (Rel::Greater(dc), false),
+                (Rel::Equal, true),
+                (Rel::Lesser(None), false),
+                (Rel::Lesser(dc), false),
+            ];
+
+            for v in vals {
+                assert_eq!(v.1, v.0.equal(), "{:?}", v);
+            }
+        }
+
+        #[test]
+        fn lesser_test() {
+            let dc = Some((0, 0, 0));
+            let vals = [
+                (Rel::Greater(None), false),
+                (Rel::Greater(dc), false),
+                (Rel::Equal, false),
+                (Rel::Lesser(None), true),
+                (Rel::Lesser(dc), true),
+            ];
+
+            for v in vals {
+                assert_eq!(v.1, v.0.lesser(), "{:?}", v);
+            }
+        }
+
+        #[test]
+        fn gt_or_eq_test() {
+            for v in [Rel::Greater(None), Rel::Equal] {
+                assert_eq!(true, v.gt_or_eq());
+            }
+
+            assert_eq!(false, Rel::Lesser(None).gt_or_eq());
+        }
+
+        #[test]
+        fn lt_or_eq_test() {
+            for v in [Rel::Lesser(None), Rel::Equal] {
+                assert_eq!(true, v.lt_or_eq());
+            }
+
+            assert_eq!(false, Rel::Greater(None).lt_or_eq());
+        }
     }
 
     mod rel_raw {
@@ -2982,9 +3471,15 @@ mod tests_of_units {
         fn readme_sample_test() {
             let number    = Row::new_from_str("1489754132134687989463132131").unwrap();
             let comparand = Row::new_from_str(        "48645698946456531371").unwrap();
+            
+            let number_places = number.places();
+            let comparand_places = comparand.places();
+            let difference = number_places - comparand_places;
+            
             let decrel = rel_dec(&number, &comparand);
-
-            assert_eq!(RelDec::Greater((28, 20, 8)), decrel);
+            
+            let places_details = (number_places, comparand_places, difference);
+            assert_eq!(RelDec::Greater(places_details), decrel);
         }
     }
 
@@ -3047,6 +3542,1200 @@ mod tests_of_units {
         fn zero_len_pseudo_test() {
             let zero_len = vec![9; 0];
             assert_eq!(0, dec_pla_cnt_raw(&zero_len));
+        }
+    }
+
+    mod gcd_res {
+
+        use crate::{BezoutNumbers, GcdRes, Row};
+
+        #[test]
+        fn uproot_gcd_okay_test() {
+            let test = GcdRes::Gcd(Row::nought());
+            let test = test.uproot_gcd();
+
+            assert_eq!(Row::nought(), test);
+        }
+
+        #[test]
+        #[should_panic(expected = "Not `GcdRes::Gcd(_)` variant.")]
+        fn uproot_gcd_err_test() {
+            let bn = BezoutNumbers {
+                n1c: (false, Row::nought()),
+                n2c: (false, Row::nought()),
+            };
+
+            let test = GcdRes::GcdExt(Row::nought(), bn);
+            _ = test.uproot_gcd();
+        }
+
+        #[test]
+        fn uproot_gcd_ext_okay_test() {
+            let bn = BezoutNumbers {
+                n1c: (false, Row::nought()),
+                n2c: (false, Row::nought()),
+            };
+
+            let test = GcdRes::GcdExt(Row::nought(), bn.clone());
+            let test = test.uproot_gcd_ext();
+
+            let p = (Row::nought(), bn);
+            assert_eq!(p, test);
+        }
+
+        #[test]
+        #[should_panic(expected = "Not `GcdRes::GcdExt(_)` variant.")]
+        fn uproot_gcd_ext_err_test() {
+            let test = GcdRes::Gcd(Row::nought());
+            _ = test.uproot_gcd_ext();
+        }
+    }
+
+    use crate::{bcr_nought, bcr_unity};
+    #[test]
+    fn bcr_nought_test() {
+        let t = bcr_nought();
+        let p = (false, vec![0]);
+
+        assert_eq!(p, t);
+    }
+
+    #[test]
+    fn bcr_unity_test() {
+        let t = bcr_unity();
+        let p = (false, vec![1]);
+
+        assert_eq!(p, t);
+    }
+
+    #[test]
+    fn bezouts_numbers_test() {
+        let c1 = (true, new_from_num!(222));
+        let c2 = (false, new_from_num!(666));
+
+        let bn = BezoutNumbers {
+            n1c: c1.clone(),
+            n2c: c2.clone(),
+        };
+
+        assert_eq!(&c1, bn.num1_coeff());
+        assert_eq!(&c2, bn.num2_coeff());
+    }
+
+    use crate::{to_bn, Row};
+    #[test]
+    fn to_bn_test() {
+        let p1 = (true, new_from_num!(111));
+        let p2 = (false, new_from_num!(333));
+
+        for (p1, p2) in [(&p1, &p2), (&p2, &p1)] {
+            let c1 = (p1.0, p1.1.row.clone());
+            let c2 = (p2.0, p2.1.row.clone());
+
+            let bn = to_bn((c1, c2));
+            assert_eq!(&bn.n1c, p1);
+            assert_eq!(&bn.n2c, p2);
+        }
+    }
+
+    mod gcd {
+
+        mod euclid {
+            use crate::{gcd, GcdClass, Row};
+
+            #[test]
+            fn gcd_shortcut_call_test() {
+                let l_hand = Row::unity();
+                let r_hand = Row::nought();
+
+                let res = gcd(&l_hand, &r_hand, GcdClass::Euclid);
+                let res = res.uproot_gcd();
+
+                assert_eq!(l_hand, res);
+            }
+
+            #[test]
+            #[rustfmt::skip]
+            fn basic_test() {
+                let r1 = new_from_num!(182); // 13 ⋅2 ⋅7
+                let r2 = new_from_num!(273); // 13 ⋅3 ⋅7
+                let p = new_from_num!(91);   // 13 ⋅7
+
+                let res = gcd(&r1, &r2, GcdClass::Euclid);
+                let res = res.uproot_gcd();
+
+                assert_eq!(p, res);
+            }
+        }
+
+        mod euclid_ext {
+            use crate::{gcd, BezoutNumbers, GcdClass, Row};
+
+            #[test]
+            fn gcd_shortcut_call_test() {
+                let l_hand = Row::unity();
+                let r_hand = Row::nought();
+
+                let bn = BezoutNumbers {
+                    n1c: (false, Row::unity()),
+                    n2c: (false, Row::nought()),
+                };
+
+                let res = gcd(&l_hand, &r_hand, GcdClass::EuclidExt);
+                let res = res.uproot_gcd_ext();
+
+                let p = (l_hand, bn);
+
+                assert_eq!(p, res);
+            }
+
+            #[test]
+            fn basic_test() {
+                let r1 = new_from_num!(2002); // 13 ⋅2 ⋅7 ⋅11
+                let r2 = new_from_num!(3549); // 13 ⋅3 ⋅7 ⋅13
+
+                let res = gcd(&r1, &r2, GcdClass::EuclidExt);
+                let res = res.uproot_gcd_ext();
+
+                let gcd = new_from_num!(91); // 13 ⋅7
+                let bn = BezoutNumbers {
+                    n1c: (false, new_from_num!(16)), // +16 ⋅2,002 = +32,032
+                    n2c: (true, new_from_num!(9)),   //  -9 ⋅3,549 = -31,941
+                };
+
+                let p = (gcd, bn);
+                assert_eq!(p, res);
+            }
+        }
+
+        mod readme {
+            use std::u128;
+
+            use crate::{gcd, GcdClass, PlacesRow};
+
+            #[test]
+            fn readme_sample_gcd() {
+                let num1 = PlacesRow::new_from_u128(u128::MAX / 5);
+                let num2 = PlacesRow::new_from_u64(u64::MAX / 5);
+                let proof = PlacesRow::new_from_str("3689348814741910323").unwrap();
+
+                let gcd = gcd(&num1, &num2, GcdClass::Euclid);
+                assert_eq!(proof, gcd.uproot_gcd());
+            }
+        }
+    }
+
+    mod gcd_shortcut {
+
+        use crate::{bcr_nought, bcr_unity, gcd_shortcut, nought_raw, unity_raw};
+        use crate::{
+            GcdClass::{self, *},
+            GcdShortRes::{self, *},
+        };
+
+        #[test]
+        fn zero_left_hand_integer_test() {
+            let r1 = nought_raw();
+            let r2 = new_from_num_raw!(222);
+
+            let nought_c = bcr_nought();
+            let unity_c = bcr_unity();
+
+            let vals = [
+                (Euclid, Gcd(r2.clone())),
+                (EuclidExt, GcdExt(r2.clone(), (nought_c, unity_c))),
+            ];
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+            for (c, p) in vals {
+                let gcd = gcd_shortcut(r1, r2, c);
+                assert_eq!(p, gcd);
+            }
+        }
+
+        #[test]
+        fn zero_right_hand_integer_test() {
+            let r1 = new_from_num_raw!(222);
+            let r2 = nought_raw();
+
+            let nought_c = bcr_nought();
+            let unity_c = bcr_unity();
+
+            let vals = [
+                (Euclid, Gcd(r1.clone())),
+                (EuclidExt, GcdExt(r1.clone(), (unity_c, nought_c))),
+            ];
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+            for (c, p) in vals {
+                let gcd = gcd_shortcut(r1, r2, c);
+                assert_eq!(p, gcd);
+            }
+        }
+
+        #[test]
+        fn zero_both_integers_test() {
+            let r = nought_raw();
+
+            let nought_c = bcr_nought();
+            let unity_c = bcr_unity();
+
+            let vals = [
+                (Euclid, Gcd(r.clone())),
+                (EuclidExt, GcdExt(r.clone(), (nought_c, unity_c))),
+            ];
+
+            let r = r.as_slice();
+            for (c, p) in vals {
+                let gcd = gcd_shortcut(r, r, c);
+                assert_eq!(p, gcd);
+            }
+        }
+
+        #[test]
+        fn non_zero_both_integers_test() {
+            let r = unity_raw();
+            let r = r.as_slice();
+
+            for c in [GcdClass::Euclid, GcdClass::EuclidExt] {
+                let gcd = gcd_shortcut(r, r, c);
+                assert_eq!(GcdShortRes::None, gcd);
+            }
+        }
+    }
+
+    mod gcd_e {
+        use crate::{gcd_e, nought_raw, unity_raw};
+
+        #[test]
+        fn zero_left_hand_integer_test() {
+            for (z, nz) in [(0, 20), (0, 1)] {
+                let r1 = new_from_num_raw!(z);
+                let r2 = new_from_num_raw!(nz);
+                let proof = &r2;
+
+                let r1 = r1.as_slice();
+                let r2 = r2.as_slice();
+
+                let gcd = gcd_e(r1, r2);
+                assert_eq!(proof, &gcd);
+            }
+        }
+
+        #[test]
+        #[should_panic(expected = "Zero division not possible.")]
+        fn zero_right_hand_integer_test() {
+            let r1 = unity_raw();
+            let r2 = nought_raw();
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            _ = gcd_e(r1, r2);
+        }
+
+        #[test]
+        fn equal_integers_test() {
+            let num = new_from_num_raw!(333_333);
+
+            let r = num.as_slice();
+            let gcd = gcd_e(r, r);
+
+            assert_eq!(num, gcd);
+        }
+
+        #[test]
+        fn coprime_primes_test() {
+            // both prime numbers
+            let r1 = new_from_num_raw!(1_299_709);
+            let r2 = new_from_num_raw!(56_999);
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = unity_raw();
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(proof, gcd);
+            }
+        }
+
+        #[test]
+        fn coprime_odd_test() {
+            let r1 = new_from_num_raw!(2_559_031_471u64); // 150531263ᵖ ⋅17ᵖ
+            let r2 = new_from_num_raw!(1_956_912_061); // 150531697ᵖ ⋅13ᵖ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = unity_raw();
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(proof, gcd);
+            }
+        }
+
+        #[test]
+        fn coprime_mixed_a_test() {
+            let r1 = new_from_num_raw!(52_685_751_650_u64); // 150530719ᵖ ⋅350ᶜ
+            let r2 = new_from_num_raw!(52_535_230_703_u64); // 150530747ᵖ ⋅349ᵖ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = unity_raw();
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(proof, gcd);
+            }
+        }
+
+        #[test]
+        fn coprime_mixed_b_test() {
+            let r1 = new_from_num_raw!(19_209_934_347_u64); // 56666473ᵖ ⋅113ᵖ ⋅3ᵖ
+            let r2 = new_from_num_raw!(10_993_312_058_u64); // 56666557ᵖ ⋅2ᵖ ⋅97ᵖ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = unity_raw();
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(proof, gcd);
+            }
+        }
+
+        #[test]
+        fn not_coprime_mixed_a_test() {
+            let r1 = new_from_num_raw!(37_683_426); // 570961ᵖ ⋅66ᶜ
+            let r2 = new_from_num_raw!(18_804_423); // 569831ᵖ ⋅33ᶜ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = new_from_num_raw!(33);
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(proof, gcd);
+            }
+        }
+
+        #[test]
+        fn not_coprime_mixed_b_test() {
+            let r1 = new_from_num_raw!(1_822_623); // 5021ᵖ ⋅33ᶜ ⋅11ᵖ
+            let r2 = new_from_num_raw!(1_650_990); // 5003ᵖ ⋅10ᶜ ⋅33ᶜ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = new_from_num_raw!(33);
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(proof, gcd);
+            }
+        }
+
+        #[test]
+        fn not_coprime_extra_test() {
+            let r1 = new_from_num_raw!(55_286_231); // 5021ᵖ ⋅77ᶜ ⋅11ᵖ ⋅13ᵖ
+            let r2 = new_from_num_raw!(7_704_620); // 5003ᵖ ⋅10ᶜ ⋅154ᶜ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = new_from_num_raw!(77);
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(proof, gcd);
+            }
+        }
+
+        #[test]
+        fn not_coprime_divisor_is_gcd_test_a() {
+            let r1 = new_from_num_raw!(777_777_777);
+            let r2 = new_from_num_raw!(111_111_111);
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(r2, gcd);
+            }
+        }
+
+        #[test]
+        fn not_coprime_divisor_is_gcd_test_b() {
+            let row = new_from_num_raw!(777_777_777);
+            let r = row.as_slice();
+
+            let gcd = gcd_e(r, r);
+            assert_eq!(row, gcd);
+        }
+
+        #[test]
+        fn not_coprime_odd_a_test() {
+            let r1 = new_from_num_raw!(3_150_055_839u64); // 150002659ᵖ ⋅7ᵖ ⋅3ᵖ
+            let r2 = new_from_num_raw!(76_604_397); // 1502047ᵖ ⋅17ᵖ ⋅3ᵖ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = new_from_num_raw!(3);
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(proof, gcd);
+            }
+        }
+
+        #[test]
+        fn not_coprime_odd_b_test() {
+            let r1 = new_from_num_raw!(56_991); // 157ᵖ ⋅33ᶜ ⋅11ᵖ
+            let r2 = new_from_num_raw!(49_599); // 167ᵖ ⋅9ᶜ ⋅33ᶜ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = new_from_num_raw!(33);
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(proof, gcd);
+            }
+        }
+
+        #[test]
+        fn not_coprime_even_a_test() {
+            let r1 = new_from_num_raw!(549_755_813_888u64); // 2³⁹
+            let r2 = new_from_num_raw!(300_005_318); // 150002659ᵖ ⋅2ᵖ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = new_from_num_raw!(2);
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(proof, gcd);
+            }
+        }
+
+        #[test]
+        fn not_coprime_even_b_test() {
+            let r1 = new_from_num_raw!(549_755_813_888u64); // 2³⁹
+            let r2 = new_from_num_raw!(33_554_432); // 2²⁵
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            for duo in [(r1, r2), (r2, r1)] {
+                let gcd = gcd_e(duo.0, duo.1);
+
+                assert_eq!(r2, gcd);
+            }
+        }
+    }
+
+    mod gcd_ee {
+        use crate::{
+            addition_two, gcd_ee, mul_raw, nought_raw, rel_raw, subtraction_arithmetical,
+            unity_raw, RawRow, Rel, BCR, BNR,
+        };
+
+        // -a +(+b) = -a +b = b -a
+        // a < b => b -a, +
+        // a = b => 0, (+)
+        // a > b => a -b, -
+        //
+        // +a +(-b) = +a -b = a -b
+        // a < b => b -a, -
+        // a = b => 0, (+)
+        // a > b => a -b, +
+        //
+        // -a +(-b) = -a -b = -1(a +b)
+        // +a +(+b) = +a +b = a +b
+        fn bcr_add(minuend: &BCR, subtrahend: &BCR) -> BCR {
+            let m_neg = minuend.0;
+
+            let min = minuend.1.as_slice();
+            let sub = subtrahend.1.as_slice();
+
+            let mut res;
+
+            let status = m_neg as u8 + subtrahend.0 as u8;
+            let sign = if status & 1 == 0 {
+                res = Vec::new();
+                addition_two(min, sub, &mut res);
+                minuend.0
+            } else {
+                match rel_raw(min, sub) {
+                    Rel::Lesser(_) => {
+                        res = subtrahend.1.clone();
+                        _ = subtraction_arithmetical(&mut res, min);
+
+                        !m_neg
+                    }
+                    Rel::Equal => {
+                        res = nought_raw();
+                        false
+                    }
+                    Rel::Greater(_) => {
+                        res = minuend.1.clone();
+                        _ = subtraction_arithmetical(&mut res, sub);
+                        m_neg
+                    }
+                }
+            };
+
+            (sign, res)
+        }
+
+        mod tests_of_units {
+
+            // -a +(+b)
+            // +a +(-b)
+            mod minuend_subtrahend_with_diverse_sign {
+                use super::super::bcr_add;
+
+                // a < b
+                #[test]
+                fn absolute_value_lesser_test() {
+                    for sign in [false, true] {
+                        let (m_sig, s_sig) = (sign, !sign);
+
+                        for (m, s) in [(1, 2), (3, 7), (17, 33)] {
+                            let min = new_from_num_raw!(m);
+                            let sub = new_from_num_raw!(s);
+
+                            let min = (m_sig, min);
+                            let sub = (s_sig, sub);
+
+                            let res = bcr_add(&min, &sub);
+
+                            assert_eq!(s_sig, res.0);
+                            let proof = new_from_num_raw!(s - m);
+                            assert_eq!(proof, res.1);
+                        }
+                    }
+                }
+
+                // a = b
+                #[test]
+                fn absolute_value_equal_test() {
+                    for sign in [false, true] {
+                        for v in [1, 3, 17] {
+                            let num = new_from_num_raw!(v);
+
+                            let min = (sign, num.clone());
+                            let sub = (!sign, num.clone());
+
+                            let res = bcr_add(&min, &sub);
+
+                            assert_eq!(false, res.0);
+                            assert_eq!(vec![0], res.1);
+                        }
+                    }
+                }
+
+                // a > b
+                #[test]
+                fn absolute_value_greater_test() {
+                    for sign in [false, true] {
+                        for (m, s) in [(2, 1), (7, 3), (33, 17)] {
+                            let min = new_from_num_raw!(m);
+                            let sub = new_from_num_raw!(s);
+
+                            let min = (sign, min);
+                            let sub = (!sign, sub);
+
+                            let res = bcr_add(&min, &sub);
+
+                            assert_eq!(sign, res.0);
+                            let proof = new_from_num_raw!(m - s);
+                            assert_eq!(proof, res.1);
+                        }
+                    }
+                }
+            }
+
+            // -a +(-b)
+            // +a +(+b)
+            mod minuend_subtrahend_with_congruous_sign {
+                use super::super::bcr_add;
+
+                // a < b
+                #[test]
+                fn absolute_value_lesser_test() {
+                    for sign in [false, true] {
+                        for (m, s) in [(1, 2), (3, 7), (17, 33)] {
+                            let min = new_from_num_raw!(m);
+                            let sub = new_from_num_raw!(s);
+
+                            let min = (sign, min);
+                            let sub = (sign, sub);
+
+                            let res = bcr_add(&min, &sub);
+
+                            assert_eq!(sign, res.0);
+                            let proof = new_from_num_raw!(m + s);
+                            assert_eq!(proof, res.1);
+                        }
+                    }
+                }
+
+                // a = b
+                #[test]
+                fn absolute_value_equal_test() {
+                    for sign in [false, true] {
+                        for v in [1, 3, 17] {
+                            let num = new_from_num_raw!(v);
+
+                            let min = (sign, num.clone());
+                            let sub = (sign, num.clone());
+
+                            let res = bcr_add(&min, &sub);
+
+                            assert_eq!(sign, res.0);
+                            let proof = new_from_num_raw!(v * 2);
+                            assert_eq!(proof, res.1);
+                        }
+                    }
+                }
+
+                // a > b
+                #[test]
+                fn absolute_value_greater_test() {
+                    for sign in [false, true] {
+                        for (m, s) in [(2, 1), (7, 3), (33, 17)] {
+                            let min = new_from_num_raw!(m);
+                            let sub = new_from_num_raw!(s);
+
+                            let min = (sign, min);
+                            let sub = (sign, sub);
+
+                            let res = bcr_add(&min, &sub);
+
+                            assert_eq!(sign, res.0);
+                            let proof = new_from_num_raw!(m + s);
+                            assert_eq!(proof, res.1);
+                        }
+                    }
+                }
+            }
+        }
+
+        // at most one of coefficients of Bézout's identity for gcd of 2 non-negative
+        // numbers can be negative
+        // ax +by = GCD
+        // (a,b): integers, (x,y): coefficients
+        // (a,b) ≤ GCD,
+        // (a,b) > 0 ⇒ a +b > GCD
+        // (a,b) ≥ 0 ⇒ a +b ≥ GCD
+        // ax +by = GCD
+        // a,b ≥ 0 ⇒ GCD ≥ 0
+        // GCD = 0 ⇒ (a =0 ∧ b =0) [∧ (x =0 ∧ y =0)]
+        // GCD > 0 ⇒ :
+        //  ◦ (a >0 ∧ b >0) ∧ [(x >0 ∧ y <0) ∨ (x <0 ∧ y >0) ∨ (x =0 ∧ y =1) ∨ (x =1 ∧ y =0)]
+        //  ◦ (a =0 ∧ b >0) ∧ (y =1 [∧ x =0])
+        //  ◦ (a >0 ∧ b =0) ∧ (x =1 [∧ y =0])
+        fn validate_coefficients(r1: &[u8], r2: &[u8], gcd_combo: (RawRow, BNR)) {
+            let bn = gcd_combo.1;
+            let c1 = bn.0;
+            let c2 = bn.1;
+
+            let prod_a = mul_raw(&r1, &c1.1, false);
+            let prod_b = mul_raw(&r2, &c2.1, false);
+
+            let prod_a = (c1.0, prod_a);
+            let prod_b = (c2.0, prod_b);
+
+            let sum = bcr_add(&prod_a, &prod_b);
+
+            assert_eq!(false, sum.0, "{sum:?}");
+            assert_eq!(gcd_combo.0, sum.1);
+        }
+
+        #[test]
+        fn zero_left_hand_integer_test() {
+            for (z, nz) in [(0, 20), (0, 1)] {
+                let r1 = new_from_num_raw!(z);
+                let r2 = new_from_num_raw!(nz);
+                let proof = &r2;
+
+                let r1 = r1.as_slice();
+                let r2 = r2.as_slice();
+
+                let gcd_combo = gcd_ee(r1, r2);
+                assert_eq!(proof, &gcd_combo.0);
+
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        #[should_panic(expected = "Zero division not possible.")]
+        fn zero_right_hand_integer_test() {
+            let r1 = unity_raw();
+            let r2 = nought_raw();
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            _ = gcd_ee(r1, r2);
+        }
+
+        #[test]
+        fn equal_integers_test() {
+            let num = new_from_num_raw!(333_333);
+
+            let r = num.as_slice();
+            let gcd_combo = gcd_ee(r, r);
+
+            assert_eq!(num, gcd_combo.0);
+            validate_coefficients(r, r, gcd_combo);
+        }
+
+        #[test]
+        fn zero_coefficient_test_a() {
+            let coeff_zero = (false, nought_raw());
+            let coeff_one = (false, unity_raw());
+
+            // reverted order is not possible due zero division
+            let r1 = new_from_num_raw!(0);
+            let r1 = r1.as_slice();
+
+            for r in [88, 1] {
+                let r2 = new_from_num_raw!(r);
+
+                let r2 = r2.as_slice();
+
+                let gcd_combo = gcd_ee(r1, r2);
+                assert_eq!(r2, gcd_combo.0, "{r}");
+
+                let coeffs = &gcd_combo.1;
+                assert_eq!(coeff_zero, coeffs.0, "{r}");
+                assert_eq!(coeff_one, coeffs.1, "{r}");
+            }
+        }
+
+        #[test]
+        fn zero_coefficient_test_b() {
+            let coeff_zero = (false, nought_raw());
+            let coeff_one = (false, unity_raw());
+
+            for ixes in [(0, 1), (1, 0)] {
+                for r in [[8, 4], [4, 2]] {
+                    let r1 = new_from_num_raw!(r[ixes.0]);
+                    let r2 = new_from_num_raw!(r[ixes.1]);
+                    let proof = new_from_num_raw!(r[1]);
+
+                    let r1 = r1.as_slice();
+                    let r2 = r2.as_slice();
+
+                    let gcd_combo = gcd_ee(r1, r2);
+                    assert_eq!(proof, gcd_combo.0);
+
+                    let proof = if ixes.0 == 0 {
+                        (&coeff_zero, &coeff_one)
+                    } else {
+                        (&coeff_one, &coeff_zero)
+                    };
+
+                    let coeffs = &gcd_combo.1;
+
+                    assert_eq!(proof.0, &coeffs.0);
+                    assert_eq!(proof.1, &coeffs.1);
+                }
+            }
+        }
+
+        #[test]
+        fn negative_positive_coefficient_pair_test() {
+            let coeff_minus = (true, unity_raw());
+            let coeff_plus = (false, unity_raw());
+
+            for ixes in [(0, 1), (1, 0)] {
+                for r in [[6, 9, 3], [14, 21, 7]] {
+                    let r1 = new_from_num_raw!(r[ixes.0]);
+                    let r2 = new_from_num_raw!(r[ixes.1]);
+                    let proof = new_from_num_raw!(r[2]);
+
+                    let r1 = r1.as_slice();
+                    let r2 = r2.as_slice();
+
+                    let gcd_combo = gcd_ee(r1, r2);
+                    assert_eq!(proof, gcd_combo.0);
+
+                    let proof = if ixes.0 == 0 {
+                        (&coeff_minus, &coeff_plus)
+                    } else {
+                        (&coeff_plus, &coeff_minus)
+                    };
+
+                    let coeffs = &gcd_combo.1;
+
+                    assert_eq!(proof.0, &coeffs.0);
+                    assert_eq!(proof.1, &coeffs.1);
+                }
+            }
+        }
+
+        #[test]
+        fn coprime_primes_test() {
+            // both prime numbers
+            let r1 = new_from_num_raw!(1_299_709);
+            let r2 = new_from_num_raw!(56_999);
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = unity_raw();
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        fn coprime_odd_test() {
+            let r1 = new_from_num_raw!(2_559_031_471u64); // 150531263ᵖ ⋅17ᵖ
+            let r2 = new_from_num_raw!(1_956_912_061); // 150531697ᵖ ⋅13ᵖ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = unity_raw();
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        fn coprime_mixed_a_test() {
+            let r1 = new_from_num_raw!(52_685_751_650_u64); // 150530719ᵖ ⋅350ᶜ
+            let r2 = new_from_num_raw!(52_535_230_703_u64); // 150530747ᵖ ⋅349ᵖ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = unity_raw();
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        fn coprime_mixed_b_test() {
+            let r1 = new_from_num_raw!(19_209_934_347_u64); // 56666473ᵖ ⋅113ᵖ ⋅3ᵖ
+            let r2 = new_from_num_raw!(10_993_312_058_u64); // 56666557ᵖ ⋅2ᵖ ⋅97ᵖ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = unity_raw();
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        fn not_coprime_mixed_a_test() {
+            let r1 = new_from_num_raw!(37_683_426); // 570961ᵖ ⋅66ᶜ
+            let r2 = new_from_num_raw!(18_804_423); // 569831ᵖ ⋅33ᶜ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = new_from_num_raw!(33);
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        fn not_coprime_mixed_b_test() {
+            let r1 = new_from_num_raw!(1_822_623); // 5021ᵖ ⋅33ᶜ ⋅11ᵖ
+            let r2 = new_from_num_raw!(1_650_990); // 5003ᵖ ⋅10ᶜ ⋅33ᶜ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = new_from_num_raw!(33);
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        fn not_coprime_extra_test() {
+            let r1 = new_from_num_raw!(55_286_231); // 5021ᵖ ⋅77ᶜ ⋅11ᵖ ⋅13ᵖ
+            let r2 = new_from_num_raw!(7_704_620); // 5003ᵖ ⋅10ᶜ ⋅154ᶜ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = new_from_num_raw!(77);
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        fn not_coprime_divisor_is_gcd_test_a() {
+            let r1 = new_from_num_raw!(777_777_777);
+            let r2 = new_from_num_raw!(111_111_111);
+            let proof = r2.clone();
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        fn not_coprime_divisor_is_gcd_test_b() {
+            let row = new_from_num_raw!(777_777_777);
+            let r = row.as_slice();
+
+            let gcd_combo = gcd_ee(r, r);
+            assert_eq!(row, gcd_combo.0);
+            validate_coefficients(r, r, gcd_combo);
+        }
+
+        #[test]
+        fn not_coprime_odd_a_test() {
+            let r1 = new_from_num_raw!(3_150_055_839u64); // 150002659ᵖ ⋅7ᵖ ⋅3ᵖ
+            let r2 = new_from_num_raw!(76_604_397); // 1502047ᵖ ⋅17ᵖ ⋅3ᵖ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = new_from_num_raw!(3);
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        fn not_coprime_odd_b_test() {
+            let r1 = new_from_num_raw!(56_991); // 157ᵖ ⋅33ᶜ ⋅11ᵖ
+            let r2 = new_from_num_raw!(49_599); // 167ᵖ ⋅9ᶜ ⋅33ᶜ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = new_from_num_raw!(33);
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        fn not_coprime_even_a_test() {
+            let r1 = new_from_num_raw!(549_755_813_888u64); // 2³⁹
+            let r2 = new_from_num_raw!(300_005_318); // 150002659ᵖ ⋅2ᵖ
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            let proof = new_from_num_raw!(2);
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+
+        #[test]
+        fn not_coprime_even_b_test() {
+            let r1 = new_from_num_raw!(549_755_813_888u64); // 2³⁹
+            let r2 = new_from_num_raw!(33_554_432); // 2²⁵
+            let proof = r2.clone();
+
+            let r1 = r1.as_slice();
+            let r2 = r2.as_slice();
+
+            for (r1, r2) in [(r1, r2), (r2, r1)] {
+                let gcd_combo = gcd_ee(r1, r2);
+
+                assert_eq!(proof, gcd_combo.0);
+                validate_coefficients(r1, r2, gcd_combo);
+            }
+        }
+    }
+
+    mod gcd_ee_sub {
+
+        // +a -(+b)
+        // -a -(-b)
+        mod minuend_subtrahend_with_congruous_sign {
+            use crate::gcd_ee_sub;
+
+            // a < b
+            #[test]
+            fn absolute_value_lesser_test() {
+                for sign in [false, true] {
+                    for (m, s) in [(1, 2), (3, 7), (17, 33)] {
+                        let min = new_from_num_raw!(m);
+                        let sub = new_from_num_raw!(s);
+
+                        let mut min = (sign, min);
+                        let sub = (sign, sub);
+
+                        gcd_ee_sub(&mut min, sub);
+
+                        assert_eq!(!sign, min.0);
+                        let proof = new_from_num_raw!(s - m);
+                        assert_eq!(proof, min.1);
+                    }
+                }
+            }
+
+            // a = b
+            #[test]
+            fn absolute_value_equal_test() {
+                for sign in [false, true] {
+                    for v in [1, 3, 17] {
+                        let num = new_from_num_raw!(v);
+
+                        let mut min = (sign, num.clone());
+                        let sub = (sign, num.clone());
+
+                        gcd_ee_sub(&mut min, sub);
+
+                        assert_eq!(false, min.0);
+                        assert_eq!(vec![0], min.1);
+                    }
+                }
+            }
+
+            // a > b
+            #[test]
+            fn absolute_value_greater_test() {
+                for sign in [false, true] {
+                    for (m, s) in [(2, 1), (7, 3), (33, 17)] {
+                        let min = new_from_num_raw!(m);
+                        let sub = new_from_num_raw!(s);
+
+                        let mut min = (sign, min);
+                        let sub = (sign, sub);
+
+                        gcd_ee_sub(&mut min, sub);
+
+                        assert_eq!(sign, min.0);
+                        let proof = new_from_num_raw!(m - s);
+                        assert_eq!(proof, min.1);
+                    }
+                }
+            }
+        }
+
+        // +a -(-b)
+        // -a -(+b)
+        mod minuend_subtrahend_with_diverse_sign {
+            use crate::gcd_ee_sub;
+
+            // a < b
+            #[test]
+            fn absolute_value_lesser_test() {
+                for sign in [false, true] {
+                    for (m, s) in [(1, 2), (3, 7), (17, 33)] {
+                        let min = new_from_num_raw!(m);
+                        let sub = new_from_num_raw!(s);
+
+                        let mut min = (sign, min);
+                        let sub = (!sign, sub);
+
+                        gcd_ee_sub(&mut min, sub);
+
+                        assert_eq!(sign, min.0);
+                        let proof = new_from_num_raw!(m + s);
+                        assert_eq!(proof, min.1);
+                    }
+                }
+            }
+
+            // a = b
+            #[test]
+            fn absolute_value_equal_test() {
+                for sign in [false, true] {
+                    for v in [1, 3, 17] {
+                        let num = new_from_num_raw!(v);
+
+                        let mut min = (sign, num.clone());
+                        let sub = (!sign, num.clone());
+
+                        gcd_ee_sub(&mut min, sub);
+
+                        assert_eq!(sign, min.0);
+                        let proof = new_from_num_raw!(v * 2);
+                        assert_eq!(proof, min.1);
+                    }
+                }
+            }
+
+            // a > b
+            #[test]
+            fn absolute_value_greater_test() {
+                for sign in [false, true] {
+                    for (m, s) in [(2, 1), (7, 3), (33, 17)] {
+                        let min = new_from_num_raw!(m);
+                        let sub = new_from_num_raw!(s);
+
+                        let mut min = (sign, min);
+                        let sub = (!sign, sub);
+
+                        gcd_ee_sub(&mut min, sub);
+
+                        assert_eq!(sign, min.0);
+                        let proof = new_from_num_raw!(m + s);
+                        assert_eq!(proof, min.1);
+                    }
+                }
+            }
         }
     }
 
@@ -3143,9 +4832,17 @@ mod tests_of_units {
         }
 
         #[test]
-        fn lesser_minuend_test() {
+        fn lesser_minuend_by_value_test() {
             let minuend = new_from_num!(4);
             let subtrahend = new_from_num!(5);
+
+            assert!(sub(&minuend, &subtrahend).is_none());
+        }
+
+        #[test]
+        fn lesser_minuend_by_place_test() {
+            let minuend = new_from_num!(4);
+            let subtrahend = new_from_num!(50);
 
             assert!(sub(&minuend, &subtrahend).is_none());
         }
@@ -3446,12 +5143,12 @@ mod tests_of_units {
     }
 
     mod pow_shortcut {
-        use super::nought;
+        use super::gauge;
         use crate::{nought_raw, pow_shortcut, unity_raw};
 
         #[test]
         fn zero_power_test() {
-            let row = nought();
+            let row = gauge::nought();
             let pow = pow_shortcut(&row, 0);
             assert_eq!(Some(unity_raw()), pow);
         }
@@ -3492,13 +5189,23 @@ mod tests_of_units {
         }
 
         #[test]
-        fn shorter_dividend_test() {
+        fn dividend_lesser_by_value_test() {
+            let dividend = Row::new_from_usize(8);
+            let divisor = Row::new_from_usize(9);
+
+            let ratrem = divrem(&dividend, &divisor);
+            let ratrem = ratrem.unwrap();
+
+            assert_eq!(Row::nought(), ratrem.0);
+            assert_eq!(dividend, ratrem.1);
+        }
+
+        #[test]
+        fn dividend_lesser_by_place_test() {
             let dividend = Row::new_from_usize(99);
             let divisor = Row::new_from_usize(999);
 
             let ratrem = divrem(&dividend, &divisor);
-            assert!(ratrem.is_some());
-
             let ratrem = ratrem.unwrap();
 
             assert_eq!(Row::nought(), ratrem.0);
@@ -3577,16 +5284,42 @@ mod tests_of_units {
         }
     }
 
+    mod divrem_raw {
+        use crate::{divrem_raw, nought_raw, unity_raw};
+
+        #[test]
+        fn shortcut_test() {
+            let dividend = unity_raw();
+            let divisor = nought_raw();
+
+            let res = divrem_raw(dividend.as_slice(), divisor.as_slice());
+            assert_eq!(None, res);
+        }
+
+        #[test]
+        fn computation_test() {
+            let dividend = new_from_num_raw!(11587);
+            let divisor = new_from_num_raw!(971);
+
+            let res = divrem_raw(dividend.as_slice(), divisor.as_slice());
+
+            let rat = vec![1, 1];
+            let rem = vec![6, 0, 9];
+
+            assert_eq!(Some((rem, rat)), res);
+        }
+    }
+
     mod divrem_shortcut {
-        use crate::{divrem_shortcut, nought_raw, unity_raw, Row};
+        use crate::{divrem_shortcut, nought_raw, unity_raw};
 
         #[test]
         fn nought_divisor_test() {
             let dividend = nought_raw();
             let divisor = nought_raw();
 
-            let ratrem = divrem_shortcut(&dividend, &divisor);
-            assert_eq!(Some(None), ratrem);
+            let remrat = divrem_shortcut(dividend.as_slice(), divisor.as_slice());
+            assert_eq!(Some(None), remrat);
         }
 
         #[test]
@@ -3594,9 +5327,9 @@ mod tests_of_units {
             let dividend = nought_raw();
             let divisor = new_from_num_raw!(4);
 
-            let proof = (Row::nought(), Row::nought());
-            let ratrem = divrem_shortcut(&dividend, &divisor);
-            assert_eq!(Some(Some(proof)), ratrem);
+            let proof = (nought_raw(), nought_raw());
+            let remrat = divrem_shortcut(dividend.as_slice(), divisor.as_slice());
+            assert_eq!(Some(Some(proof)), remrat);
         }
 
         #[test]
@@ -3604,29 +5337,38 @@ mod tests_of_units {
             let dividend = nought_raw();
             let divisor = unity_raw();
 
-            let proof = (Row::nought(), Row::nought());
-            let ratrem = divrem_shortcut(&dividend, &divisor);
-            assert_eq!(Some(Some(proof)), ratrem);
+            let proof = (nought_raw(), nought_raw());
+            let remrat = divrem_shortcut(dividend.as_slice(), divisor.as_slice());
+            assert_eq!(Some(Some(proof)), remrat);
         }
 
         #[test]
         fn unity_divisor_test2() {
-            let dividend = new_from_num!(334_556);
+            let dividend = new_from_num_raw!(334_556);
             let divisor = unity_raw();
 
-            let proof = (dividend.clone(), Row::nought());
-            let ratrem = divrem_shortcut(&dividend.row, &divisor);
-            assert_eq!(Some(Some(proof)), ratrem);
+            let proof = (nought_raw(), dividend.clone());
+            let remrat = divrem_shortcut(dividend.as_slice(), divisor.as_slice());
+            assert_eq!(Some(Some(proof)), remrat);
         }
 
         #[test]
-        fn lesser_dividend_test() {
-            let dividend = new_from_num!(0);
-            let divisor = new_from_num_raw!(1);
+        fn dividend_lesser_by_place_test() {
+            let dividend = new_from_num_raw!(1);
+            let divisor = new_from_num_raw!(10);
 
-            let proof = (Row::nought(), dividend.clone());
-            let ratrem = divrem_shortcut(&dividend.row, &divisor);
-            assert_eq!(Some(Some(proof)), ratrem);
+            let proof = (dividend.clone(), nought_raw());
+            let remrat = divrem_shortcut(dividend.as_slice(), divisor.as_slice());
+            assert_eq!(Some(Some(proof)), remrat);
+        }
+
+        #[test]
+        fn dividend_lesser_by_value_test() {
+            let dividend = new_from_num_raw!(1);
+            let divisor = new_from_num_raw!(2);
+
+            let remrat = divrem_shortcut(dividend.as_slice(), divisor.as_slice());
+            assert_eq!(None, remrat);
         }
     }
 
@@ -3999,7 +5741,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn dividend_portion_computation_a_1() {
+        fn dividend_portion_computation_test_a_1() {
             let dividend = new_from_num_raw!(600);
             let divisor = new_from_num_raw!(600);
 
@@ -4013,7 +5755,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn dividend_portion_computation_a_2() {
+        fn dividend_portion_computation_test_a_2() {
             let dividend = new_from_num_raw!(600);
             let divisor = new_from_num_raw!(599);
 
@@ -4027,7 +5769,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn dividend_portion_computation_a_3() {
+        fn dividend_portion_computation_test_a_3() {
             let dividend = new_from_num_raw!(5990);
             let divisor = new_from_num_raw!(600);
 
@@ -4041,7 +5783,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn dividend_portion_computation_b_1() {
+        fn dividend_portion_computation_test_b_1() {
             let dividend = new_from_num_raw!(600_600);
             let divisor = new_from_num_raw!(600);
 
@@ -4055,7 +5797,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn dividend_portion_computation_b_2() {
+        fn dividend_portion_computation_test_b_2() {
             let dividend = new_from_num_raw!(600_599);
             let divisor = new_from_num_raw!(600);
 
@@ -4069,7 +5811,7 @@ mod tests_of_units {
         }
 
         #[test]
-        fn dividend_portion_computation_b_3() {
+        fn dividend_portion_computation_test_b_3() {
             let dividend = new_from_num_raw!(6_005_990);
             let divisor = new_from_num_raw!(600);
 
@@ -4636,7 +6378,7 @@ mod tests_of_units {
         use crate::{PrimeGenErr, PrimeGenRes, PrimeGenResAide};
 
         #[test]
-        fn uproot_all_ok() {
+        fn uproot_all_ok_test() {
             let proof = vec![3, 2, 1];
             let res: Result<PrimeGenRes<usize>, PrimeGenErr> = Ok(PrimeGenRes::All(proof.clone()));
             let test = res.uproot_all();
@@ -4646,7 +6388,7 @@ mod tests_of_units {
 
         #[test]
         #[should_panic(expected = "Not `Ok(_)` variant.")]
-        fn uproot_all_err() {
+        fn uproot_all_err_test() {
             let err = PrimeGenErr::TimeframeExhaustion;
             let res: Result<PrimeGenRes<usize>, PrimeGenErr> = Err(err);
             _ = res.uproot_all();
@@ -4654,14 +6396,14 @@ mod tests_of_units {
 
         #[test]
         #[should_panic(expected = "Not `PrimeGenRes::All(_)` variant.")]
-        fn uproot_all_ok_max() {
+        fn uproot_all_ok_max_test() {
             let max = 17;
             let res: Result<PrimeGenRes<usize>, PrimeGenErr> = Ok(PrimeGenRes::Max(max));
             _ = res.uproot_all();
         }
 
         #[test]
-        fn uproot_max_ok() {
+        fn uproot_max_ok_test() {
             let proof = 17;
             let res: Result<PrimeGenRes<usize>, PrimeGenErr> = Ok(PrimeGenRes::Max(proof));
             let test = res.uproot_max();
@@ -4671,7 +6413,7 @@ mod tests_of_units {
 
         #[test]
         #[should_panic(expected = "Not `Ok(_)` variant.")]
-        fn uproot_max_err() {
+        fn uproot_max_err_test() {
             let err = PrimeGenErr::TimeframeExhaustion;
             let res: Result<PrimeGenRes<usize>, PrimeGenErr> = Err(err);
             _ = res.uproot_max();
@@ -4679,7 +6421,7 @@ mod tests_of_units {
 
         #[test]
         #[should_panic(expected = "Not `PrimeGenRes::Max(_)` variant.")]
-        fn uproot_max_ok_all() {
+        fn uproot_max_ok_all_test() {
             let all = vec![3, 2, 1];
             let res: Result<PrimeGenRes<usize>, PrimeGenErr> = Ok(PrimeGenRes::All(all));
             _ = res.uproot_max();
@@ -5240,7 +6982,7 @@ mod tests_of_units {
     }
 
     mod multiplication {
-        use crate::multiplication;
+        use crate::{multiplication, nought_raw};
 
         #[test]
         fn basic_test() {
@@ -5251,8 +6993,12 @@ mod tests_of_units {
             assert_eq!(vec![6, 4], prod);
         }
 
-        #[test]
         // does not support zero multiplication
+        #[test]
+        // panics in cfg(test) only, otherwise test logic must succeed
+        #[should_panic(
+            expected = "Multiplication does not support 0 multiplication with exception for ones."
+        )]
         fn zero_multiplier_test() {
             let mpler = vec![0];
             let mcand = vec![3, 2, 1];
@@ -5278,6 +7024,57 @@ mod tests_of_units {
 
             let prod = multiplication(&mpler, &mcand);
             assert_eq!(proof, prod);
+        }
+
+        #[test]
+        fn zero_multiplied_by_zero_test() {
+            let zero = nought_raw();
+
+            let prod = multiplication(&zero, &zero);
+            assert_eq!(zero, prod);
+        }
+
+        #[test]
+        fn zero_multiplier_with_ones_test() {
+            let mpler = nought_raw();
+
+            for n in [1, 9] {
+                let mcand = new_from_num_raw!(n);
+                let prod = multiplication(&mpler, &mcand);
+                assert_eq!(vec![0], prod);
+            }
+        }
+
+        #[test]
+        fn zero_multiplicand_with_ones_test() {
+            let mcand = nought_raw();
+
+            for n in [1, 9] {
+                let mpler = new_from_num_raw!(n);
+                let prod = multiplication(&mpler, &mcand);
+                assert_eq!(vec![0], prod);
+            }
+        }
+
+        #[test]
+        #[should_panic(
+            expected = "Multiplication does not support 0 multiplication with exception for ones."
+        )]
+        fn zero_multiplier_with_non_ones_test() {
+            let mpler = nought_raw();
+            let mcand = new_from_num_raw!(10);
+            _ = multiplication(&mpler, &mcand);
+        }
+
+        #[test]
+        #[should_panic(
+            expected = "Multiplication does not support 0 multiplication with exception for ones."
+        )]
+        fn zero_multiplicand_with_non_ones_test() {
+            let mpler = new_from_num_raw!(10);
+            let mcand = nought_raw();
+
+            _ = multiplication(&mpler, &mcand);
         }
     }
 
@@ -5698,6 +7495,8 @@ mod tests_of_units {
             // [9,9,9] + [2,0,9] = [1,0,9]
             // top place 9 must be preserved
             #[test]
+            #[should_panic(expected = "Greater subtrahend is not allowed.")]
+            // panics in cfg(test) only, otherwise test logic must succeed
             fn top_place_9_preservation_test() {
                 let mindiff = vec![1, 0, 9];
                 let mut proof = mindiff.clone();
@@ -5710,7 +7509,9 @@ mod tests_of_units {
             // [1,1,1] - [3,4,7] = [8,6,3]
             // [8,6,3] + [3,4,7] = [1,1,1]
             // not user scenario, only internal expectation
+            #[should_panic(expected = "Greater subtrahend is not allowed.")]
             #[test]
+            // panics in cfg(test) only, otherwise test logic must succeed
             fn lesser_minuend_test() {
                 let mindiff = vec![1, 1, 1];
                 let mut proof = mindiff.clone();
@@ -5945,5 +7746,5 @@ mod tests_of_units {
 // cargo test --features ext-tests2 --release primes_ext_test
 // cargo test --features ext-tests3 --release primes_ext2_test
 // cargo test --features ext-tests,shorter-dividend-support --release
-// cargo fmt && cargo test --release
+// cargo fmt && cargo test --lib
 // cargo bench --test bench
