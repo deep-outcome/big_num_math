@@ -772,12 +772,12 @@ pub struct BezoutNumbers {
 
 impl BezoutNumbers {
     /// Acquires [`gcd`] `num1` parameter coefficient reference.
-    pub fn num1_coeff(&self) -> &BezoutCoeff {
+    pub const fn num1_coeff(&self) -> &BezoutCoeff {
         &self.n1c
     }
 
     /// Acquires [`gcd`] `num2` parameter coefficient reference.
-    pub fn num2_coeff(&self) -> &BezoutCoeff {
+    pub const fn num2_coeff(&self) -> &BezoutCoeff {
         &self.n2c
     }
 }
@@ -950,7 +950,7 @@ fn gcd_ee(r1: &[u8], r2: &[u8]) -> (RawRow, BNR) {
 //
 // -a -(+b) = -a -b = -1(a +b)
 // +a -(-b) = +a +b = a +b
-fn gcd_ee_sub(minuend: &mut BCR, mut subtrahend: BCR) {
+fn  gcd_ee_sub(minuend: &mut BCR, mut subtrahend: BCR) {
     let m_neg = minuend.0;
 
     let min = minuend.1.as_mut_slice();
@@ -977,10 +977,6 @@ fn gcd_ee_sub(minuend: &mut BCR, mut subtrahend: BCR) {
     } else {
         addition_sum(sub, &mut minuend.1, 0)
     }
-}
-
-fn gcd_stein() -> Row {
-    Row::nought()
 }
 
 /// Computes `addend1` and `addend2` sum.
@@ -3709,6 +3705,22 @@ mod tests_of_units {
 
                 let p = (gcd, bn);
                 assert_eq!(p, res);
+            }
+        }
+
+        mod readme {
+            use std::u128;
+
+            use crate::{gcd, GcdClass, PlacesRow};
+
+            #[test]
+            fn readme_sample_gcd() {
+                let num1 = PlacesRow::new_from_u128(u128::MAX / 5);
+                let num2 = PlacesRow::new_from_u64(u64::MAX / 5);
+                let proof = PlacesRow::new_from_str("3689348814741910323").unwrap();
+
+                let gcd = gcd(&num1, &num2, GcdClass::Euclid);
+                assert_eq!(proof, gcd.uproot_gcd());
             }
         }
     }

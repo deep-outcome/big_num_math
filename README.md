@@ -12,7 +12,7 @@ Unostentatious library for computations on large numbers. Internally banal, base
     - integer square root
     - primality check
     - prime number generator (primitive number types only)
-    - greatest common divisor
+    - greatest common divisor +extended greatest common divisor
 
 ### Usage Samples
 
@@ -111,4 +111,15 @@ let radicand = PlacesRow::new_from_str(
 )
 .unwrap();
 assert_eq!(Some(test), root(&radicand, 9));
+```
+
+##### greatest common divisor
+
+```rust
+let num1 = PlacesRow::new_from_u128(u128::MAX / 5);
+let num2 = PlacesRow::new_from_u64(u64::MAX / 5);
+let proof = PlacesRow::new_from_str("3689348814741910323").unwrap();
+
+let gcd = gcd(&num1, &num2, GcdClass::Euclid);
+assert_eq!(proof, gcd.uproot_gcd());
 ```
