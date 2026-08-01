@@ -950,7 +950,7 @@ fn gcd_ee(r1: &[u8], r2: &[u8]) -> (RawRow, BNR) {
 //
 // -a -(+b) = -a -b = -1(a +b)
 // +a -(-b) = +a +b = a +b
-fn  gcd_ee_sub(minuend: &mut BCR, mut subtrahend: BCR) {
+fn gcd_ee_sub(minuend: &mut BCR, mut subtrahend: BCR) {
     let m_neg = minuend.0;
 
     let min = minuend.1.as_mut_slice();

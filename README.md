@@ -1,8 +1,11 @@
 ### BIG NUM MATH
-Unostentatious library for computations on large numbers. Internally banal, based on long: addition, subtraction, multiplication and division methods.
+Unostentatious library for computations on large numbers.
 
-- development notes: 
-    1. upcomming functions: multiplicative modular inverse, negative numbers support
+Internally banal, based on long form arithmetics methods of: addition, subtraction, multiplication and division.
+
+- upcomming functions: 
+    - multiplicative modular inverse
+    - negative numbers support
 - functions:
     - addition +substraction, 
     - multiplication +division (with remainder)
