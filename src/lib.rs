@@ -790,6 +790,43 @@ fn to_bn(bnr: BNR) -> BezoutNumbers {
         n2c: (c2.0, Row { row: c2.1 }),
     }
 }
+
+/// Computes greatest common divisor of `num1` and `num2`.
+///
+/// Returns [`GcdRes`] variant corresponding to `class` parameter
+/// by mapping declared in table below.
+///
+/// |            Class        |         Result     |
+/// |-------------------------|--------------------|
+/// | [`GcdClass::Euclid`]    | [`GcdRes::Gcd`]    |
+/// | [`GcdClass::EuclidExt`] | [`GcdRes::GcdExt`] |
+pub fn gcd(num1: &PlacesRow, num2: &PlacesRow, class: GcdClass) -> GcdRes {
+    let r1 = num1.row.as_slice();
+    let r2 = num2.row.as_slice();
+
+    return match gcd_shortcut(r1, r2, class.clone()) {
+        GcdShortRes::Gcd(row) => GcdRes::Gcd(Row { row }),
+        GcdShortRes::GcdExt(row, bn) => gcd_ext(row, bn),
+        GcdShortRes::None => match class {
+            GcdClass::Euclid => {
+                let row = gcd_e(r1, r2);
+                GcdRes::Gcd(Row { row })
+            }
+            GcdClass::EuclidExt => {
+                let (row, bn) = gcd_ee(r1, r2);
+                gcd_ext(row, bn)
+            }
+        },
+    };
+
+    fn gcd_ext(r: RawRow, bnr: BNR) -> GcdRes {
+        let gcd = Row { row: r };
+        let bn = to_bn(bnr);
+
+        GcdRes::GcdExt(gcd, bn)
+    }
+}
+
 #[derive(PartialEq, Debug)]
 enum GcdShortRes {
     None,
@@ -3602,6 +3639,77 @@ mod tests_of_units {
             let bn = to_bn((c1, c2));
             assert_eq!(&bn.n1c, p1);
             assert_eq!(&bn.n2c, p2);
+        }
+    }
+
+    mod gcd {
+
+        mod euclid {
+            use crate::{gcd, GcdClass, Row};
+
+            #[test]
+            fn gcd_shortcut_call_test() {
+                let l_hand = Row::unity();
+                let r_hand = Row::nought();
+
+                let res = gcd(&l_hand, &r_hand, GcdClass::Euclid);
+                let res = res.uproot_gcd();
+
+                assert_eq!(l_hand, res);
+            }
+
+            #[test]
+            #[rustfmt::skip]
+            fn basic_test() {
+                let r1 = new_from_num!(182); // 13 ⋅2 ⋅7
+                let r2 = new_from_num!(273); // 13 ⋅3 ⋅7
+                let p = new_from_num!(91);   // 13 ⋅7
+
+                let res = gcd(&r1, &r2, GcdClass::Euclid);
+                let res = res.uproot_gcd();
+
+                assert_eq!(p, res);
+            }
+        }
+
+        mod euclid_ext {
+            use crate::{gcd, BezoutNumbers, GcdClass, Row};
+
+            #[test]
+            fn gcd_shortcut_call_test() {
+                let l_hand = Row::unity();
+                let r_hand = Row::nought();
+
+                let bn = BezoutNumbers {
+                    n1c: (false, Row::unity()),
+                    n2c: (false, Row::nought()),
+                };
+
+                let res = gcd(&l_hand, &r_hand, GcdClass::EuclidExt);
+                let res = res.uproot_gcd_ext();
+
+                let p = (l_hand, bn);
+
+                assert_eq!(p, res);
+            }
+
+            #[test]
+            fn basic_test() {
+                let r1 = new_from_num!(2002); // 13 ⋅2 ⋅7 ⋅11
+                let r2 = new_from_num!(3549); // 13 ⋅3 ⋅7 ⋅13
+
+                let res = gcd(&r1, &r2, GcdClass::EuclidExt);
+                let res = res.uproot_gcd_ext();
+
+                let gcd = new_from_num!(91); // 13 ⋅7
+                let bn = BezoutNumbers {
+                    n1c: (false, new_from_num!(16)), // +16 ⋅2,002 = +32,032
+                    n2c: (true, new_from_num!(9)),   //  -9 ⋅3,549 = -31,941
+                };
+
+                let p = (gcd, bn);
+                assert_eq!(p, res);
+            }
         }
     }
 
