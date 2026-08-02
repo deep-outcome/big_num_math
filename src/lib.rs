@@ -522,8 +522,7 @@ pub fn ord_of_mag(num: &PlacesRow, class: OomClass) -> Oom {
 /// let num_3 = PlacesRow::new_from_usize(1);
 ///
 /// assert_eq!(Rel::Lesser(None), rel(&num_1, &num_2));
-/// let cnt_1_cnt_2_dif: DecCnt = (1,3,2);
-/// assert_eq!(Rel::Lesser(Some(cnt_1_cnt_2_dif)), rel(&num_3, &num_1));
+/// assert_eq!(Rel::Greater(Some(DecCnt(3,1))), rel(&num_1, &num_3));
 /// ```
 #[derive(Debug, PartialEq, Clone)]
 pub enum Rel {
@@ -637,7 +636,7 @@ impl DecCnt {
     /// and comparand.
     ///
     /// Returns absolute value of number and comparand places difference.
-    pub fn diff(&self) -> usize {
+    pub const fn diff(&self) -> usize {
         let num = self.0;
         let com = self.1;
 
@@ -659,9 +658,8 @@ impl DecCnt {
 /// let num_2 = PlacesRow::new_from_usize(777);
 /// let num_3 = PlacesRow::new_from_usize(1);
 ///
-/// assert_eq!(RelDec::Equal(3), rel_dec(&num_1, &num_2));
-/// let cnt_1_cnt_2_dif: DecCnt = (1,3,2);
-/// assert_eq!(RelDec::Lesser(cnt_1_cnt_2_dif), rel_dec(&num_3, &num_1));
+/// assert_eq!(RelDec::Equal(DecCnt(3,3)), rel_dec(&num_1, &num_2));
+/// assert_eq!(RelDec::Greater(DecCnt(3,1)), rel_dec(&num_1, &num_3));
 /// ```
 ///
 /// All variants hold [`DecCnt`] count information.
@@ -779,7 +777,7 @@ impl GcdRes {
 
     /// Acquires [`PlacesRow`] of `Gcd(PlacesRow)` reference or _panics_
     /// if not that variant.
-    pub fn aq_gcd(&self) -> &PlacesRow {
+    pub const fn aq_gcd(&self) -> &PlacesRow {
         if let GcdRes::Gcd(r) = self {
             r
         } else {
@@ -790,7 +788,7 @@ impl GcdRes {
     /// Acquires `(PlacesRow, BezoutNumbers)` of
     /// `GcdExt(PlacesRow, BezoutNumbers)` references
     /// or _panics_ if not that variant.
-    pub fn aq_gcd_ext(&self) -> (&PlacesRow, &BezoutNumbers) {
+    pub const fn aq_gcd_ext(&self) -> (&PlacesRow, &BezoutNumbers) {
         if let GcdRes::GcdExt(r, bn) = self {
             (r, bn)
         } else {

@@ -1,10 +1,12 @@
 IMPROVEMENTS
 
-easy 
+trivial
+ - think of Rel aux methods for gt, lt (uproot, aq_ref)
+ - add gt, lt, eq, gt_or_eq, lt_or_eq to RelDec
+
+easy
  - mmi
- - DecCnt with computing diff (no precomputation)
- - negative numbers: add, sub, mul, pow, divrem, gcd_ee 
- - annul self, annul+annul_raw +unitize
+ - negative numbers: add, sub, mul, pow, divrem, gcd_ee
 
 intriguing
     - sin, cos, tg, cotg (Taylor series)
