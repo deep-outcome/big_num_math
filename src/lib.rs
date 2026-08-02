@@ -607,7 +607,7 @@ const fn rel_raw(r1: &[u8], r2: &[u8]) -> Rel {
     }
 }
 
-/// Decimal places count.
+/// Decimal places count information.
 ///
 /// Tuple fields describe places count and are defined as follows.
 /// |Position|Store      |
@@ -634,8 +634,6 @@ pub struct DecCnt(
 impl DecCnt {
     /// Computes absolute difference of decimal places count of number
     /// and comparand.
-    ///
-    /// Returns absolute value of number and comparand places difference.
     pub const fn diff(&self) -> usize {
         let num = self.0;
         let com = self.1;
