@@ -64,11 +64,9 @@ let comparand = Row::new_from_str(        "48645698946456531371").unwrap();
 
 let number_places = number.places();
 let comparand_places = comparand.places();
-let difference = number_places - comparand_places;
 
-let decrel = rel_dec(&number, &comparand);
-
-let places_details = (number_places, comparand_places, difference);
+let decrel = rel_dec(&number, &comparand);            
+let places_details = DecCnt(number_places, comparand_places);
 assert_eq!(RelDec::Greater(places_details), decrel);
 ```
 

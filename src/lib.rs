@@ -588,9 +588,10 @@ const fn rel_raw(r1: &[u8], r2: &[u8]) -> Rel {
     match rel_dec_raw(r1, r2) {
         RelDec::Greater(c) => Rel::Greater(Some(c)),
         RelDec::Lesser(c) => Rel::Lesser(Some(c)),
-        RelDec::Equal(mut inx) => {
+        RelDec::Equal(c) => {
             let mut rel = Rel::Equal;
 
+            let mut inx = c.0;
             while inx > 0 {
                 inx -= 1;
                 if r1[inx] > r2[inx] {
@@ -610,21 +611,43 @@ const fn rel_raw(r1: &[u8], r2: &[u8]) -> Rel {
 /// Decimal places count.
 ///
 /// Tuple fields describe places count and are defined as follows.
-/// |Name|Meaning    |
-/// |:--:|:--------- |
-/// |0   |number     |
-/// |1   |comparand  |
-/// |2   |difference |
+/// |Position|Store      |
+/// |--------|---------- |
+/// |0       |number     |
+/// |1       |comparand  |
 ///
 /// Count relates to power of ten as table evinces.
 /// |  Count |    Relation                  |
-/// |:------:|:------------:                |
+/// |--------|--------------                |
 /// | 0      | number < 10⁰ ⇒ number = 0    |
 /// | 1      | number < 10¹ ∧ number ≥ 10⁰  |
 /// | 2      | number < 10² ∧ number ≥ 10¹  |
 /// | ⋮      |   ⋮                          |
 /// | n      | number < 10ⁿ ∧ number ≥ 10ⁿ⁻¹|
-pub type DecCnt = (usize, usize, usize);
+#[derive(Clone, PartialEq, Debug)]
+pub struct DecCnt(
+    /// Number count
+    pub usize,
+    /// Comparand count
+    pub usize,
+);
+
+impl DecCnt {
+    /// Computes absolute difference of decimal places count of number
+    /// and comparand.
+    ///
+    /// Returns absolute value of number and comparand places difference.
+    pub fn diff(&self) -> usize {
+        let num = self.0;
+        let com = self.1;
+
+        if num > com {
+            num - com
+        } else {
+            com - num
+        }
+    }
+}
 
 /// Decimal relation enumeration.
 ///
@@ -640,14 +663,36 @@ pub type DecCnt = (usize, usize, usize);
 /// let cnt_1_cnt_2_dif: DecCnt = (1,3,2);
 /// assert_eq!(RelDec::Lesser(cnt_1_cnt_2_dif), rel_dec(&num_3, &num_1));
 /// ```
+///
+/// All variants hold [`DecCnt`] count information.
 #[derive(Debug, PartialEq, Clone)]
 pub enum RelDec {
-    /// Count greater than comparand has. Holds information about respective counts.
+    /// Count greater than comparand count.
     Greater(DecCnt),
-    /// Count equal to comparand count. Holds count information.
-    Equal(usize),
-    /// Count lesser than comparand has. Holds information about respective counts.
+    /// Count equal to comparand count.
+    Equal(DecCnt),
+    /// Count lesser than comparand count.
     Lesser(DecCnt),
+}
+
+impl RelDec {
+    /// Uproots [`DecCnt`] of any variant of [`RelDec`].
+    pub const fn uproot(self) -> DecCnt {
+        match self {
+            RelDec::Greater(dc) => dc,
+            RelDec::Equal(dc) => dc,
+            RelDec::Lesser(dc) => dc,
+        }
+    }
+
+    /// Acquires [`DecCnt`] clone of any variant of [`RelDec`].
+    pub fn aq_cnts(&self) -> DecCnt {
+        match self {
+            RelDec::Greater(dc) => dc.clone(),
+            RelDec::Equal(dc) => dc.clone(),
+            RelDec::Lesser(dc) => dc.clone(),
+        }
+    }
 }
 
 /// Compares decimal places count of `num` and `comparand`.
@@ -671,18 +716,14 @@ const fn rel_dec_raw(r1: &[u8], r2: &[u8]) -> RelDec {
     let r1_cnt = dec_pla_cnt_raw(r1);
     let r2_cnt = dec_pla_cnt_raw(r2);
 
-    if r1_cnt == r2_cnt {
-        return RelDec::Equal(r1_cnt);
-    }
+    let cnts = DecCnt(r1_cnt, r2_cnt);
 
-    let mut cnts = (r1_cnt, r2_cnt, 0);
-
-    if r1_cnt > r2_cnt {
-        cnts.2 = r1_cnt - r2_cnt;
+    if r1_cnt < r2_cnt {
+        RelDec::Lesser(cnts)
+    } else if r1_cnt > r2_cnt {
         RelDec::Greater(cnts)
     } else {
-        cnts.2 = r2_cnt - r1_cnt;
-        RelDec::Lesser(cnts)
+        RelDec::Equal(cnts)
     }
 }
 
@@ -715,7 +756,7 @@ pub enum GcdRes {
 }
 
 impl GcdRes {
-    /// Returns [`PlacesRow`] of `Gcd(PlacesRow)` or _panics_
+    /// Uproots [`PlacesRow`] of `Gcd(PlacesRow)` or _panics_
     /// if not that variant.
     pub fn uproot_gcd(self) -> PlacesRow {
         if let GcdRes::Gcd(r) = self {
@@ -725,10 +766,31 @@ impl GcdRes {
         }
     }
 
-    /// Returns `(PlacesRow, BezoutNumbers)` of
+    /// Uproots `(PlacesRow, BezoutNumbers)` of
     /// `GcdExt(PlacesRow, BezoutNumbers)`
     /// or _panics_ if not that variant.
     pub fn uproot_gcd_ext(self) -> (PlacesRow, BezoutNumbers) {
+        if let GcdRes::GcdExt(r, bn) = self {
+            (r, bn)
+        } else {
+            panic!("Not `GcdRes::GcdExt(_)` variant.");
+        }
+    }
+
+    /// Acquires [`PlacesRow`] of `Gcd(PlacesRow)` reference or _panics_
+    /// if not that variant.
+    pub fn aq_gcd(&self) -> &PlacesRow {
+        if let GcdRes::Gcd(r) = self {
+            r
+        } else {
+            panic!("Not `GcdRes::Gcd(_)` variant.");
+        }
+    }
+
+    /// Acquires `(PlacesRow, BezoutNumbers)` of
+    /// `GcdExt(PlacesRow, BezoutNumbers)` references
+    /// or _panics_ if not that variant.
+    pub fn aq_gcd_ext(&self) -> (&PlacesRow, &BezoutNumbers) {
         if let GcdRes::GcdExt(r, bn) = self {
             (r, bn)
         } else {
@@ -3323,7 +3385,7 @@ mod tests_of_units {
 
     // Relational comparison.
     mod rel {
-        use crate::{rel, Rel, Row};
+        use crate::{rel, DecCnt, Rel, Row};
 
         #[test]
         fn basic_test() {
@@ -3333,13 +3395,13 @@ mod tests_of_units {
 
         #[test]
         fn greater_test() {
-            let dc = Some((0, 0, 0));
+            let dc = Some(DecCnt(0, 0));
             let vals = [
                 (Rel::Greater(None), true),
-                (Rel::Greater(dc), true),
+                (Rel::Greater(dc.clone()), true),
                 (Rel::Equal, false),
                 (Rel::Lesser(None), false),
-                (Rel::Lesser(dc), false),
+                (Rel::Lesser(dc.clone()), false),
             ];
 
             for v in vals {
@@ -3349,13 +3411,13 @@ mod tests_of_units {
 
         #[test]
         fn equal_test() {
-            let dc = Some((0, 0, 0));
+            let dc = Some(DecCnt(0, 0));
             let vals = [
                 (Rel::Greater(None), false),
-                (Rel::Greater(dc), false),
+                (Rel::Greater(dc.clone()), false),
                 (Rel::Equal, true),
                 (Rel::Lesser(None), false),
-                (Rel::Lesser(dc), false),
+                (Rel::Lesser(dc.clone()), false),
             ];
 
             for v in vals {
@@ -3365,13 +3427,13 @@ mod tests_of_units {
 
         #[test]
         fn lesser_test() {
-            let dc = Some((0, 0, 0));
+            let dc = Some(DecCnt(0, 0));
             let vals = [
                 (Rel::Greater(None), false),
-                (Rel::Greater(dc), false),
+                (Rel::Greater(dc.clone()), false),
                 (Rel::Equal, false),
                 (Rel::Lesser(None), true),
-                (Rel::Lesser(dc), true),
+                (Rel::Lesser(dc.clone()), true),
             ];
 
             for v in vals {
@@ -3400,14 +3462,14 @@ mod tests_of_units {
 
     mod rel_raw {
 
-        use crate::{rel_raw, Rel};
+        use crate::{rel_raw, DecCnt, Rel};
 
         #[test]
         fn longer_test() {
             let num = new_from_num_raw!(11);
             let comparand = new_from_num_raw!(9);
 
-            let proof = Rel::Greater(Some((2, 1, 1)));
+            let proof = Rel::Greater(Some(DecCnt(2, 1)));
             assert_eq!(proof, rel_raw(&num, &comparand));
         }
 
@@ -3416,7 +3478,7 @@ mod tests_of_units {
             let num = new_from_num_raw!(9);
             let comparand = new_from_num_raw!(10);
 
-            let proof = Rel::Lesser(Some((1, 2, 1)));
+            let proof = Rel::Lesser(Some(DecCnt(1, 2)));
             assert_eq!(proof, rel_raw(&num, &comparand));
         }
 
@@ -3456,14 +3518,56 @@ mod tests_of_units {
         }
     }
 
+    mod dec_cnt {
+        use crate::DecCnt;
+
+        #[test]
+        fn diff_test() {
+            let vals = [(3, 1, 2), (1, 3, 2), (3, 3, 0)];
+            for v in vals {
+                let dc = DecCnt(v.0, v.1);
+
+                assert_eq!(v.2, dc.diff());
+            }
+        }
+    }
+
     mod rel_dec {
-        use crate::{rel_dec, RelDec, Row};
+        use crate::{
+            rel_dec, DecCnt,
+            RelDec::{self, *},
+            Row,
+        };
+
+        #[test]
+        fn uproot_test() {
+            let dc = DecCnt(13, 19);
+            let dcc = || dc.clone();
+
+            for v in [Greater(dcc()), Lesser(dcc()), Equal(dcc())] {
+                let test = v.uproot();
+                assert_eq!(dc, test);
+            }
+        }
+
+        #[test]
+        fn aq_cnts_test() {
+            let dc = DecCnt(13, 19);
+            let dcc = || dc.clone();
+
+            for v in [Greater(dcc()), Lesser(dcc()), Equal(dcc())] {
+                let test = v.aq_cnts();
+                assert_eq!(dc, test);
+            }
+        }
 
         #[test]
         fn basic_test() {
             let num = Row::new_from_usize(9876543210);
+            let places = num.places();
 
-            assert_eq!(RelDec::Equal(10), rel_dec(&num, &num));
+            let dc = DecCnt(places, places);
+            assert_eq!(RelDec::Equal(dc), rel_dec(&num, &num));
         }
 
         #[test]
@@ -3474,23 +3578,23 @@ mod tests_of_units {
             
             let number_places = number.places();
             let comparand_places = comparand.places();
-            let difference = number_places - comparand_places;
             
-            let decrel = rel_dec(&number, &comparand);
-            
-            let places_details = (number_places, comparand_places, difference);
+            let decrel = rel_dec(&number, &comparand);            
+            let places_details = DecCnt(number_places, comparand_places);
             assert_eq!(RelDec::Greater(places_details), decrel);
         }
     }
 
     mod rel_dec_raw {
-        use crate::{rel_dec_raw, RelDec};
+        use crate::{dec_pla_cnt_raw, rel_dec_raw, DecCnt, RelDec};
 
         #[test]
         fn equal_test() {
             let num = new_from_num_raw!(9876543210u64);
+            let places = dec_pla_cnt_raw(num.as_slice());
 
-            assert_eq!(RelDec::Equal(10), rel_dec_raw(&num, &num));
+            let proof = DecCnt(places, places);
+            assert_eq!(RelDec::Equal(proof), rel_dec_raw(&num, &num))
         }
 
         #[test]
@@ -3498,7 +3602,7 @@ mod tests_of_units {
             let num = new_from_num_raw!(10);
             let comparand = new_from_num_raw!(9876543210u64);
 
-            let proof = RelDec::Lesser((2, 10, 8));
+            let proof = RelDec::Lesser(DecCnt(2, 10));
             assert_eq!(proof, rel_dec_raw(&num, &comparand));
         }
 
@@ -3507,7 +3611,7 @@ mod tests_of_units {
             let num = new_from_num_raw!(9876543210u64);
             let comparand = new_from_num_raw!(10);
 
-            let proof = RelDec::Greater((10, 2, 8));
+            let proof = RelDec::Greater(DecCnt(10, 2));
             assert_eq!(proof, rel_dec_raw(&num, &comparand));
         }
 
@@ -3515,7 +3619,8 @@ mod tests_of_units {
         fn nought_test() {
             let num = new_from_num_raw!(0);
 
-            assert_eq!(RelDec::Equal(0), rel_dec_raw(&num, &num));
+            let proof = RelDec::Equal(DecCnt(0, 0));
+            assert_eq!(proof, rel_dec_raw(&num, &num));
         }
     }
 
@@ -3588,6 +3693,47 @@ mod tests_of_units {
         fn uproot_gcd_ext_err_test() {
             let test = GcdRes::Gcd(Row::nought());
             _ = test.uproot_gcd_ext();
+        }
+
+        #[test]
+        fn aq_gcd_okay_test() {
+            let test = GcdRes::Gcd(Row::nought());
+            let test = test.aq_gcd();
+
+            assert_eq!(&Row::nought(), test);
+        }
+
+        #[test]
+        #[should_panic(expected = "Not `GcdRes::Gcd(_)` variant.")]
+        fn aq_gcd_err_test() {
+            let bn = BezoutNumbers {
+                n1c: (false, Row::nought()),
+                n2c: (false, Row::nought()),
+            };
+
+            let test = GcdRes::GcdExt(Row::nought(), bn);
+            _ = test.aq_gcd();
+        }
+
+        #[test]
+        fn aq_gcd_ext_okay_test() {
+            let bn = BezoutNumbers {
+                n1c: (false, Row::nought()),
+                n2c: (false, Row::nought()),
+            };
+
+            let test = GcdRes::GcdExt(Row::nought(), bn.clone());
+            let test = test.aq_gcd_ext();
+
+            let p = (&Row::nought(), &bn);
+            assert_eq!(p, test);
+        }
+
+        #[test]
+        #[should_panic(expected = "Not `GcdRes::GcdExt(_)` variant.")]
+        fn aq_gcd_ext_err_test() {
+            let test = GcdRes::Gcd(Row::nought());
+            _ = test.aq_gcd_ext();
         }
     }
 
