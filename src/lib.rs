@@ -571,6 +571,28 @@ impl Rel {
     pub const fn lt_or_eq(&self) -> bool {
         self.lesser() || self.equal()
     }
+
+    /// Uproots [`Option<DecCnt>`] of [`Rel::Greater`] or [`Rel::Lesser`].
+    ///
+    /// Panics if [`Rel::Equal`] variant.
+    pub const fn uproot(self) -> Option<DecCnt> {
+        match self {
+            Rel::Greater(dc) => dc,
+            Rel::Lesser(dc) => dc,
+            Rel::Equal => panic!("`Rel::Equal` variant is not supported."),
+        }
+    }
+
+    /// Acquires [`Option<DecCnt>`] clone of [`Rel::Greater`] or [`Rel::Lesser`].
+    ///
+    /// Panics if [`Rel::Equal`] variant.
+    pub fn aq_cnts(&self) -> Option<DecCnt> {
+        match self {
+            Rel::Greater(dc) => dc.clone(),
+            Rel::Lesser(dc) => dc.clone(),
+            Rel::Equal => panic!("`Rel::Equal` variant is not supported."),
+        }
+    }
 }
 
 /// Checks relation of `num` to `comparand`.
@@ -672,6 +694,43 @@ pub enum RelDec {
 }
 
 impl RelDec {
+    /// Returns `true` if and only if [`RelDec`] is [`RelDec::Greater`] variant.
+    pub const fn greater(&self) -> bool {
+        if let RelDec::Greater(_) = self {
+            return true;
+        }
+
+        false
+    }
+
+    /// Returns `true` if and only if [`RelDec`] is [`RelDec::Equal`] variant.
+    pub const fn equal(&self) -> bool {
+        if let RelDec::Equal(_) = self {
+            return true;
+        }
+
+        false
+    }
+
+    /// Returns `true` if and only if [`RelDec`] is [`RelDec::Lesser`] variant.
+    pub const fn lesser(&self) -> bool {
+        if let RelDec::Lesser(_) = self {
+            return true;
+        }
+
+        false
+    }
+
+    /// Returns `true` if and only if [`RelDec`] is [`RelDec::Greater`] or [`RelDec::Equal`] variant.
+    pub const fn gt_or_eq(&self) -> bool {
+        self.greater() || self.equal()
+    }
+
+    /// Returns `true` if and only if [`RelDec`] is [`RelDec::Lesser`] or [`RelDec::Equal`] variant.
+    pub const fn lt_or_eq(&self) -> bool {
+        self.lesser() || self.equal()
+    }
+
     /// Uproots [`DecCnt`] of any variant of [`RelDec`].
     pub const fn uproot(self) -> DecCnt {
         match self {
@@ -3454,6 +3513,46 @@ mod tests_of_units {
 
             assert_eq!(false, Rel::Greater(None).lt_or_eq());
         }
+
+        #[test]
+        fn uproot_test() {
+            let dc = Some(DecCnt(13, 19));
+
+            for val in [dc.clone(), None] {
+                let c = || val.clone();
+                for var in [Rel::Greater(c()), Rel::Lesser(c())] {
+                    let test = var.uproot();
+                    assert_eq!(val, test);
+                }
+            }
+        }
+
+        #[test]
+        #[should_panic(expected = "`Rel::Equal` variant is not supported.")]
+        fn uproot_err_test() {
+            let test = Rel::Equal;
+            _ = test.uproot();
+        }
+
+        #[test]
+        fn aq_cnts_test() {
+            let dc = Some(DecCnt(13, 19));
+
+            for val in [dc.clone(), None] {
+                let c = || val.clone();
+                for var in [Rel::Greater(c()), Rel::Lesser(c())] {
+                    let test = var.aq_cnts();
+                    assert_eq!(val, test);
+                }
+            }
+        }
+
+        #[test]
+        #[should_panic(expected = "`Rel::Equal` variant is not supported.")]
+        fn aq_cnts_err_test() {
+            let test = Rel::Equal;
+            _ = test.aq_cnts();
+        }
     }
 
     mod rel_raw {
@@ -3534,6 +3633,73 @@ mod tests_of_units {
             RelDec::{self, *},
             Row,
         };
+
+        #[test]
+        fn greater_test() {
+            let dc = DecCnt(0, 0);
+            let c = || dc.clone();
+            let vals = [
+                (RelDec::Greater(c()), true),
+                (RelDec::Equal(c()), false),
+                (RelDec::Lesser(c()), false),
+            ];
+
+            for v in vals {
+                assert_eq!(v.1, v.0.greater(), "{:?}", v);
+            }
+        }
+
+        #[test]
+        fn equal_test() {
+            let dc = DecCnt(0, 0);
+            let c = || dc.clone();
+            let vals = [
+                (RelDec::Greater(c()), false),
+                (RelDec::Equal(c()), true),
+                (RelDec::Lesser(c()), false),
+            ];
+
+            for v in vals {
+                assert_eq!(v.1, v.0.equal(), "{:?}", v);
+            }
+        }
+
+        #[test]
+        fn lesser_test() {
+            let dc = DecCnt(0, 0);
+            let c = || dc.clone();
+            let vals = [
+                (RelDec::Greater(c()), false),
+                (RelDec::Equal(c()), false),
+                (RelDec::Lesser(c()), true),
+            ];
+
+            for v in vals {
+                assert_eq!(v.1, v.0.lesser(), "{:?}", v);
+            }
+        }
+
+        #[test]
+        fn gt_or_eq_test() {
+            let dc = DecCnt(0, 0);
+            let c = || dc.clone();
+            for v in [RelDec::Greater(c()), RelDec::Equal(c())] {
+                assert_eq!(true, v.gt_or_eq());
+            }
+
+            assert_eq!(false, RelDec::Lesser(c()).gt_or_eq());
+        }
+
+        #[test]
+        fn lt_or_eq_test() {
+            let dc = DecCnt(0, 0);
+            let c = || dc.clone();
+            for v in [RelDec::Lesser(c()), RelDec::Equal(c())] {
+                assert_eq!(true, v.lt_or_eq());
+            }
+
+            assert_eq!(false, RelDec::Greater(c()).lt_or_eq());
+        }
 
         #[test]
         fn uproot_test() {
