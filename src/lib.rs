@@ -2035,7 +2035,8 @@ macro_rules! pg {
             let divisor = ln.max(1.0).floor();
             let ratio = $input as f64 / divisor;
 
-            (ratio * 1.15) as usize
+            // Rosser–Schoenfeld constant
+            (ratio * 1.26) as usize
         };
 
         let mut aperture = Vec::<($size, $size)>::with_capacity(cap);
@@ -2159,7 +2160,8 @@ macro_rules! pg_sw {
             let divisor = ln.max(1.0).floor();
             let ratio = $input as f64 / divisor;
 
-            (ratio * 1.15) as usize
+            // Rosser–Schoenfeld constant
+            (ratio * 1.26) as usize
         };
 
         let mut aperture = Vec::<$size>::with_capacity(cap);
@@ -6883,11 +6885,14 @@ mod tests_of_units {
 
             #[test]
             fn lim_test() {
-                // 7919 ÷⌊㏑7919⌋ ⋅1.15 ≈ 1138
+                // 7919 ÷⌊㏑7919⌋ ⋅1.26 ≈ 1247
                 // 7919 is 1000ᵗʰ prime
                 let test = || pg!(7919, PrimeGenClass::Lim, true, usize, None);
                 let test = test().uproot_all();
-                assert_eq!(true, test.capacity() < 1138);
+                let cap = test.capacity();
+
+                assert_eq!(true, cap < 1247);
+                assert_eq!(1000, cap);
             }
 
             #[test]
@@ -7131,11 +7136,11 @@ mod tests_of_units {
 
             #[test]
             fn lim_test() {
-                // 7919 ÷⌊㏑7919⌋ ⋅1.15 ≈ 1138
+                // 7919 ÷⌊㏑7919⌋ ⋅1.26 ≈ 1247
                 // 7919 is 1000ᵗʰ prime
                 let test = || pg_sw!(7919, PrimeGenClass::Lim, true, usize, None);
                 let test = test().uproot_all();
-                assert_eq!(1138, test.capacity());
+                assert_eq!(1247, test.capacity());
             }
 
             #[test]
