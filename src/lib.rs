@@ -863,6 +863,7 @@ pub type BezoutCoeff = (bool, PlacesRow);
 
 /// Raw Bézout's coefficient.
 type BCR = (bool, RawRow);
+/// Raw Bézout's numbers.
 type BNR = (BCR, BCR);
 
 fn bcr_nought() -> BCR {
@@ -1322,24 +1323,23 @@ pub fn prime_ck(
     }
 
     {
-        let mut sum = nought_raw();
+        let mut sumrem = nought_raw();
         let mut ix = 0;
 
         let len = row.len();
         while ix < len {
-            addition_sum(&[row[ix]], &mut sum, 0);
+            addition_sum(&[row[ix]], &mut sumrem, 0);
             ix += 1;
         }
 
-        let rem = division_dynamo(
-            sum,
+        _ = division_dynamo(
+            &mut sumrem,
             &[3],
             #[cfg(test)]
             &mut Vec::with_capacity(0),
-        )
-        .0;
+        );
 
-        if is_nought_raw(rem.as_slice()) {
+        if is_nought_raw(sumrem.as_slice()) {
             #[cfg(test)]
             {
                 tg.esc = PrimeCkEscCode::Dt;
@@ -2263,12 +2263,11 @@ fn heron_sqrt_raw(row: &[u8]) -> RawRow {
 
         addition_sum(cur_slc, &mut rat, 0);
         let nex = division_dynamo(
-            rat,
+            &mut rat,
             two,
             #[cfg(test)]
             &mut Vec::with_capacity(0),
-        )
-        .1;
+        );
 
         if let Rel::Lesser(_) = rel_raw(nex.as_slice(), cur_slc) {
             cur = nex;
@@ -2288,20 +2287,23 @@ fn division(
     divisor: &[u8],
     #[cfg(test)] codes: &mut Vec<DivRemGrade>,
 ) -> (RawRow, RawRow) {
-    let dividend = dividend.to_vec();
-    division_dynamo(
-        dividend,
+    let mut dividend = dividend.to_vec();
+
+    let ratio = division_dynamo(
+        &mut dividend,
         divisor,
         #[cfg(test)]
         codes,
-    )
+    );
+
+    (dividend, ratio)
 }
 
 fn division_dynamo(
-    mut end: Vec<u8>,
+    end: &mut Vec<u8>,
     sor: &[u8],
     #[cfg(test)] codes: &mut Vec<DivRemGrade>,
-) -> (RawRow, RawRow) {
+) -> RawRow {
     let mut end_len = end.len();
     let sor_len = sor.len();
 
@@ -2311,7 +2313,7 @@ fn division_dynamo(
     if end_len < sor_len {
         #[cfg(test)]
         codes.push(DivRemGrade::DLBPI);
-        return (end, nought_raw());
+        return nought_raw();
     }
 
     let mut ratio = Vec::with_capacity(50);
@@ -2403,7 +2405,7 @@ fn division_dynamo(
 
     end.truncate(max(end_len, 1));
 
-    return (end, ratio);
+    return ratio;
 
     fn add_places(ratio: &mut RawRow, mut p: usize) {
         while p > 0 {
@@ -3354,9 +3356,9 @@ mod tests_of_units {
         #[test]
         fn nought_test() {
             let r = Row::nought();
-            let oom = unsafe { core::mem::transmute::<u8, OomClass>(u8::MAX) };
 
-            assert_eq!(Oom::Undefined, ord_of_mag(&r, oom));
+            assert_eq!(Oom::Undefined, ord_of_mag(&r, OomClass::Strict));
+            assert_eq!(Oom::Undefined, ord_of_mag(&r, OomClass::Loose));
         }
 
         #[test]
@@ -6951,7 +6953,7 @@ mod tests_of_units {
 
             #[test]
             fn example_1() {
-                use crate::{pg, PrimeGenClass, PrimeGenErr, PrimeGenRes, PrimeGenResAide};
+                use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes, PrimeGenResAide};
                 use std::time::{Duration, Instant};
 
                 let all1 = || pg!(11, PrimeGenClass::Nth, true, usize, None);
@@ -6968,7 +6970,7 @@ mod tests_of_units {
 
             #[test]
             fn example_2() {
-                use crate::{pg, PrimeGenClass, PrimeGenErr, PrimeGenRes, PrimeGenResAide};
+                use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes, PrimeGenResAide};
                 use std::time::{Duration, Instant};
 
                 let limit = Duration::from_secs(1);
@@ -6979,7 +6981,7 @@ mod tests_of_units {
 
             #[test]
             fn example_3() {
-                use crate::{pg, PrimeGenClass, PrimeGenErr, PrimeGenRes, PrimeGenResAide};
+                use crate::{PrimeGenClass, PrimeGenErr, PrimeGenRes, PrimeGenResAide};
                 use std::time::{Duration, Instant};
 
                 let num = || pg!(20_000, PrimeGenClass::Nth, false, u64, None);
